@@ -1,0 +1,38 @@
+{
+  "dataset": "xsum",
+  "kv_method": "SimCalKV",
+  "model_name": "Qwen/Qwen2.5-3B-Instruct",
+  "compress_ratio": 0.4,
+  "metrics_before": {
+    "rouge": {
+      "rouge1": 0.08368200836820083,
+      "rouge2": 0.008438818565400845,
+      "rougeL": 0.06694560669456068,
+      "rougeLsum": 0.06694560669456068
+    }
+  },
+  "metrics_after": {
+    "rouge": {
+      "rouge1": 0.045627376425855515,
+      "rouge2": 0.0,
+      "rougeL": 0.03802281368821293,
+      "rougeLsum": 0.030418250950570346
+    }
+  },
+  "avg_memory_saving_MB": 8.19140625,
+  "time_before": 8.642781257629395,
+  "time_after": 14.023995876312256,
+  "avg_time_saving_s": -5.381214618682861,
+  "throughput_before": 30.36771772341661,
+  "throughput_after": 30.289911257148226,
+  "avg_throughput_improvement_tokens_s": -0.07780646626838461,
+  "decode_time_before": 8.430004596710205,
+  "decode_time_after": 8.451658964157104,
+  "avg_decode_time_saving_s": -0.021654367446899414,
+  "avg_merge_time_s": 5.3991875648498535,
+  "merge_time_s": 5.3991875648498535,
+  "avg_prefill_kv_len": 128.0,
+  "avg_compressed_kv_len": 77.0,
+  "avg_final_kv_len_before": 384.0,
+  "avg_final_kv_len_after": 151.0
+}

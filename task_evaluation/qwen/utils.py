@@ -1,7 +1,7 @@
 import time
 import torch
 
-device = torch.device("mps")  # cuda
+device = torch.device("cuda")  # cuda
 def generate_token_with_past(model, inputs):
     # generate one token and return token_id and past_key_values
     with torch.no_grad():
@@ -21,7 +21,7 @@ def generate_token_for_the_next_merge(model, inputs): # prepare for the next mer
         hidden_states = outputs.hidden_states
     return next_token_id, past_key_values, attention, hidden_states
 
-def generate_text(model, tokenizer, max_tokens, inputs, device=torch.device("mps")): # cuda
+def generate_text(model, tokenizer, max_tokens, inputs, device=torch.device("cuda")): # cuda
     # generate the context and return token_ids and time
     generated_tokens_ids = []
     durations_cached_s = []
