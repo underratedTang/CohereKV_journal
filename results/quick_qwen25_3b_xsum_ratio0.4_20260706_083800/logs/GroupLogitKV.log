@@ -1,0 +1,10 @@
+Results will be saved to: results/quick_qwen25_3b_xsum_ratio0.4_20260706_083800/GroupLogitKV
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:01<00:01,  1.33s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:01<00:00,  1.10it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:01<00:00,  1.03it/s]
+>>> Model loading Completed
+
+>>> Processing dataset: xsum
+  > Performing inference 1/1...
+We detected that you are passing `past_key_values` as a tuple of tuples. This is deprecated and will be removed in v4.47. Please convert your cache or use an appropriate `Cache` class (https://huggingface.co/docs/transformers/kv_cache#legacy-cache-format)
+  > Performing inference 1/1...
+The results are saved in results/quick_qwen25_3b_xsum_ratio0.4_20260706_083800/GroupLogitKV/qwen_results_xsum_GroupLogitKV.csv
+The complete results are saved in results/quick_qwen25_3b_xsum_ratio0.4_20260706_083800/GroupLogitKV/qwen_xsum_GroupLogitKV_0.4.json

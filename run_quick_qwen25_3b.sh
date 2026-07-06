@@ -8,7 +8,7 @@ export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
 
 MODEL="Qwen/Qwen2.5-3B-Instruct"
 DATASET="xsum"
-SPLIT="test[:5]"
+SPLIT="test[:2]"
 RATIO="0.4"
 
 STAMP=$(date +%Y%m%d_%H%M%S)

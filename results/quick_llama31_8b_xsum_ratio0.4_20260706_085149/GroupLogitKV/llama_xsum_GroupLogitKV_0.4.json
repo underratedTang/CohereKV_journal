@@ -1,0 +1,38 @@
+{
+  "dataset": "xsum",
+  "kv_method": "GroupLogitKV",
+  "model_name": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+  "compress_ratio": 0.4,
+  "metrics_before": {
+    "rouge": {
+      "rouge1": 0.04663493283662991,
+      "rouge2": 0.02012031420900865,
+      "rougeL": 0.04222964649301757,
+      "rougeLsum": 0.0377553735623688
+    }
+  },
+  "metrics_after": {
+    "rouge": {
+      "rouge1": 0.054058990474227964,
+      "rouge2": 0.017587868480725626,
+      "rougeL": 0.04539494019463672,
+      "rougeLsum": 0.04972696533443234
+    }
+  },
+  "avg_memory_saving_MB": 20.0625,
+  "time_before": 31.801825761795044,
+  "time_after": 30.512147188186646,
+  "avg_time_saving_s": 1.2896785736083984,
+  "throughput_before": 33.70669000811408,
+  "throughput_after": 35.244403953094675,
+  "avg_throughput_improvement_tokens_s": 1.5377139449805952,
+  "decode_time_before": 30.37996220588684,
+  "decode_time_after": 29.056192636489868,
+  "avg_decode_time_saving_s": 1.3237695693969727,
+  "avg_merge_time_s": 0.08236205577850342,
+  "merge_time_s": 0.16472411155700684,
+  "avg_prefill_kv_len": 402.5,
+  "avg_compressed_kv_len": 242.0,
+  "avg_final_kv_len_before": 914.5,
+  "avg_final_kv_len_after": 754.0
+}

@@ -1,0 +1,13 @@
+Results will be saved to: results/quick_llama31_8b_xsum_ratio0.4_20260706_085622/GroupLogitKV
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:04,  1.43s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.24s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:03<00:01,  1.18s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.19it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.01it/s]
+>>> Model loading Completed
+
+>>> Processing dataset: xsum
+`trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'xsum' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+  > Performing inference 1/1...
+We detected that you are passing `past_key_values` as a tuple of tuples. This is deprecated and will be removed in v4.47. Please convert your cache or use an appropriate `Cache` class (https://huggingface.co/docs/transformers/kv_cache#legacy-cache-format)
+  > Performing inference 1/1...
+The results are saved in results/quick_llama31_8b_xsum_ratio0.4_20260706_085622/GroupLogitKV/llama_results_xsum_GroupLogitKV.csv
+The complete results are saved in results/quick_llama31_8b_xsum_ratio0.4_20260706_085622/GroupLogitKV/llama_xsum_GroupLogitKV_0.4.json

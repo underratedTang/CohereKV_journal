@@ -460,7 +460,7 @@ def main():
     # Runtime patch only changes LlamaAttention.forward in memory.
     # It does not modify site-packages/transformers files.
     if args.kv_method == "GroupLogitKV":
-        from grouplogitkv_runtime_patch import apply_grouplogitkv_runtime_patch
+        from grouplogitkv_runtime_patch_llama import apply_grouplogitkv_runtime_patch
         apply_grouplogitkv_runtime_patch()
     # <<< GROUPLOGITKV_RUNTIME_PATCH_V1
 

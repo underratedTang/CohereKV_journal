@@ -1,5 +1,5 @@
 """
-GroupLogitKV eager-only for LLaMA-family models.
+GroupLogitKV eager-only merge utilities for LLaMA-family models.
 
 Method
 ------
@@ -16,15 +16,24 @@ During decoding, GroupLogitKV applies logit-space count calibration:
 
     attention_logits += log(C)
 
-This file only implements:
+This file implements:
   1. batched GroupLogitKV merge;
-  2. group count C maintenance;
-  3. precomputed query-head log(C) bias metadata;
-  4. enable/disable state for the eager attention patch.
+  2. similarity-threshold assignment;
+  3. group count C maintenance;
+  4. precomputed query-head log(C) bias metadata;
+  5. enable/disable state for the eager attention patch.
+
+Default behavior
+----------------
+The default sim_thr=-1.0 disables rejection. In that setting, every selected
+merge slot is absorbed by its nearest retained slot. Setting sim_thr > -1.0
+enables the paper's similarity-threshold mechanism: selected merge slots with
+best cosine similarity below sim_thr are removed from the explicit cache but do
+not contribute to any retained slot.
 
 It does NOT monkey-patch LLaMA attention forward. Use it together with:
 
-    patch_transformers_llama_attention_grouplogitkv_eager_inplace_clean.py
+    grouplogitkv_runtime_patch_llama.py
 
 No SDPA flag is enabled here.
 """
@@ -134,12 +143,15 @@ def _token_scores_for_kv_heads(layer_attention: torch.Tensor, num_kv_heads: int)
     if q_heads == num_kv_heads:
         return layer_attention.sum(dim=2)
 
-    if q_heads % num_kv_heads == 0:
-        groups = q_heads // num_kv_heads
-        attn = layer_attention.view(bsz, num_kv_heads, groups, q_len, key_len)
-        return attn.mean(dim=2).sum(dim=2)
+    if q_heads % num_kv_heads != 0:
+        raise ValueError(
+            f"q_heads={q_heads} is not divisible by num_kv_heads={num_kv_heads}; "
+            "cannot form GQA groups for GroupLogitKV importance."
+        )
 
-    return layer_attention[:, :num_kv_heads].sum(dim=2)
+    groups = q_heads // num_kv_heads
+    attn = layer_attention.view(bsz, num_kv_heads, groups, q_len, key_len)
+    return attn.mean(dim=2).sum(dim=2)
 
 
 def _gather_seq(x: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
@@ -158,7 +170,6 @@ def _batched_group_merge_layer(
     layer_scores: torch.Tensor,
     ratio: float,
     sim_thr: float,
-    fan_in: int,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Batched GroupLogitKV merge for one layer.
@@ -167,24 +178,15 @@ def _batched_group_merge_layer(
         K_layer, V_layer: [B, H_kv, L, D]
         C_layer:          [B, H_kv, L]
         layer_scores:     [B, H_kv, L]
-        ratio:            fraction of tokens to merge
-        sim_thr:          default -1.0, no similarity-threshold filtering
-        fan_in:           default 0, no fan-in cap
+        ratio:            fraction of slots selected for removal
+        sim_thr:          similarity threshold. Default -1.0 disables rejection.
+                          If sim_thr > -1.0, selected slots whose nearest kept
+                          cosine similarity is below sim_thr are discarded
+                          without contributing to the kept slot.
 
     Returns:
         K_new, V_new, C_new with fixed length L - int(L * ratio)
     """
-    if sim_thr > -1.0:
-        raise NotImplementedError(
-            "GroupLogitKV currently uses sim_thr=-1.0. "
-            "Similarity-threshold filtering needs a separate fixed-length policy."
-        )
-    if fan_in is not None and fan_in > 0:
-        raise NotImplementedError(
-            "GroupLogitKV currently uses fan_in=0. "
-            "Fan-in constrained assignment needs a separate batched policy."
-        )
-
     B, H_kv, L, D = K_layer.shape
 
     if L <= 1 or ratio <= 0:
@@ -203,6 +205,7 @@ def _batched_group_merge_layer(
     C_flat = C_layer.reshape(X, L)
     score_flat = layer_scores.reshape(X, L)
 
+    # Lowest-importance slots are selected for removal from the explicit cache.
     merge_idx = torch.topk(-score_flat, k=num_merge, dim=-1).indices
 
     keep_mask = torch.ones((X, L), dtype=torch.bool, device=K_layer.device)
@@ -217,22 +220,34 @@ def _batched_group_merge_layer(
     V_n = _gather_seq(V_flat, merge_idx)
     C_n = _gather_seq(C_flat, merge_idx)
 
+    # Similarity-based assignment to nearest kept slot.
     sim = torch.bmm(
         F.normalize(K_n, dim=-1, eps=_EPS),
         F.normalize(K_m, dim=-1, eps=_EPS).transpose(1, 2),
     )
-    best_idx = sim.argmax(dim=-1)
+    best_sim, best_idx = sim.max(dim=-1)
+
+    # Thresholded assignment. The default sim_thr=-1.0 preserves the original
+    # all-merge behavior: every selected merge slot contributes to its nearest
+    # kept slot. For sim_thr > -1.0, rejected slots are still removed from the
+    # explicit cache but contribute zero count/key/value mass.
+    if sim_thr <= -1.0:
+        merge_mask = torch.ones_like(best_sim, dtype=torch.bool)
+    else:
+        merge_mask = best_sim >= sim_thr
+
+    C_n_eff = C_n * merge_mask.to(dtype=C_n.dtype)
 
     add_C = torch.zeros((X, M), device=K_layer.device, dtype=K_layer.dtype)
-    add_C.scatter_add_(dim=1, index=best_idx, src=C_n)
+    add_C.scatter_add_(dim=1, index=best_idx, src=C_n_eff)
     C_new = C_m + add_C
 
     scatter_index = best_idx.unsqueeze(-1).expand(-1, -1, D)
     add_K_num = torch.zeros((X, M, D), device=K_layer.device, dtype=K_layer.dtype)
     add_V_num = torch.zeros((X, M, D), device=K_layer.device, dtype=K_layer.dtype)
 
-    add_K_num.scatter_add_(dim=1, index=scatter_index, src=C_n.unsqueeze(-1) * K_n)
-    add_V_num.scatter_add_(dim=1, index=scatter_index, src=C_n.unsqueeze(-1) * V_n)
+    add_K_num.scatter_add_(dim=1, index=scatter_index, src=C_n_eff.unsqueeze(-1) * K_n)
+    add_V_num.scatter_add_(dim=1, index=scatter_index, src=C_n_eff.unsqueeze(-1) * V_n)
 
     denom = C_new.clamp_min(_EPS).unsqueeze(-1)
     K_new = (C_m.unsqueeze(-1) * K_m + add_K_num) / denom
@@ -285,7 +300,6 @@ def Repair(
     hidden_states: Optional[List[torch.Tensor]],
     ratio: float,
     sim_thr: float = -1.0,
-    fan_in: int = 0,
 ):
     """
     Compress KV cache with GroupLogitKV.
@@ -297,13 +311,19 @@ def Repair(
         attention: prefill/decode attentions, one tensor per layer.
         hidden_states: unused; kept for evaluation-harness compatibility.
         ratio: compression ratio.
-        sim_thr: default -1.0, no similarity-threshold filtering.
-        fan_in: default 0, no fan-in cap.
+        sim_thr: default -1.0, no similarity-threshold rejection. If > -1.0,
+                 evicted slots below the threshold are discarded rather than
+                 merged into their nearest kept slot.
 
     Returns:
         tuple((K_new, V_new), ...), compatible with HF generation utilities.
     """
+    del hidden_states  # compatibility argument; not used by GroupLogitKV
+
     cache = _as_legacy_tuple(key_value_cache)
+    if cache is None:
+        raise ValueError("key_value_cache is None")
+
     num_layers = len(cache)
 
     new_past = []
@@ -336,7 +356,6 @@ def Repair(
             layer_scores=layer_scores,
             ratio=ratio,
             sim_thr=sim_thr,
-            fan_in=fan_in,
         )
 
         attn_mod = model.model.layers[layer_idx].self_attn

@@ -1,31 +1,6 @@
 """
 GroupLogitKV calibrated-QK support for Qwen-family models.
 
-This file is matched to the current Qwen evaluation path:
-
-    qwen_eval.py
-      - imports:
-            from merge_grouplogitkv_qwen import Repair as Repair_GroupLogitKV
-            from merge_grouplogitkv_qwen import disable_grouplogitkv_sdpa
-      - calls:
-            Repair_GroupLogitKV(model, past_key_values, attention, hidden_states, compress_ratio)
-      - compressed Qwen schedule:
-            initial merge
-            generate 128 tokens
-            re-merge
-            generate 128 tokens
-            final re-merge for memory/final-kv statistics
-
-    grouplogitkv_qwen_runtime_patch.py
-      - activates only when:
-            attn._grouplogitkv_sdpa_enabled = True
-      - reads:
-            attn._grouplogitkv_log_bias_q
-      - accepts log-bias shape:
-            [B, H_q, 1, L_prefix]
-        where L_prefix may be shorter than the current decode K length;
-        generated suffix positions use zero bias because C=1 and logC=0.
-
 Method
 ------
 GroupLogitKV compresses KV cache by group-wise assignment and count-weighted
@@ -41,15 +16,17 @@ During decoding, GroupLogitKV applies logit-space count calibration:
 
     attention_logits += log(C)
 
-This file only implements:
+This file implements:
   1. batched GroupLogitKV merge;
-  2. group count C maintenance across repeated Qwen re-compressions;
-  3. precomputed query-head log(C) bias metadata;
-  4. enable/disable state for the Qwen runtime attention patch.
+  2. similarity-threshold filtering for assigned merge slots;
+  3. group count C maintenance across repeated Qwen re-compressions;
+  4. precomputed query-head log(C) bias metadata;
+  5. enable/disable state for the Qwen runtime attention patch.
 
-It does not modify Transformers source files. Use it together with:
-
-    grouplogitkv_qwen_runtime_patch.py
+Default behavior uses sim_thr=-1.0, which disables similarity-threshold
+filtering and merges every selected evicted token into its nearest kept token.
+When sim_thr > -1.0, selected evicted tokens below the threshold are removed
+from the explicit cache but do not contribute to any kept slot.
 
 Expected cache format:
     past_key_values[layer] = (K, V)
@@ -57,10 +34,6 @@ Expected cache format:
 
 Expected attention format:
     attention[layer] shape = [B, H_q, Q, K]
-
-Drop this file into:
-
-    /root/SimCalKV/task_evaluation/qwen/merge_grouplogitkv_qwen.py
 """
 
 from typing import List, Optional, Tuple
@@ -84,15 +57,7 @@ def _as_legacy_tuple(past_key_values):
 
 
 def disable_grouplogitkv_sdpa(model) -> None:
-    """
-    Disable GroupLogitKV-SDPA state for all Qwen layers.
-
-    qwen_eval.py calls this before each example and after compressed generation.
-    This prevents GroupLogitKV state from leaking into:
-      - the uncompressed baseline generation;
-      - SimCalKV / KeepKV / PyramidInfer runs;
-      - the next example in the same Python process.
-    """
+    """Disable GroupLogitKV state for all Qwen layers."""
     model._grouplogitkv_counts = None
     model._grouplogitkv_log_bias_q = None
 
@@ -100,36 +65,29 @@ def disable_grouplogitkv_sdpa(model) -> None:
         for layer in model.model.layers:
             attn = layer.self_attn
             attn._grouplogitkv_sdpa_enabled = False
+            attn._grouplogitkv_eager_enabled = False
             attn._grouplogitkv_log_bias_q = None
 
 
-def _enable_grouplogitkv_sdpa(model, new_counts, new_log_bias_q) -> None:
-    """
-    Enable GroupLogitKV-SDPA state for compressed decoding.
+def disable_grouplogitkv_eager(model) -> None:
+    """Alias for naming consistency with the LLaMA implementation."""
+    disable_grouplogitkv_sdpa(model)
 
-    The Qwen runtime patch reads exactly these two per-attention attributes:
-        _grouplogitkv_sdpa_enabled
-        _grouplogitkv_log_bias_q
-    """
+
+def _enable_grouplogitkv_sdpa(model, new_counts, new_log_bias_q) -> None:
+    """Enable GroupLogitKV state for compressed Qwen decoding."""
     model._grouplogitkv_counts = new_counts
     model._grouplogitkv_log_bias_q = new_log_bias_q
 
     for layer_idx, layer in enumerate(model.model.layers):
         attn = layer.self_attn
         attn._grouplogitkv_sdpa_enabled = True
+        attn._grouplogitkv_eager_enabled = True
         attn._grouplogitkv_log_bias_q = new_log_bias_q[layer_idx]
 
 
 def _infer_num_key_value_groups(attn_mod, num_kv_heads: int, layer_attention: Optional[torch.Tensor] = None) -> int:
-    """
-    Infer H_q / H_kv for Qwen variants.
-
-    Priority:
-      1. attn_mod.num_key_value_groups
-      2. attention tensor head count
-      3. common query-head attributes
-      4. fallback to 1
-    """
+    """Infer H_q / H_kv for Qwen variants."""
     value = getattr(attn_mod, "num_key_value_groups", None)
     if value is not None:
         return int(value)
@@ -146,12 +104,12 @@ def _infer_num_key_value_groups(attn_mod, num_kv_heads: int, layer_attention: Op
             if h_q >= num_kv_heads and h_q % num_kv_heads == 0:
                 return h_q // int(num_kv_heads)
 
-    return 1
+    raise ValueError(f"Cannot infer num_key_value_groups for num_kv_heads={num_kv_heads}")
 
 
 def _make_log_bias_q(counts: torch.Tensor, num_key_value_groups: int) -> torch.Tensor:
     """
-    Build query-head log(C) bias for the Qwen SDPA patch.
+    Build query-head log(C) bias for the Qwen runtime patch.
 
     Args:
         counts: [B, H_kv, L]
@@ -189,10 +147,9 @@ def _token_scores_for_kv_heads(layer_attention: torch.Tensor, num_kv_heads: int)
 
     Returns:
         [B, H_kv, K]
-
-    For GQA, query heads belonging to the same KV head are averaged before
-    summing over query positions.
     """
+    if layer_attention is None:
+        raise ValueError("Missing attention tensor")
     if layer_attention.dim() != 4:
         raise ValueError(f"Expected attention [B,H,Q,K], got {tuple(layer_attention.shape)}")
 
@@ -206,8 +163,10 @@ def _token_scores_for_kv_heads(layer_attention: torch.Tensor, num_kv_heads: int)
         attn = layer_attention.view(bsz, num_kv_heads, groups, q_len, key_len)
         return attn.mean(dim=2).sum(dim=2)
 
-    # Conservative fallback for unusual layouts.
-    return layer_attention[:, :num_kv_heads].sum(dim=2)
+    raise ValueError(
+        f"q_heads={q_heads} is not divisible by num_kv_heads={num_kv_heads}; "
+        "cannot map query-head attentions to KV heads."
+    )
 
 
 def _gather_seq(x: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
@@ -226,7 +185,6 @@ def _batched_group_merge_layer(
     layer_scores: torch.Tensor,
     ratio: float,
     sim_thr: float,
-    fan_in: int,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Batched GroupLogitKV merge for one layer.
@@ -235,25 +193,14 @@ def _batched_group_merge_layer(
         K_layer, V_layer: [B, H_kv, L, D]
         C_layer:          [B, H_kv, L]
         layer_scores:     [B, H_kv, L]
-        ratio:            fraction of tokens to merge
-        sim_thr:          default -1.0, no threshold filtering
-        fan_in:           default 0, no fan-in cap
+        ratio:            fraction of tokens to evict from the explicit cache
+        sim_thr:          default -1.0 disables threshold filtering. If > -1.0,
+                          only evicted tokens with nearest-kept cosine similarity
+                          >= sim_thr are absorbed into kept slots.
 
     Returns:
         K_new, V_new, C_new with fixed length L - int(L * ratio)
     """
-    if sim_thr > -1.0:
-        raise NotImplementedError(
-            "GroupLogitKV-Qwen uses sim_thr=-1.0 in the current fixed-length SDPA path. "
-            "Similarity-threshold filtering requires a separate length policy."
-        )
-
-    if fan_in is not None and fan_in > 0:
-        raise NotImplementedError(
-            "GroupLogitKV-Qwen uses fan_in=0 in the current batched SDPA path. "
-            "Fan-in constrained assignment requires a separate batched policy."
-        )
-
     B, H_kv, L, D = K_layer.shape
 
     if L <= 1 or ratio <= 0:
@@ -272,12 +219,11 @@ def _batched_group_merge_layer(
     C_flat = C_layer.reshape(X, L)
     score_flat = layer_scores.reshape(X, L)
 
-    # Merge the lowest-score tokens.
-    merge_idx = torch.topk(-score_flat, k=num_merge, dim=-1).indices  # [X, N]
+    merge_idx = torch.topk(-score_flat, k=num_merge, dim=-1).indices
 
     keep_mask = torch.ones((X, L), dtype=torch.bool, device=K_layer.device)
     keep_mask.scatter_(1, merge_idx, False)
-    keep_idx = keep_mask.nonzero(as_tuple=False)[:, 1].view(X, M)  # [X, M]
+    keep_idx = keep_mask.nonzero(as_tuple=False)[:, 1].view(X, M)
 
     K_m = _gather_seq(K_flat, keep_idx)
     V_m = _gather_seq(V_flat, keep_idx)
@@ -287,26 +233,30 @@ def _batched_group_merge_layer(
     V_n = _gather_seq(V_flat, merge_idx)
     C_n = _gather_seq(C_flat, merge_idx)
 
-    # Assign each merge token to the most similar retained token.
     sim = torch.bmm(
         F.normalize(K_n, dim=-1, eps=_EPS),
         F.normalize(K_m, dim=-1, eps=_EPS).transpose(1, 2),
     )
-    best_idx = sim.argmax(dim=-1)  # [X, N]
+    best_sim, best_idx = sim.max(dim=-1)
 
-    # Count update.
+    if sim_thr <= -1.0:
+        merge_mask = torch.ones_like(best_sim, dtype=torch.bool)
+    else:
+        merge_mask = best_sim >= sim_thr
+
+    C_n_eff = C_n * merge_mask.to(dtype=C_n.dtype)
+
     add_C = torch.zeros((X, M), device=K_layer.device, dtype=K_layer.dtype)
-    add_C.scatter_add_(dim=1, index=best_idx, src=C_n)
+    add_C.scatter_add_(dim=1, index=best_idx, src=C_n_eff)
     C_new = C_m + add_C
 
-    # Count-weighted K/V centroids.
     scatter_index = best_idx.unsqueeze(-1).expand(-1, -1, D)
 
     add_K_num = torch.zeros((X, M, D), device=K_layer.device, dtype=K_layer.dtype)
     add_V_num = torch.zeros((X, M, D), device=K_layer.device, dtype=K_layer.dtype)
 
-    add_K_num.scatter_add_(dim=1, index=scatter_index, src=C_n.unsqueeze(-1) * K_n)
-    add_V_num.scatter_add_(dim=1, index=scatter_index, src=C_n.unsqueeze(-1) * V_n)
+    add_K_num.scatter_add_(dim=1, index=scatter_index, src=C_n_eff.unsqueeze(-1) * K_n)
+    add_V_num.scatter_add_(dim=1, index=scatter_index, src=C_n_eff.unsqueeze(-1) * V_n)
 
     denom = C_new.clamp_min(_EPS).unsqueeze(-1)
     K_new = (C_m.unsqueeze(-1) * K_m + add_K_num) / denom
@@ -323,12 +273,8 @@ def _initial_or_existing_counts(model, layer_idx: int, K_layer: torch.Tensor) ->
     """
     Get existing counts if present; otherwise initialize all counts to one.
 
-    This is required by the latest qwen_eval.py because GroupLogitKV may be
-    applied repeatedly:
-      initial compressed prefix -> generate suffix -> re-compress.
-
-    If the current KV cache is longer than stored counts, the extra generated
-    suffix tokens are assigned count 1.
+    If the current KV cache is longer than stored counts, generated suffix tokens
+    are assigned count 1.
     """
     B, H_kv, L, _ = K_layer.shape
     device = K_layer.device
@@ -351,8 +297,6 @@ def _initial_or_existing_counts(model, layer_idx: int, K_layer: torch.Tensor) ->
         ones = torch.ones((B, H_kv, add_len), device=device, dtype=dtype)
         c = torch.cat([c, ones], dim=-1)
     elif c.shape[-1] > L:
-        # This should normally not happen, but slicing keeps the function
-        # robust to externally supplied shorter caches.
         c = c[..., :L]
 
     return c.contiguous()
@@ -365,20 +309,18 @@ def Repair(
     hidden_states: Optional[List[torch.Tensor]],
     ratio: float,
     sim_thr: float = -1.0,
-    fan_in: int = 0,
 ):
     """
     Compress Qwen KV cache with GroupLogitKV.
 
     Args:
         model: Qwen model whose attention has been patched by
-            patch_transformers_qwen_attention_grouplogitkv_sdpa.py.
+            grouplogitkv_runtime_patch_qwen.py.
         key_value_cache: HF past_key_values.
-        attention: attentions returned by the model/generate_text, one tensor per layer.
+        attention: attentions returned by the model/generation path, one tensor per layer.
         hidden_states: unused; kept for eval-harness compatibility.
         ratio: compression ratio.
         sim_thr: default -1.0, no similarity-threshold filtering.
-        fan_in: default 0, no fan-in cap.
 
     Returns:
         tuple((K_new, V_new), ...), compatible with HF generation utilities.
@@ -387,17 +329,16 @@ def Repair(
     if cache is None:
         raise ValueError("key_value_cache is None")
 
-    num_layers = len(cache)
-
     if attention is None:
         raise ValueError("attention is None. GroupLogitKV requires attention scores for token ranking.")
 
+    num_layers = len(cache)
     new_past = []
     new_counts = []
     new_log_bias_q = []
 
     for layer_idx in range(num_layers):
-        K_layer, V_layer = _get_layer_cache(cache, layer_idx)  # [B,H_kv,L,D]
+        K_layer, V_layer = _get_layer_cache(cache, layer_idx)
         B, H_kv, L, D = K_layer.shape
 
         if layer_idx >= len(attention) or attention[layer_idx] is None:
@@ -424,7 +365,6 @@ def Repair(
             layer_scores=layer_scores,
             ratio=ratio,
             sim_thr=sim_thr,
-            fan_in=fan_in,
         )
 
         attn_mod = model.model.layers[layer_idx].self_attn
@@ -439,7 +379,6 @@ def Repair(
             num_key_value_groups=num_key_value_groups,
         ).to(device=K_new_layer.device, dtype=K_new_layer.dtype)
 
-        # Defensive check for the current Qwen runtime patch.
         if log_bias_q_layer.shape[0] != B or log_bias_q_layer.shape[-1] != K_new_layer.shape[-2]:
             raise RuntimeError(
                 f"Invalid GroupLogitKV log-bias shape at layer {layer_idx}: "
@@ -462,7 +401,6 @@ def Repair_qwen(
     hidden_states: Optional[List[torch.Tensor]],
     ratio: float = 0.2,
     sim_thr: float = -1.0,
-    fan_in: int = 0,
 ):
     """Compatibility alias for older Qwen evaluation code."""
     return Repair(
@@ -472,5 +410,4 @@ def Repair_qwen(
         hidden_states=hidden_states,
         ratio=ratio,
         sim_thr=sim_thr,
-        fan_in=fan_in,
     )
