@@ -1,0 +1,33 @@
+PPL_SCRIPT=/root/SimCalKV/task_evaluation/evaluate_ppl_kvmerge_aquakvstyle.py
+TASK_EVAL_DIR=/root/SimCalKV/task_evaluation
+OUT_DIR=/root/SimCalKV/results/ppl_manual_20260706_151255
+SUMMARY_FILE=/root/SimCalKV/results/ppl_manual_20260706_151255/ppl_summary.jsonl
+FAMILY=llama
+MODEL=meta-llama/Meta-Llama-3.1-8B
+MODEL_SEQLEN=8192
+CHUNK_SIZE=32
+MIN_KV_LEN=2
+COMPRESS_EVERY=1
+TORCH_DTYPE=bfloat16
+AMP_DTYPE=none
+ATTN_IMPL=eager
+DEVICE=cuda
+DEVICE_MAP=auto
+SEED=0
+DATASETS=wikitext2
+METHODS=none SimCalKV GroupLogitKV
+RATIOS=0.8
+SIM_THRS=-1
+
+========== wikitext2 | none | ratio=0 | sim_thr=0 ==========
+[OK] llama_wikitext2_none_ratio0_sim0
+========== wikitext2 | SimCalKV | ratio=0.8 | sim_thr=-1 ==========
+[OK] llama_wikitext2_SimCalKV_ratio0p8_sim_1
+========== wikitext2 | GroupLogitKV | ratio=0.8 | sim_thr=-1 ==========
+[OK] llama_wikitext2_GroupLogitKV_ratio0p8_sim_1
+
+Done.
+OUT_DIR=/root/SimCalKV/results/ppl_manual_20260706_151255
+SUMMARY_FILE=/root/SimCalKV/results/ppl_manual_20260706_151255/ppl_summary.jsonl
+
+Preview:
