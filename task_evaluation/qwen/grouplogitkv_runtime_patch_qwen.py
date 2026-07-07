@@ -69,6 +69,31 @@ def _add_prefix_log_bias(attn_weights: torch.Tensor, log_bias_q: torch.Tensor) -
     return attn_weights
 
 
+
+def _add_layer_local_chunk_causal_mask_(attn_weights: torch.Tensor, q_len: int, key_len: int) -> torch.Tensor:
+    """Apply causal masking for the current physical chunk using this layer's KV length.
+
+    This is needed when compressed caches have different physical lengths across
+    layers. A single model-level 4D attention_mask built from
+    layer 0 cannot correctly place the current-chunk triangular mask for every
+    layer. The compressed prefix is always in the past, and only the current
+    chunk suffix needs a triangular future mask.
+    """
+    if q_len <= 1:
+        return attn_weights
+    past_physical_len = key_len - q_len
+    if past_physical_len < 0:
+        return attn_weights
+    min_val = torch.finfo(attn_weights.dtype).min
+    chunk_future = torch.triu(
+        torch.full((q_len, q_len), min_val, device=attn_weights.device, dtype=attn_weights.dtype),
+        diagonal=1,
+    )
+    attn_weights[..., past_physical_len:key_len] = (
+        attn_weights[..., past_physical_len:key_len] + chunk_future.view(1, 1, q_len, q_len)
+    )
+    return attn_weights
+
 def _grouplogitkv_qwen2_attention_forward(
     self,
     hidden_states,
@@ -137,7 +162,11 @@ def _grouplogitkv_qwen2_attention_forward(
         attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
         attn_weights = _add_prefix_log_bias(attn_weights, log_bias_q)
 
-    if attention_mask is not None:
+    if getattr(past_key_value, "_ppl_use_physical_causal_mask", False):
+        attn_weights = _add_layer_local_chunk_causal_mask_(
+            attn_weights, q_len=q_len, key_len=key_states.shape[-2]
+        )
+    elif attention_mask is not None:
         causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
         attn_weights = attn_weights + causal_mask
 

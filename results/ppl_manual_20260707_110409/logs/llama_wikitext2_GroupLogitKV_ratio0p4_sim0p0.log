@@ -1,0 +1,35 @@
+Loading model: meta-llama/Meta-Llama-3.1-8B
+Transformers version: 4.46.3
+KV method: GroupLogitKV, ratio=0.4
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:03,  1.21s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.21s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:03<00:01,  1.22s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.15it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.00it/s]
+Loading eval dataset: wikitext2
+Token indices sequence length is longer than the specified maximum sequence length for this model (289077 > 131072). Running this sequence through the model will result in indexing errors
+Evaluating perplexity:   0%|          | 0/3 [00:00<?, ?it/s]Evaluating perplexity:  33%|███▎      | 1/3 [00:16<00:32, 16.36s/it]Evaluating perplexity:  67%|██████▋   | 2/3 [00:32<00:16, 16.04s/it]Evaluating perplexity: 100%|██████████| 3/3 [00:48<00:00, 16.20s/it]Evaluating perplexity: 100%|██████████| 3/3 [00:48<00:00, 16.19s/it]
+{
+  "model_name": "meta-llama/Meta-Llama-3.1-8B",
+  "family": "llama",
+  "dataset": "wikitext2",
+  "kv_method": "GroupLogitKV",
+  "compress_ratio": 0.4,
+  "sim_thr_effective": 0.0,
+  "sim_thr_grouplogitkv": 0.0,
+  "sim_thr_simcalkv": null,
+  "sim_thr_keepkv": null,
+  "model_seqlen": 8192,
+  "chunk_size": 32,
+  "actual_step_size": 32,
+  "min_kv_len": 2,
+  "compress_every": 1,
+  "torch_dtype": "bfloat16",
+  "amp_dtype": "none",
+  "attn_implementation": "eager",
+  "seed": 0,
+  "ppl": 7.408323509406882,
+  "elapsed_s": 48.57833504676819,
+  "num_eval_tokens": 289077,
+  "num_compressions": 768,
+  "total_compress_time_s": 19.486671447753906,
+  "avg_compress_time_s": 0.025373270114262898,
+  "avg_compressed_kv_len": 47.7578125,
+  "avg_compressed_kv_mib": 5.9697265625
+}

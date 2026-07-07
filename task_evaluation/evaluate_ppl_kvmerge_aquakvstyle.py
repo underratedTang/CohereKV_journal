@@ -16,7 +16,7 @@ Example:
     --datasets wikitext2 c4 \
     --kv_method GroupLogitKV \
     --compress_ratio 0.4 \
-    --sim_thr -1 \
+    --sim_thr_grouplogitkv -1 \
     --model_seqlen 2048 \
     --chunk_size 128 \
     --output_jsonl results/ppl_runs.jsonl
@@ -284,6 +284,7 @@ class KVCompressingDynamicCache(DynamicCache):
         family: str,
         compress_ratio: float,
         sim_thr: float,
+        method_sim_thrs: Optional[dict],
         min_kv_len: int,
         compress_every: int,
         stats: dict,
@@ -294,11 +295,16 @@ class KVCompressingDynamicCache(DynamicCache):
         self._family = family
         self._compress_ratio = float(compress_ratio)
         self._sim_thr = float(sim_thr)
+        self._method_sim_thrs = method_sim_thrs or {}
         self._min_kv_len = int(min_kv_len)
         self._compress_every = int(compress_every)
         self._stats = stats
         self._forward_calls = 0
         self._ppl_logical_seen_tokens = 0
+        # Runtime attention patches use this marker to build the causal mask
+        # from each layer's own physical KV length. This avoids future-token
+        # leakage for compressed caches.
+        self._ppl_use_physical_causal_mask = True
 
     def prepare_position_kwargs(self, args, kwargs) -> None:
         """Inject logical positions and a physical-layout causal mask.
@@ -408,7 +414,7 @@ class KVCompressingDynamicCache(DynamicCache):
             attentions,
             hidden_states,
             self._compress_ratio,
-            self._sim_thr,
+            self._method_sim_thrs,
         )
         _cuda_sync_for_model(self._ppl_model)
         dt = time.time() - t0
@@ -431,7 +437,14 @@ def _import_from_family(family: str, task_eval_dir: Path, module_name: str):
 
 
 def apply_runtime_patch_if_needed(family: str, task_eval_dir: Path, method: str) -> None:
-    if method != "GroupLogitKV":
+    """Patch eager attention for compressed-cache PPL.
+
+    For GroupLogitKV the patch adds log(C) bias when enabled. For all other
+    compressed methods it behaves like ordinary eager attention, but it can build
+    a layer-local physical causal mask. This is required for methods such as
+    compressed methods.
+    """
+    if method.lower() in {"none", "baseline", "no", "no_compress"}:
         return
     if family == "qwen":
         mod = _import_from_family(family, task_eval_dir, "grouplogitkv_runtime_patch_qwen")
@@ -444,117 +457,147 @@ def apply_runtime_patch_if_needed(family: str, task_eval_dir: Path, method: str)
 
 
 def reset_grouplogit_state_if_needed(model: nn.Module, family: str, task_eval_dir: Path) -> None:
-    # Keep the same model clean between dataset/method runs.
+    # Keep model-level log-bias state clean between independent PPL sequences and runs.
+    # KeepKV reuses the same log(C) runtime-bias path as GroupLogitKV, so both
+    # _grouplogitkv_* and _keepkv_* metadata must be cleared.
     try:
         if family == "qwen":
             mod = _import_from_family(family, task_eval_dir, "merge_grouplogitkv_qwen")
-            if hasattr(mod, "disable_grouplogitkv_sdpa"):
-                mod.disable_grouplogitkv_sdpa(model)
-            if hasattr(mod, "disable_grouplogitkv_eager"):
-                mod.disable_grouplogitkv_eager(model)
         elif family == "llama":
             mod = _import_from_family(family, task_eval_dir, "merge_grouplogitkv_llama")
-            if hasattr(mod, "disable_grouplogitkv_eager"):
-                mod.disable_grouplogitkv_eager(model)
+        else:
+            mod = None
+
+        if mod is not None:
             if hasattr(mod, "disable_grouplogitkv_sdpa"):
                 mod.disable_grouplogitkv_sdpa(model)
+            if hasattr(mod, "disable_grouplogitkv_eager"):
+                mod.disable_grouplogitkv_eager(model)
+
+        model._keepkv_counts = None
+        model._keepkv_log_bias_q = None
+        if hasattr(model, "model") and hasattr(model.model, "layers"):
+            for layer in model.model.layers:
+                attn = layer.self_attn
+                attn._keepkv_eager_enabled = False
+                attn._keepkv_log_bias_q = None
     except Exception:
-        # Non-GroupLogitKV methods do not need this; do not fail a PPL run for cleanup.
+        # Do not fail a PPL run for cleanup.
         pass
 
 
-def apply_kv_method(method, family, model, past_key_values, attention, hidden_states, compress_ratio, sim_thr):
+def _effective_sim_thr(method: str, method_sim_thrs: Optional[dict] = None) -> Optional[float]:
+    """Return the per-method similarity threshold.
+
+    Only GroupLogitKV, SimCalKV and KeepKV use similarity thresholds.
+    CaM does not accept/use sim_thr in the evaluator.
+    Missing thresholds default to -1.0 for the three similarity-merge methods,
+    which disables threshold rejection.
+    """
+    if method not in {"GroupLogitKV", "SimCalKV", "KeepKV"}:
+        return None
+    if method_sim_thrs and method_sim_thrs.get(method) is not None:
+        return float(method_sim_thrs[method])
+    return -1.0
+
+
+def apply_kv_method(method, family, model, past_key_values, attention, hidden_states, compress_ratio, method_sim_thrs=None):
     if family not in {"qwen", "llama"}:
         raise ValueError("--family must be qwen or llama")
 
+    eff_sim_thr = _effective_sim_thr(method, method_sim_thrs)
+
     if method == "SimCalKV":
-        if family == "qwen":
-            return importlib.import_module("merge_simcalkv_qwen").Repair(
-                model, past_key_values, attention, hidden_states, compress_ratio
-            )
-        return importlib.import_module("merge_simcalkv_llama").Repair(
-            model, past_key_values, attention, hidden_states, compress_ratio, sim_thr
+        return importlib.import_module(f"merge_simcalkv_{family}").Repair(
+            model, past_key_values, attention, hidden_states, compress_ratio, eff_sim_thr
         )
 
     if method == "GroupLogitKV":
-        if family == "qwen":
-            return importlib.import_module("merge_grouplogitkv_qwen").Repair(
-                model, past_key_values, attention, hidden_states, compress_ratio, sim_thr
-            )
-        return importlib.import_module("merge_grouplogitkv_llama").Repair(
-            model, past_key_values, attention, hidden_states, compress_ratio, sim_thr
+        return importlib.import_module(f"merge_grouplogitkv_{family}").Repair(
+            model, past_key_values, attention, hidden_states, compress_ratio, eff_sim_thr
         )
 
     if method == "KeepKV":
-        if family == "qwen":
-            return importlib.import_module("merge_keepkv_qwen").Repair_keepkv(
-                model, past_key_values, attention, hidden_states, compress_ratio
-            )
-        return importlib.import_module("merge_keepkv").KeepKV(
-            model, past_key_values, attention, hidden_states, compress_ratio, sim_thr
+        return importlib.import_module(f"merge_keepkv_{family}").Repair_keepkv(
+            model, past_key_values, attention, hidden_states, compress_ratio, eff_sim_thr
         )
 
-    if method == "PyramidInfer":
-        if family == "qwen":
-            return importlib.import_module("pyramid_qwen").Decode(
-                model, past_key_values, attention, hidden_states, compress_ratio
-            )
-        return importlib.import_module("eviction_pyramid").Decode(
-            model, past_key_values, attention, hidden_states, compress_ratio, sim_thr
-        )
 
     if method == "CaM":
-        if family != "llama":
-            raise ValueError("CaM is only present in task_evaluation/llama")
-        mod = importlib.import_module("merge_cam")
-        if hasattr(mod, "Repair"):
-            return mod.Repair(model, past_key_values, attention, hidden_states, compress_ratio, sim_thr)
-        if hasattr(mod, "CaMPress"):
-            compressor = mod.CaMPress(compression_ratio=compress_ratio)
-            new_cache = []
-            layers = getattr(model.model, "layers")
-            for layer_idx, (k, v) in enumerate(_as_legacy_tuple(past_key_values)):
-                module = layers[layer_idx].self_attn
-                nk, nv = compressor.compress(module, hidden_states[layer_idx], k, v, attention[layer_idx], {})
-                new_cache.append((nk, nv))
-            return new_cache
-        raise ValueError("merge_cam.py has neither Repair nor CaMPress")
+        # CaM uses its own attention-based Bernoulli merge mask; no sim_thr.
+        mod = importlib.import_module(f"merge_cam_{family}")
+        return mod.Repair(model, past_key_values, attention, hidden_states, compress_ratio)
 
-    raise ValueError(f"Unknown KV method: {method}")
+    raise ValueError(f"Unknown kv_method: {method}")
+
+def make_cache_factory(model, method, family, task_eval_dir, ratio, method_sim_thrs, min_kv_len, compress_every, stats):
+    def _factory():
+        # Each GPTQ/AquaKV-style fixed-length sequence creates a fresh cache.
+        # GroupLogitKV stores its log-bias metadata on the model/attention modules,
+        # so clear that model-level runtime state here to avoid cross-sequence leakage.
+        if method in {"GroupLogitKV", "KeepKV"}:
+            reset_grouplogit_state_if_needed(model, family, task_eval_dir)
+        return KVCompressingDynamicCache(
+            model=model,
+            method=method,
+            family=family,
+            compress_ratio=ratio,
+            sim_thr=-1.0,
+            method_sim_thrs=method_sim_thrs,
+            min_kv_len=min_kv_len,
+            compress_every=compress_every,
+            stats=stats,
+        )
+    return _factory
+
+
 
 
 @contextlib.contextmanager
 def force_attn_hidden_and_compress(model: nn.Module):
-    """Force attentions/hidden states and compress cache after each forward step."""
+    """Temporarily wrap model.forward for KV-compression PPL evaluation.
+
+    The AquaKV-style evaluate_perplexity() function is intentionally left
+    untouched. This wrapper supplies the information needed by KV merge methods:
+      - output_attentions=True for importance / merge scores;
+      - output_hidden_states=True for q_t reconstruction;
+      - logical position_ids/cache_position plus a physical-layout causal mask
+        through KVCompressingDynamicCache.prepare_position_kwargs();
+      - after each forward, update logical cache progress and run compression.
+    """
     original_forward = model.forward
 
     def wrapped_forward(*args, **kwargs):
         cache = kwargs.get("past_key_values", None)
-        should_manage = isinstance(cache, KVCompressingDynamicCache)
+
+        # Determine current chunk length before kwargs are mutated.
         seq_len = None
-        if should_manage:
-            kwargs["output_attentions"] = True
-            kwargs["output_hidden_states"] = True
-            kwargs["return_dict"] = True
+        input_ids = kwargs.get("input_ids", None)
+        inputs_embeds = kwargs.get("inputs_embeds", None)
+        if input_ids is None and len(args) > 0 and torch.is_tensor(args[0]):
+            input_ids = args[0]
+        if input_ids is not None:
+            seq_len = int(input_ids.shape[1])
+        elif inputs_embeds is not None:
+            seq_len = int(inputs_embeds.shape[1])
+
+        # Compressed-cache PPL needs logical RoPE positions and a physical-layout
+        # causal mask. Baseline DynamicCache does not have this method.
+        if hasattr(cache, "prepare_position_kwargs"):
             cache.prepare_position_kwargs(args, kwargs)
-            input_ids = kwargs.get("input_ids", None)
-            inputs_embeds = kwargs.get("inputs_embeds", None)
-            if input_ids is None and len(args) > 0 and torch.is_tensor(args[0]):
-                input_ids = args[0]
-            if input_ids is not None:
-                seq_len = int(input_ids.shape[1])
-            elif inputs_embeds is not None:
-                seq_len = int(inputs_embeds.shape[1])
+
+        kwargs["output_attentions"] = True
+        kwargs["output_hidden_states"] = True
+        kwargs["return_dict"] = True
+        kwargs["use_cache"] = True
+
         out = original_forward(*args, **kwargs)
-        if should_manage:
-            if seq_len is not None:
-                cache.mark_forward_consumed(seq_len)
+
+        if seq_len is not None and hasattr(cache, "mark_forward_consumed"):
+            cache.mark_forward_consumed(seq_len)
+        if hasattr(cache, "maybe_compress"):
             cache.maybe_compress(getattr(out, "attentions", None), getattr(out, "hidden_states", None))
-            # Most HF models already return the same object. Assign for ModelOutput variants that permit it.
-            try:
-                out.past_key_values = cache
-            except Exception:
-                pass
+
         return out
 
     model.forward = wrapped_forward
@@ -562,26 +605,6 @@ def force_attn_hidden_and_compress(model: nn.Module):
         yield
     finally:
         model.forward = original_forward
-
-
-def make_cache_factory(model, method, family, task_eval_dir, ratio, sim_thr, min_kv_len, compress_every, stats):
-    def _factory():
-        # Each GPTQ/AquaKV-style fixed-length sequence creates a fresh cache.
-        # GroupLogitKV stores its log-bias metadata on the model/attention modules,
-        # so clear that model-level runtime state here to avoid cross-sequence leakage.
-        if method == "GroupLogitKV":
-            reset_grouplogit_state_if_needed(model, family, task_eval_dir)
-        return KVCompressingDynamicCache(
-            model=model,
-            method=method,
-            family=family,
-            compress_ratio=ratio,
-            sim_thr=sim_thr,
-            min_kv_len=min_kv_len,
-            compress_every=compress_every,
-            stats=stats,
-        )
-    return _factory
 
 
 def parse_dtype(name: str):
@@ -628,9 +651,11 @@ def build_argparser():
     parser.add_argument("--task_eval_dir", default="task_evaluation")
     parser.add_argument("--family", choices=["qwen", "llama"], required=True)
     parser.add_argument("--datasets", nargs="+", default=["wikitext2", "c4"], choices=["wikitext2", "c4"])
-    parser.add_argument("--kv_method", default="none", choices=["none", "SimCalKV", "GroupLogitKV", "KeepKV", "PyramidInfer", "CaM"])
+    parser.add_argument("--kv_method", default="none", choices=["none", "SimCalKV", "GroupLogitKV", "KeepKV", "CaM"])
     parser.add_argument("--compress_ratio", type=float, default=0.0)
-    parser.add_argument("--sim_thr", type=float, default=0.0)
+    parser.add_argument("--sim_thr_grouplogitkv", type=float, default=None, help="Similarity threshold for GroupLogitKV; -1 disables threshold rejection.")
+    parser.add_argument("--sim_thr_simcalkv", type=float, default=None, help="Similarity threshold for SimCalKV; -1 disables threshold rejection.")
+    parser.add_argument("--sim_thr_keepkv", type=float, default=None, help="Similarity threshold for KeepKV; -1 disables threshold rejection.")
     parser.add_argument("--model_seqlen", type=int, default=2048)
     parser.add_argument("--chunk_size", type=int, default=128)
     parser.add_argument("--min_kv_len", type=int, default=2)
@@ -673,7 +698,7 @@ def main():
 
     print(f"Loading model: {args.model_name}")
     print(f"Transformers version: {transformers.__version__}")
-    print(f"KV method: {args.kv_method}, ratio={args.compress_ratio}, sim_thr={args.sim_thr}")
+    print(f"KV method: {args.kv_method}, ratio={args.compress_ratio}")
     model = AutoModelForCausalLM.from_pretrained(args.model_name, **model_kwargs)
     model.eval()
 
@@ -700,6 +725,12 @@ def main():
     if args.output_json:
         Path(args.output_json).parent.mkdir(parents=True, exist_ok=True)
 
+    method_sim_thrs = {
+        "GroupLogitKV": args.sim_thr_grouplogitkv,
+        "SimCalKV": args.sim_thr_simcalkv,
+        "KeepKV": args.sim_thr_keepkv,
+    }
+
     all_results = []
     for dataset_name in args.datasets:
         print(f"Loading eval dataset: {dataset_name}")
@@ -713,7 +744,7 @@ def main():
                 family=args.family,
                 task_eval_dir=task_eval_dir,
                 ratio=args.compress_ratio,
-                sim_thr=args.sim_thr,
+                method_sim_thrs=method_sim_thrs,
                 min_kv_len=args.min_kv_len,
                 compress_every=args.compress_every,
                 stats=stats,
@@ -748,7 +779,10 @@ def main():
             "dataset": dataset_name,
             "kv_method": args.kv_method,
             "compress_ratio": args.compress_ratio,
-            "sim_thr": args.sim_thr,
+            "sim_thr_effective": _effective_sim_thr(args.kv_method, method_sim_thrs),
+            "sim_thr_grouplogitkv": args.sim_thr_grouplogitkv,
+            "sim_thr_simcalkv": args.sim_thr_simcalkv,
+            "sim_thr_keepkv": args.sim_thr_keepkv,
             "model_seqlen": args.model_seqlen,
             "chunk_size": args.chunk_size,
             "actual_step_size": actual_step_size,

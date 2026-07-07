@@ -1,255 +1,126 @@
+import math
+from typing import List, Optional, Tuple
+
 import torch
 import torch.nn.functional as F
-import math
-from typing import Callable, Optional, Tuple, List
 
-# ---------------------- util helpers ----------------------
-def _to_tensor_on_ref(x, ref: torch.Tensor):
-    """Ensure scalar or python number becomes a tensor on same device/dtype as ref"""
-    if isinstance(x, torch.Tensor):
-        return x.to(device=ref.device, dtype=ref.dtype)
-    return torch.tensor(x, device=ref.device, dtype=ref.dtype)
+EPS = 1e-8
 
-def merge_by_token_tensor(key1: torch.Tensor, key2: torch.Tensor) -> torch.Tensor:
+
+def _aggregate_attention_scores_to_kv_heads(layer_attention: torch.Tensor, num_kv_heads: int) -> torch.Tensor:
+    """Return cumulative token scores with shape (B, H_kv, L).
+
+    Works for MHA, GQA and MQA. HF attentions are over query heads with shape
+    (B, H_q, Q, K). KV cache is over KV heads with shape (B, H_kv, K, D).
     """
-    Implements formula:
-      (key1 + key2)/2 + ln(2)
-    key1/key2: (head_dim,) or (..., head_dim)
-    returns tensor same shape & device/dtype
-    """
-    ln2 = _to_tensor_on_ref(math.log(2.0), key1)
-    mean = 0.5 * (key1 + key2)
-    return mean + ln2
-
-def stable_pair_weight(q: torch.Tensor, k_e: torch.Tensor, k_c: torch.Tensor) -> Tuple[float, float]:
-    """
-    Compute unnormalized attention weights (no softmax) for stability.
-    w_e = exp((q·k_e)/sqrt(d)), w_c = exp((q·k_c)/sqrt(d))
-    Both are clamped to prevent overflow.
-
-    Args:
-        q: (1, d) or (d,)
-        k_e, k_c: (d,) or (1, d)
-
-    Returns:
-        (w_e, w_c): unnormalized weights as floats
-    """
-    if q.dim() == 2:
-        qv = q.squeeze(0)
+    if layer_attention.dim() != 4:
+        raise ValueError(f"attention must be (B,Hq,Q,K), got {tuple(layer_attention.shape)}")
+    B, H_q, Q, L = layer_attention.shape
+    if H_q == num_kv_heads:
+        attn_kv = layer_attention
     else:
-        qv = q
-    d = qv.shape[-1]
-    k_e = k_e.view(-1)
-    k_c = k_c.view(-1)
-    # compute logits
-    l_e = torch.dot(qv, k_e) / math.sqrt(d)
-    l_c = torch.dot(qv, k_c) / math.sqrt(d)
+        if H_q % num_kv_heads != 0:
+            raise ValueError(f"H_q={H_q} is not divisible by H_kv={num_kv_heads}")
+        groups = H_q // num_kv_heads
+        attn_kv = layer_attention.view(B, num_kv_heads, groups, Q, L).mean(dim=2)
+    return attn_kv.sum(dim=2)
 
-    # exponentiate safely
-    l_e = torch.clamp(l_e, min=-50.0, max=50.0)
-    l_c = torch.clamp(l_c, min=-50.0, max=50.0)
 
-    w_e = torch.exp(l_e)
-    w_c = torch.exp(l_c)
-
-    # clamp final weights to avoid zeros
-    eps = 1e-8
-    w_e = max(w_e.item(), eps)
-    w_c = max(w_c.item(), eps)
-
-    return w_e, w_c
-
-# ---------------------- q extraction ----------------------
-def get_q_proj_from_attn(attn_module, hidden_states: torch.Tensor) -> torch.Tensor:
-    """
-    For Qwen: try qkv_proj first; fallback to q_proj.
-    hidden_states: assumed shape (batch, seq, dim)
-    returns Q: (batch, seq, num_heads * head_dim)
-    """
-    # Qwen typically uses qkv_proj, but handle both
-    if hasattr(attn_module, "qkv_proj"):
-        qkv = attn_module.qkv_proj(hidden_states)  # (b, s, 3*hidden)
-        # split the triple - q occupies first third
-        total = qkv.size(-1)
-        third = total // 3
-        Q = qkv[..., :third]
+def _get_all_qt_for_kv_heads(layer_idx: int, model, hidden_states: List[torch.Tensor], num_kv_heads: int) -> torch.Tensor:
+    attn = model.model.layers[layer_idx].self_attn
+    Q = attn.q_proj(hidden_states[layer_idx])
+    B, S, _ = Q.shape
+    num_q_heads = getattr(model.config, "num_attention_heads", getattr(attn, "num_heads", None))
+    if num_q_heads is None:
+        raise ValueError("Cannot infer number of query heads")
+    head_dim = Q.shape[-1] // num_q_heads
+    Q = Q.view(B, S, num_q_heads, head_dim).transpose(1, 2)[:, :, -1, :]  # (B,Hq,D)
+    if num_q_heads == num_kv_heads:
         return Q
-    elif hasattr(attn_module, "q_proj"):
-        return attn_module.q_proj(hidden_states)
+    if num_q_heads % num_kv_heads != 0:
+        raise ValueError(f"H_q={num_q_heads} is not divisible by H_kv={num_kv_heads}")
+    groups = num_q_heads // num_kv_heads
+    return Q.view(B, num_kv_heads, groups, head_dim).mean(dim=2)
+
+
+def _merge_by_token_simcal(key1: torch.Tensor, key2: torch.Tensor) -> torch.Tensor:
+    return 0.5 * (key1 + key2) + math.log(2.0)
+
+
+def _get_w(q: torch.Tensor, k: torch.Tensor) -> torch.Tensor:
+    # q: (1,D), k: (N,D)
+    d = q.shape[-1]
+    logits = (q @ k.transpose(0, 1)) / math.sqrt(d)
+    logits = logits.clamp(min=-50.0, max=50.0)
+    return torch.exp(logits).clamp_min(EPS).squeeze(0)
+
+
+def _merge_one_head(q_t: torch.Tensor, K: torch.Tensor, V: torch.Tensor, scores: torch.Tensor, ratio: float, sim_thr: float) -> Tuple[torch.Tensor, torch.Tensor]:
+    L, D = K.shape
+    num_evict = int(L * float(ratio))
+    if num_evict <= 0:
+        return K, V
+    num_evict = min(num_evict, L - 1)
+    if num_evict <= 0:
+        return K, V
+
+    _, evict_idx = torch.topk(-scores, num_evict)
+    keep_mask = torch.ones(L, dtype=torch.bool, device=K.device)
+    keep_mask[evict_idx] = False
+    keep_idx = keep_mask.nonzero(as_tuple=True)[0]
+
+    Ke, Ve = K[evict_idx], V[evict_idx]
+    Kc, Vc = K[keep_idx], V[keep_idx]
+    if Ke.numel() == 0 or Kc.numel() == 0:
+        return Kc, Vc
+
+    sim = F.normalize(Ke.float(), dim=1) @ F.normalize(Kc.float(), dim=1).transpose(0, 1)
+    max_sim, target = sim.max(dim=1)
+    if sim_thr <= -1.0:
+        merge_mask = torch.ones_like(max_sim, dtype=torch.bool)
     else:
-        raise RuntimeError("Unknown attention module: no qkv_proj or q_proj found")
+        merge_mask = max_sim >= float(sim_thr)
+    if not merge_mask.any():
+        return Kc, Vc
 
-def get_qt_qwen(layer_idx: int,
-                head_idx: int,
-                model,
-                hidden_states: List[torch.Tensor],
-                rope_fn: Optional[Callable[[torch.Tensor], torch.Tensor]] = None) -> torch.Tensor:
-    """
-    Get last-token query vector for given layer & head.
-    rope_fn: optional function to apply the same RoPE/pos embedding transform that keys in cache use.
-    Returns: (1, head_dim) tensor
-    """
-    attn_module = model.model.layers[layer_idx].self_attn
-    Q = get_q_proj_from_attn(attn_module, hidden_states[layer_idx])  # (b,s,num_heads*head_dim)
-    b, s, _ = Q.shape
-    num_heads = getattr(attn_module, "num_heads", None)
-    if num_heads is None:
-        # try common attribute name
-        num_heads = getattr(attn_module, "n_head", None)
-    if num_heads is None:
-        raise RuntimeError("Cannot determine number of heads from attn module.")
-    head_dim = Q.shape[-1] // num_heads
-    Q = Q.view(b, s, num_heads, head_dim).transpose(1, 2)  # (b, num_heads, s, head_dim)
-    q_t = Q[0, head_idx, -1].unsqueeze(0)  # (1, head_dim)
-    if rope_fn is not None:
-        # ensure rope_fn returns same shape
-        q_t = rope_fn(q_t)
-    return q_t
+    Ke_sel, Ve_sel = Ke[merge_mask], Ve[merge_mask]
+    target = target[merge_mask]
+    N_keep = Kc.shape[0]
 
-# ---------------------- divide and merge (Qwen style) ----------------------
-def divide_by_layer_qwen(layer_idx: int,
-                         head_idx: int,
-                         key_value_cache,
-                         attention,
-                         ratio: float):
-    """
-    Assumes Q and V in cache are in shape (batch, num_heads, seq_len, head_dim),
-    which matches the Qwen you showed (torch.Size([1,4,6,128])).
-    Returns:
-      Ke_keys: (num_Ke, head_dim)
-      Kc_keys: (num_Kc, head_dim)
-      Ve_vals: (num_Ke, head_dim)
-      Vc_vals: (num_Kc, head_dim)
-      sim_matrix: (num_Ke, num_Kc)
-      Ke_idx: list indices
-      Kc_idx: list indices
-    """
-    K_matrix = key_value_cache[layer_idx][0]  # (b, h, s, d)
-    V_matrix = key_value_cache[layer_idx][1]  # (b, h, s, d)
+    sum_Ke = torch.zeros((N_keep, D), device=K.device, dtype=K.dtype)
+    sum_Ke.scatter_add_(0, target[:, None].expand(-1, D), Ke_sel)
+    count = torch.zeros(N_keep, device=K.device, dtype=K.dtype)
+    count.scatter_add_(0, target, torch.ones_like(target, dtype=K.dtype))
+    active = count > 0
 
-    # assume batch=1
-    K_of_head = K_matrix[0, head_idx, :, :]  # (s, d)
-    V_of_head = V_matrix[0, head_idx, :, :]  # (s, d)
-
-    s, head_dim = K_of_head.shape
-    num_Ke = max(1, int(s * ratio))
-    num_Kc = s - num_Ke
-
-    # attention matrix for the head: (s, s)
-    attn_mat = attention[layer_idx][0, head_idx]  # (s, s)
-    # total attention received by each token (sum of columns)
-    token_scores = attn_mat.sum(dim=0)
-    # choose tokens with lowest attention (Ke)
-    _, Ke_idx_t = torch.topk(-token_scores, num_Ke)
-    Ke_idx = Ke_idx_t.tolist()
-    Kc_idx = [i for i in range(s) if i not in Ke_idx]
-
-    Ke_tokens_keys = K_of_head[Ke_idx]  # (num_Ke, head_dim)
-    Kc_tokens_keys = K_of_head[Kc_idx]  # (num_Kc, head_dim)
-    Ve_tokens_values = V_of_head[Ke_idx]  # (num_Ke, head_dim)
-    Vc_tokens_values = V_of_head[Kc_idx]  # (num_Kc, head_dim)
-
-    # normalize for cosine similarity
-    if Ke_tokens_keys.size(0) == 0 or Kc_tokens_keys.size(0) == 0:
-        sim_matrix = torch.empty((Ke_tokens_keys.size(0), Kc_tokens_keys.size(0)), device=K_of_head.device)
-    else:
-        Ke_norm = F.normalize(Ke_tokens_keys, p=2, dim=1)  # (num_Ke, head_dim)
-        Kc_norm = F.normalize(Kc_tokens_keys, p=2, dim=1)  # (num_Kc, head_dim)
-        sim_matrix = Ke_norm @ Kc_norm.T  # (num_Ke, num_Kc)
-
-    return Ke_tokens_keys, Kc_tokens_keys, Ve_tokens_values, Vc_tokens_values, sim_matrix, Ke_idx, Kc_idx
-
-def merge_Ke_to_Kc_qwen(layer_idx: int,
-                       head_idx: int,
-                       key_value_cache,
-                       attention,
-                       ratio: float):
-    Ke, Kc, _, _, sim_matrix, Ke_idx, Kc_idx = divide_by_layer_qwen(layer_idx, head_idx, key_value_cache, attention, ratio)
-    if sim_matrix.numel() == 0:
-        return sim_matrix, Kc, Ke_idx, Kc_idx
-    _, row_idx = torch.max(sim_matrix, dim=1)  # for each Ke -> index in Kc
-    row_idx = row_idx.tolist()
     Kc_new = Kc.clone()
-    for i in range(Ke.size(0)):
-        tgt = row_idx[i]
-        # merge by token using our tensor-safe formula
-        Kc_new[tgt] = merge_by_token_tensor(Ke[i], Kc_new[tgt])
-    return sim_matrix, Kc_new, Ke_idx, Kc_idx
+    grouped_Ke = torch.zeros_like(sum_Ke)
+    grouped_Ke[active] = sum_Ke[active] / count[active, None]
+    Kc_new[active] = _merge_by_token_simcal(grouped_Ke[active], Kc[active])
 
-def merge_Ve_to_Vc_qwen(model,
-                        layer_idx: int,
-                        head_idx: int,
-                        key_value_cache,
-                        attention,
-                        hidden_states: List[torch.Tensor],
-                        ratio: float,
-                        rope_fn: Optional[Callable[[torch.Tensor], torch.Tensor]] = None):
-    Ke, Kc, Ve, Vc, sim_matrix, Ke_idx, Kc_idx = divide_by_layer_qwen(layer_idx, head_idx, key_value_cache, attention, ratio)
-    if sim_matrix.numel() == 0:
-        return sim_matrix, Vc, Ke_idx, Kc_idx
+    w_e = _get_w(q_t, Ke_sel)
+    w_c = _get_w(q_t, Kc)
+    sum_w_e = torch.zeros(N_keep, device=K.device, dtype=K.dtype)
+    sum_w_e.scatter_add_(0, target, w_e.to(K.dtype))
+    sum_w_e_Ve = torch.zeros((N_keep, D), device=K.device, dtype=K.dtype)
+    sum_w_e_Ve.scatter_add_(0, target[:, None].expand(-1, D), (w_e[:, None].to(K.dtype) * Ve_sel))
+    Vc_new = (sum_w_e_Ve + w_c[:, None].to(K.dtype) * Vc) / (sum_w_e + w_c.to(K.dtype)).clamp_min(1e-6)[:, None]
+    return Kc_new, Vc_new
 
-    _, row_idx = torch.max(sim_matrix, dim=1)
-    row_idx = row_idx.tolist()
-    Ve_num = Ve.size(0)
 
-    # get q_t in same space; pass rope_fn if you need to apply RoPE to q
-    q_t = get_qt_qwen(layer_idx, head_idx, model, hidden_states, rope_fn=rope_fn)  # (1, head_dim)
-
-    Vc_new = Vc.clone()
-    for i in range(Ve_num):
-        tgt = row_idx[i]
-        # stable weights
-        w_e, w_c = stable_pair_weight(q_t, Ke[i], Kc[tgt])
-        denom = (w_e + w_c) if (w_e + w_c) != 0.0 else 1e-6
-        Vc_new[tgt] = (w_e * Ve[i] + w_c * Vc_new[tgt]) / denom
-    return sim_matrix, Vc_new, Ke_idx, Kc_idx
-
-# ---------------------- main Repair entry ----------------------
-# def Repair_qwen(model,
-#                 key_value_cache,
-#                 attention,
-#                 hidden_states: List[torch.Tensor],
-#                 ratio: float = 0.2,
-#                 rope_fn: Optional[Callable[[torch.Tensor], torch.Tensor]] = None):
-def Repair(model,
-                key_value_cache,
-                attention,
-                hidden_states: List[torch.Tensor],
-                ratio: float = 0.2,
-                rope_fn: Optional[Callable[[torch.Tensor], torch.Tensor]] = None):
-    """
-    model: the HF model instance (Qwen)
-    key_value_cache: outputs.past_key_values (list of tuples (K, V) per layer)
-    attention: list of attention matrices per layer (each of shape (batch, num_heads, seq, seq))
-               --> if you have model outputs with attn, you can pass outputs.attentions
-    hidden_states: list/tuple of hidden states per layer (as returned when output_hidden_states=True)
-    ratio: fraction of tokens to treat as Ke (low-attention tokens)
-    rope_fn: optional function applied to q vectors to match key space if needed
-    Returns:
-      past_key_values_merged: list of (Kc_layer, Vc_layer) for each layer with shapes matching HF expectation
-    """
-    nums_layer = len(model.model.layers)
-    past_key_values_merged = []
-
-    for i in range(nums_layer):
-        # number of heads from cache
-        num_kv_heads = key_value_cache[i][0].shape[1]
-
-        # build Kc for the layer
-        Kc_layer_list = []
-        for j in range(num_kv_heads):
-            _, Kc_head, _, _ = merge_Ke_to_Kc_qwen(i, j, key_value_cache, attention, ratio)
-            Kc_layer_list.append(Kc_head)
-        # stack into (num_heads, seq_len, head_dim) then add batch dim -> (1, num_heads, seq_len, head_dim)
-        Kc_layer = torch.stack(Kc_layer_list, dim=0).unsqueeze(0)
-
-        # build Vc for the layer
-        Vc_layer_list = []
-        for k in range(num_kv_heads):
-            _, Vc_head, _, _ = merge_Ve_to_Vc_qwen(model, i, k, key_value_cache, attention, hidden_states, ratio, rope_fn=rope_fn)
-            Vc_layer_list.append(Vc_head)
-        Vc_layer = torch.stack(Vc_layer_list, dim=0).unsqueeze(0)
-
-        past_key_values_merged.append((Kc_layer, Vc_layer))
-
-    return past_key_values_merged
+def Repair(model, key_value_cache, attention, hidden_states, ratio: float, sim_thr: float = -1.0):
+    cache = tuple(key_value_cache)
+    out = []
+    for layer_idx, (K_layer, V_layer) in enumerate(cache):
+        B, H_kv, L, D = K_layer.shape
+        if B != 1:
+            raise ValueError("This evaluator currently expects batch_size=1")
+        scores = _aggregate_attention_scores_to_kv_heads(attention[layer_idx], H_kv).to(K_layer.device)
+        q_all = _get_all_qt_for_kv_heads(layer_idx, model, hidden_states, H_kv).to(device=K_layer.device, dtype=K_layer.dtype)
+        Ks, Vs = [], []
+        for h in range(H_kv):
+            K_new, V_new = _merge_one_head(q_all[0, h].unsqueeze(0), K_layer[0, h], V_layer[0, h], scores[0, h], ratio, sim_thr)
+            Ks.append(K_new)
+            Vs.append(V_new)
+        out.append((torch.stack(Ks, dim=0).unsqueeze(0), torch.stack(Vs, dim=0).unsqueeze(0)))
+    return tuple(out)

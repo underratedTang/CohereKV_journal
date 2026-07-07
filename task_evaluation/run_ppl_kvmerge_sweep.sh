@@ -25,7 +25,9 @@ OUT_DIR="/root/SimCalKV/results/ppl_manual_$(date +%Y%m%d_%H%M%S)"
 
 # 模型设置
 # FAMILY="qwen"   # qwen | llama
-# MODEL="Qwen/Qwen2.5-3B-Instruct"
+# # MODEL="Qwen/Qwen2.5-3B-Instruct"
+# MODEL="Qwen/Qwen2.5-3B"
+
 # LLaMA 示例：
 FAMILY="llama"
 # MODEL="meta-llama/Meta-Llama-3.1-8B-Instruct"
@@ -60,26 +62,27 @@ METHODS=(
   "SimCalKV"
   "GroupLogitKV"
   "KeepKV"
-  "PyramidInfer"
-  "CaM"   # CaM 只建议 llama 用
+  "CaM"
 )
 
 # 压缩率
 RATIOS=(
+  "0.2"
   "0.4"  # 压缩40%，保留 60%
-  # "0.2"
-  # "0.3"
-  # "0.0"
-  # "0.8"
+  "0.6"
+  "0.8"
 )
 
-# 相似度阈值
-# -1 通常表示阈值最宽松，但不是“全合并”
-SIM_THRS=(
-  "-1"
-  # "0"
-  # "0.8"
-)
+# Per-method similarity-threshold sweeps. Only these three methods use sim_thr.
+# -1 disables similarity-threshold rejection.
+# For a strict fair threshold sweep, keep the same list for all similarity-merge methods.
+# KeepKV's official setting T=0.8 is included in the sweep below.
+SIM_THR_GROUPLOGITKV_LIST=("-1" "0.0" "0.2" "0.4" "0.6" "0.8")
+SIM_THR_SIMCALKV_LIST=("-1" "0.0" "0.2" "0.4" "0.6" "0.8")
+SIM_THR_KEEPKV_LIST=("-1" "0.0" "0.2" "0.4" "0.6" "0.8")
+# SIM_THR_GROUPLOGITKV_LIST=("0.8")
+# SIM_THR_SIMCALKV_LIST=("-1")
+# SIM_THR_KEEPKV_LIST=("0.8")
 
 # =========================
 # 自动区：一般不用改
@@ -123,22 +126,37 @@ echo "SEED=${SEED}" | tee -a "${RUN_LOG}"
 echo "DATASETS=${DATASETS[*]}" | tee -a "${RUN_LOG}"
 echo "METHODS=${METHODS[*]}" | tee -a "${RUN_LOG}"
 echo "RATIOS=${RATIOS[*]}" | tee -a "${RUN_LOG}"
-echo "SIM_THRS=${SIM_THRS[*]}" | tee -a "${RUN_LOG}"
+echo "SIM_THR_GROUPLOGITKV_LIST=${SIM_THR_GROUPLOGITKV_LIST[*]}" | tee -a "${RUN_LOG}"
+echo "SIM_THR_SIMCALKV_LIST=${SIM_THR_SIMCALKV_LIST[*]}" | tee -a "${RUN_LOG}"
+echo "SIM_THR_KEEPKV_LIST=${SIM_THR_KEEPKV_LIST[*]}" | tee -a "${RUN_LOG}"
 echo | tee -a "${RUN_LOG}"
 
 run_one() {
   local dataset="$1"
   local method="$2"
   local ratio="$3"
-  local sim_thr="$4"
+  local thr="${4:-na}"
 
-  local tag="${FAMILY}_${dataset}_${method}_ratio${ratio}_sim${sim_thr}"
+  local sim_tag="na"
+  local extra_args=()
+  if [[ "${method}" == "GroupLogitKV" ]]; then
+    sim_tag="${thr}"
+    extra_args+=(--sim_thr_grouplogitkv "${thr}")
+  elif [[ "${method}" == "SimCalKV" ]]; then
+    sim_tag="${thr}"
+    extra_args+=(--sim_thr_simcalkv "${thr}")
+  elif [[ "${method}" == "KeepKV" ]]; then
+    sim_tag="${thr}"
+    extra_args+=(--sim_thr_keepkv "${thr}")
+  fi
+
+  local tag="${FAMILY}_${dataset}_${method}_ratio${ratio}_sim${sim_tag}"
   tag=$(echo "${tag}" | tr '.-' 'p_')
 
   local log_file="${LOG_DIR}/${tag}.log"
   local json_file="${JSON_DIR}/${tag}.json"
 
-  echo "========== ${dataset} | ${method} | ratio=${ratio} | sim_thr=${sim_thr} ==========" | tee -a "${RUN_LOG}"
+  echo "========== ${dataset} | ${method} | ratio=${ratio} | sim=${sim_tag} ==========" | tee -a "${RUN_LOG}"
 
   python "${PPL_SCRIPT}" \
     --model_name "${MODEL}" \
@@ -147,7 +165,7 @@ run_one() {
     --datasets "${dataset}" \
     --kv_method "${method}" \
     --compress_ratio "${ratio}" \
-    --sim_thr "${sim_thr}" \
+    "${extra_args[@]}" \
     --model_seqlen "${MODEL_SEQLEN}" \
     --chunk_size "${CHUNK_SIZE}" \
     --min_kv_len "${MIN_KV_LEN}" \
@@ -196,23 +214,26 @@ for dataset in "${DATASETS[@]}"; do
 
     # baseline 不压缩，不需要 ratio / sim_thr
     if [[ "${method}" == "none" || "${method}" == "baseline" ]]; then
-      run_one "${dataset}" "none" "0" "0"
+      run_one "${dataset}" "none" "0"
       continue
     fi
 
     for ratio in "${RATIOS[@]}"; do
-
-      # qwen 的 SimCalKV / KeepKV / PyramidInfer 通常不吃 sim_thr，
-      # 这里固定 sim_thr=0，避免重复跑。
-      if [[ "${FAMILY}" == "qwen" && \
-            ( "${method}" == "SimCalKV" || "${method}" == "KeepKV" || "${method}" == "PyramidInfer" ) ]]; then
-        run_one "${dataset}" "${method}" "${ratio}" "0"
-      else
-        for sim_thr in "${SIM_THRS[@]}"; do
-          run_one "${dataset}" "${method}" "${ratio}" "${sim_thr}"
+      if [[ "${method}" == "GroupLogitKV" ]]; then
+        for thr in "${SIM_THR_GROUPLOGITKV_LIST[@]}"; do
+          run_one "${dataset}" "${method}" "${ratio}" "${thr}"
         done
+      elif [[ "${method}" == "SimCalKV" ]]; then
+        for thr in "${SIM_THR_SIMCALKV_LIST[@]}"; do
+          run_one "${dataset}" "${method}" "${ratio}" "${thr}"
+        done
+      elif [[ "${method}" == "KeepKV" ]]; then
+        for thr in "${SIM_THR_KEEPKV_LIST[@]}"; do
+          run_one "${dataset}" "${method}" "${ratio}" "${thr}"
+        done
+      else
+        run_one "${dataset}" "${method}" "${ratio}" "na"
       fi
-
     done
   done
 done

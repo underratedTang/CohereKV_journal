@@ -1,232 +1,272 @@
+"""
+KeepKV cache merging for Qwen2-family models.
+
+This implementation follows the practical KeepKV mechanism used in the official
+codebase:
+  * Electoral Votes / cluster counts are maintained per physical KV slot.
+  * Decoding attention receives a log(count) bias through the existing eager
+    GroupLogitKV runtime patch used by this task_evaluation harness.
+  * Evicted slots are assigned to the most cosine-similar retained slot.
+  * K/V are merged with count- and attention-score-weighted estimates, matching
+    the official implementation's simulated KV_update path.
+
+The public function signatures are kept compatible with the original evaluator:
+    KeepKV(model, key_value_cache, attention, hidden_states, ratio, sim_thr=-1)
+    Repair_keepkv(...)
+"""
+
+from __future__ import annotations
+
+from typing import List, Optional, Sequence, Tuple
+
 import torch
 import torch.nn.functional as F
-import math
-from typing import Callable, Optional, Tuple, List
-eps = 1e-8
-# ---------------------- util helpers ----------------------
 
-def merge_by_token(key1, key2, w1, w2):
-    w1 = max(w1, eps)
-    w2 = max(w2, eps)
-    numerator = w1 * key1 + w2 * key2
-    denominator = w1 * math.log(w1) + w2 * math.log(w2)
-    denominator = max(denominator, eps)
-    key_merge = math.log((w1 + w2) / 2 + eps) * numerator / denominator
-    return numerator / (w1 + w2)
+_EPS = 1e-8
 
-def stable_pair_weight(q: torch.Tensor, k_e: torch.Tensor, k_c: torch.Tensor) -> Tuple[float, float]:
-    """
-    Compute weights for Ve and Vc in a numerically stable way.
-    We compute two logits: l_e = (q @ k_e) / sqrt(d), l_c = (q @ k_c) / sqrt(d)
-    Then apply softmax over [l_e, l_c] and return weights (w_e, w_c) as floats.
-    q: (1, d) or (d,), k_e/k_c: (d,) or (1,d)
-    """
-    if q.dim() == 2: qv = q.squeeze(0)
-    else: qv = q
-    d = qv.shape[-1]
-    l_e = torch.dot(qv, k_e.view(-1)) / math.sqrt(d)
-    l_c = torch.dot(qv, k_c.view(-1)) / math.sqrt(d)
-    logits = torch.stack([l_e, l_c], dim=0)  # (2,)
-    # clamp logits for numerical safety
-    logits = torch.clamp(logits, min=-50.0, max=50.0)
-    probs = F.softmax(logits, dim=0)  # (2,)
-    return float(probs[0].item()), float(probs[1].item())
 
-# ---------------------- q extraction ----------------------
-def get_q_proj_from_attn(attn_module, hidden_states: torch.Tensor) -> torch.Tensor:
-    """
-    For Qwen: try qkv_proj first; fallback to q_proj.
-    hidden_states: assumed shape (batch, seq, dim)
-    returns Q: (batch, seq, num_heads * head_dim)
-    """
-    # Qwen typically uses qkv_proj, but handle both
-    if hasattr(attn_module, "qkv_proj"):
-        qkv = attn_module.qkv_proj(hidden_states)  # (b, s, 3*hidden)
-        # split the triple - q occupies first third
-        total = qkv.size(-1)
-        third = total // 3
-        Q = qkv[..., :third]
-        return Q
-    elif hasattr(attn_module, "q_proj"):
-        return attn_module.q_proj(hidden_states)
+def _as_legacy_tuple(past_key_values):
+    if past_key_values is None:
+        return None
+    if isinstance(past_key_values, tuple):
+        return past_key_values
+    if isinstance(past_key_values, list):
+        return tuple(past_key_values)
+    if hasattr(past_key_values, "to_legacy_cache"):
+        return past_key_values.to_legacy_cache()
+    return past_key_values
+
+
+def _num_kv_groups(attn_mod, h_kv: int) -> int:
+    groups = getattr(attn_mod, "num_key_value_groups", None)
+    if groups is not None:
+        return int(groups)
+    h_q = getattr(attn_mod, "num_heads", None)
+    if h_q is None:
+        h_q = getattr(attn_mod, "num_attention_heads", None)
+    if h_q is None:
+        raise ValueError("Cannot infer number of query heads for KeepKV log-bias expansion")
+    if int(h_q) % int(h_kv) != 0:
+        raise ValueError(f"num_heads={h_q} is not divisible by num_kv_heads={h_kv}")
+    return int(h_q) // int(h_kv)
+
+
+def _make_log_bias_q(counts: torch.Tensor, num_key_value_groups: int) -> torch.Tensor:
+    """Return [B, H_q, 1, L] log-count bias used by the runtime attention patch."""
+    log_bias_kv = torch.log(counts.float().clamp_min(1.0))
+    if num_key_value_groups != 1:
+        bsz, h_kv, seqlen = log_bias_kv.shape
+        log_bias_q = log_bias_kv[:, :, None, :].expand(
+            bsz, h_kv, num_key_value_groups, seqlen
+        ).reshape(bsz, h_kv * num_key_value_groups, seqlen)
     else:
-        raise RuntimeError("Unknown attention module: no qkv_proj or q_proj found")
+        log_bias_q = log_bias_kv
+    return log_bias_q.unsqueeze(-2).contiguous()
 
-def get_qt_qwen(layer_idx: int,
-                head_idx: int,
-                model,
-                hidden_states: List[torch.Tensor],
-                rope_fn: Optional[Callable[[torch.Tensor], torch.Tensor]] = None) -> torch.Tensor:
-    """
-    Get last-token query vector for given layer & head.
-    rope_fn: optional function to apply the same RoPE/pos embedding transform that keys in cache use.
-    Returns: (1, head_dim) tensor
-    """
-    attn_module = model.model.layers[layer_idx].self_attn
-    Q = get_q_proj_from_attn(attn_module, hidden_states[layer_idx])  # (b,s,num_heads*head_dim)
-    b, s, _ = Q.shape
-    num_heads = getattr(attn_module, "num_heads", None)
-    if num_heads is None:
-        # try common attribute name
-        num_heads = getattr(attn_module, "n_head", None)
-    if num_heads is None:
-        raise RuntimeError("Cannot determine number of heads from attn module.")
-    head_dim = Q.shape[-1] // num_heads
-    Q = Q.view(b, s, num_heads, head_dim).transpose(1, 2)  # (b, num_heads, s, head_dim)
-    q_t = Q[0, head_idx, -1].unsqueeze(0)  # (1, head_dim)
-    if rope_fn is not None:
-        # ensure rope_fn returns same shape
-        q_t = rope_fn(q_t)
-    return q_t
 
-# ---------------------- divide and merge (Qwen style) ----------------------
-def divide_by_layer_qwen(layer_idx: int,
-                         head_idx: int,
-                         key_value_cache,
-                         attention,
-                         ratio: float):
-    """
-    Assumes Q and V in cache are in shape (batch, num_heads, seq_len, head_dim),
-    which matches the Qwen you showed (torch.Size([1,4,6,128])).
-    Returns:
-      Ke_keys: (num_Ke, head_dim)
-      Kc_keys: (num_Kc, head_dim)
-      Ve_vals: (num_Ke, head_dim)
-      Vc_vals: (num_Kc, head_dim)
-      sim_matrix: (num_Ke, num_Kc)
-      Ke_idx: list indices
-      Kc_idx: list indices
-    """
-    K_matrix = key_value_cache[layer_idx][0]  # (b, h, s, d)
-    V_matrix = key_value_cache[layer_idx][1]  # (b, h, s, d)
+def _enable_keepkv_runtime_state(model, counts_by_layer: Sequence[torch.Tensor], log_bias_by_layer: Sequence[torch.Tensor]) -> None:
+    """Expose KeepKV Electoral Votes to the task_evaluation eager-attention patch."""
+    model._keepkv_counts = list(counts_by_layer)
+    model._keepkv_log_bias_q = list(log_bias_by_layer)
 
-    # assume batch=1
-    K_of_head = K_matrix[0, head_idx, :, :]  # (s, d)
-    V_of_head = V_matrix[0, head_idx, :, :]  # (s, d)
+    # The supplied runtime patch reads the GroupLogitKV attribute names.  KeepKV
+    # deliberately populates the same runtime metadata because the mathematical
+    # operation is the same Electoral Votes calibration: logits += log(count).
+    model._grouplogitkv_counts = list(counts_by_layer)
+    model._grouplogitkv_log_bias_q = list(log_bias_by_layer)
 
-    s, head_dim = K_of_head.shape
-    num_Ke = max(1, int(s * ratio))
-    num_Kc = s - num_Ke
+    if hasattr(model, "model") and hasattr(model.model, "layers"):
+        for layer_idx, layer in enumerate(model.model.layers):
+            attn = layer.self_attn
+            attn._keepkv_eager_enabled = True
+            attn._keepkv_log_bias_q = log_bias_by_layer[layer_idx]
+            attn._grouplogitkv_eager_enabled = True
+            attn._grouplogitkv_sdpa_enabled = True    # Qwen patch checks this flag.
+            attn._grouplogitkv_log_bias_q = log_bias_by_layer[layer_idx]
 
-    # attention matrix for the head: (s, s)
-    attn_mat = attention[layer_idx][0, head_idx]  # (s, s)
-    # total attention received by each token (sum of columns)
-    token_scores = attn_mat.sum(dim=0)
-    # choose tokens with lowest attention (Ke)
-    _, Ke_idx_t = torch.topk(-token_scores, num_Ke)
-    Ke_idx = Ke_idx_t.tolist()
-    Kc_idx = [i for i in range(s) if i not in Ke_idx]
 
-    Ke_tokens_keys = K_of_head[Ke_idx]  # (num_Ke, head_dim)
-    Kc_tokens_keys = K_of_head[Kc_idx]  # (num_Kc, head_dim)
-    Ve_tokens_values = V_of_head[Ke_idx]  # (num_Ke, head_dim)
-    Vc_tokens_values = V_of_head[Kc_idx]  # (num_Kc, head_dim)
+def _initial_or_existing_counts(model, layer_idx: int, K_layer: torch.Tensor) -> torch.Tensor:
+    """Load previous Electoral Votes; generated suffix tokens get vote 1."""
+    B, H_kv, L, _ = K_layer.shape
+    device = K_layer.device
+    dtype = torch.float32
 
-    # normalize for cosine similarity
-    if Ke_tokens_keys.size(0) == 0 or Kc_tokens_keys.size(0) == 0:
-        sim_matrix = torch.empty((Ke_tokens_keys.size(0), Kc_tokens_keys.size(0)), device=K_of_head.device)
+    counts_all = getattr(model, "_keepkv_counts", None)
+    if counts_all is None:
+        counts_all = getattr(model, "_grouplogitkv_counts", None)
+
+    if counts_all is None or layer_idx >= len(counts_all) or counts_all[layer_idx] is None:
+        return torch.ones((B, H_kv, L), device=device, dtype=dtype)
+
+    counts = counts_all[layer_idx].to(device=device, dtype=dtype)
+    if counts.dim() != 3 or counts.shape[0] != B or counts.shape[1] != H_kv:
+        raise ValueError(
+            f"Existing KeepKV counts incompatible at layer {layer_idx}: "
+            f"counts={tuple(counts.shape)}, K={tuple(K_layer.shape)}"
+        )
+    if counts.shape[-1] < L:
+        pad = torch.ones((B, H_kv, L - counts.shape[-1]), device=device, dtype=dtype)
+        counts = torch.cat([counts, pad], dim=-1)
+    elif counts.shape[-1] > L:
+        counts = counts[..., :L]
+    return counts.contiguous()
+
+
+def _token_scores_for_kv_heads(layer_attention: torch.Tensor, num_kv_heads: int) -> torch.Tensor:
+    """Aggregate [B,H_q,Q,K] attention probabilities to [B,H_kv,K]."""
+    if layer_attention is None:
+        raise ValueError("KeepKV requires output_attentions=True")
+    if layer_attention.dim() != 4:
+        raise ValueError(f"Expected attention [B,H_q,Q,K], got {tuple(layer_attention.shape)}")
+
+    bsz, h_q, q_len, k_len = layer_attention.shape
+    if h_q == num_kv_heads:
+        attn_kv = layer_attention
     else:
-        Ke_norm = F.normalize(Ke_tokens_keys, p=2, dim=1)  # (num_Ke, head_dim)
-        Kc_norm = F.normalize(Kc_tokens_keys, p=2, dim=1)  # (num_Kc, head_dim)
-        sim_matrix = Ke_norm @ Kc_norm.T  # (num_Ke, num_Kc)
+        if h_q % num_kv_heads != 0:
+            raise ValueError(f"H_q={h_q} is not divisible by H_kv={num_kv_heads}")
+        groups = h_q // num_kv_heads
+        attn_kv = layer_attention.view(bsz, num_kv_heads, groups, q_len, k_len).mean(dim=2)
 
-    return Ke_tokens_keys, Kc_tokens_keys, Ve_tokens_values, Vc_tokens_values, sim_matrix, Ke_idx, Kc_idx
+    # Official KeepKV uses recent attention-score history.  In this post-hoc
+    # evaluator the current forward's attention is the available recent window.
+    return attn_kv.float().mean(dim=2).clamp_min(_EPS)
 
-def merge_Ke_to_Kc_qwen(model,
-                        layer_idx: int,
-                        head_idx: int,
-                        key_value_cache,
-                        attention,
-                        hidden_states: List[torch.Tensor],
-                        ratio: float,
-                        rope_fn: Optional[Callable[[torch.Tensor], torch.Tensor]] = None):
-    Ke, Kc, _, _, sim_matrix, Ke_idx, Kc_idx = divide_by_layer_qwen(layer_idx, head_idx, key_value_cache, attention, ratio)
-    if sim_matrix.numel() == 0:
-        return sim_matrix, Kc, Ke_idx, Kc_idx
-    _, row_idx = torch.max(sim_matrix, dim=1)  # for each Ke -> index in Kc
-    row_idx = row_idx.tolist()
-    Kc_new = Kc.clone()
 
-    q_t = get_qt_qwen(layer_idx, head_idx, model, hidden_states, rope_fn=rope_fn)
-    for i in range(Ke.size(0)):
-        tgt = row_idx[i]
-        # merge by token using our tensor-safe formula
-        w_1, w_2 = stable_pair_weight(q_t, Ke[i], Kc[tgt])
-    for i in range(Ke.size(0)):
-        tgt = row_idx[i]
-        # merge by token using our tensor-safe formula
-        w_e, w_c = stable_pair_weight(q_t, Ke[i], Kc[tgt])
-        Kc_new[tgt] = merge_by_token(Ke[i], Kc_new[tgt], w_e, w_c)
-    return sim_matrix, Kc_new, Ke_idx, Kc_idx
+def _gather_seq_3d(x: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
+    return torch.gather(x, dim=1, index=idx.unsqueeze(-1).expand(-1, -1, x.shape[-1]))
 
-def merge_Ve_to_Vc_qwen(model,
-                        layer_idx: int,
-                        head_idx: int,
-                        key_value_cache,
-                        attention,
-                        hidden_states: List[torch.Tensor],
-                        ratio: float,
-                        rope_fn: Optional[Callable[[torch.Tensor], torch.Tensor]] = None):
-    Ke, Kc, Ve, Vc, sim_matrix, Ke_idx, Kc_idx = divide_by_layer_qwen(layer_idx, head_idx, key_value_cache, attention, ratio)
-    if sim_matrix.numel() == 0:
-        return sim_matrix, Vc, Ke_idx, Kc_idx
 
-    _, row_idx = torch.max(sim_matrix, dim=1)
-    row_idx = row_idx.tolist()
-    Ve_num = Ve.size(0)
+def _gather_seq_2d(x: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
+    return torch.gather(x, dim=1, index=idx)
 
-    # get q_t in same space; pass rope_fn if you need to apply RoPE to q
-    q_t = get_qt_qwen(layer_idx, head_idx, model, hidden_states, rope_fn=rope_fn)  # (1, head_dim)
 
-    Vc_new = Vc.clone()
-    for i in range(Ve_num):
-        tgt = row_idx[i]
-        # stable weights
-        w_e, w_c = stable_pair_weight(q_t, Ke[i], Kc[tgt])
-        denom = (w_e + w_c) if (w_e + w_c) != 0.0 else 1e-6
-        Vc_new[tgt] = (w_e * Ve[i] + w_c * Vc_new[tgt]) / denom
-    return sim_matrix, Vc_new, Ke_idx, Kc_idx
+def _merge_layer_keepkv(
+    K_layer: torch.Tensor,
+    V_layer: torch.Tensor,
+    C_layer: torch.Tensor,
+    score_layer: torch.Tensor,
+    ratio: float,
+    sim_thr: float,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Merge one layer using KeepKV votes + score-weighted similarity merging."""
+    B, H_kv, L, D = K_layer.shape
+    if L <= 1 or ratio <= 0:
+        return K_layer.contiguous(), V_layer.contiguous(), C_layer.contiguous()
 
-# ---------------------- main Repair entry ----------------------
-def Repair_keepkv(model,
-                key_value_cache,
-                attention,
-                hidden_states: List[torch.Tensor],
-                ratio: float = 0.2,
-                rope_fn: Optional[Callable[[torch.Tensor], torch.Tensor]] = None):
-    """
-    model: the HF model instance (Qwen)
-    key_value_cache: outputs.past_key_values (list of tuples (K, V) per layer)
-    attention: list of attention matrices per layer (each of shape (batch, num_heads, seq, seq))
-               --> if you have model outputs with attn, you can pass outputs.attentions
-    hidden_states: list/tuple of hidden states per layer (as returned when output_hidden_states=True)
-    ratio: fraction of tokens to treat as Ke (low-attention tokens)
-    rope_fn: optional function applied to q vectors to match key space if needed
-    Returns:
-      past_key_values_merged: list of (Kc_layer, Vc_layer) for each layer with shapes matching HF expectation
-    """
-    nums_layer = len(model.model.layers)
-    past_key_values_merged = []
+    num_merge = int(L * float(ratio))
+    num_merge = min(max(num_merge, 0), L - 1)
+    if num_merge == 0:
+        return K_layer.contiguous(), V_layer.contiguous(), C_layer.contiguous()
 
-    for i in range(nums_layer):
-        # number of heads from cache
-        num_kv_heads = key_value_cache[i][0].shape[1]
+    M = L - num_merge
+    X = B * H_kv
+    K = K_layer.reshape(X, L, D)
+    V = V_layer.reshape(X, L, D)
+    C = C_layer.reshape(X, L).float()
+    S = score_layer.reshape(X, L).float().clamp_min(_EPS)
 
-        # build Kc for the layer
-        Kc_layer_list = []
-        for j in range(num_kv_heads):
-            _, Kc_head, _, _ = merge_Ke_to_Kc_qwen(model, i, j, key_value_cache, attention, hidden_states, ratio, rope_fn=rope_fn)
-            Kc_layer_list.append(Kc_head)
-        # stack into (num_heads, seq_len, head_dim) then add batch dim -> (1, num_heads, seq_len, head_dim)
-        Kc_layer = torch.stack(Kc_layer_list, dim=0).unsqueeze(0)
+    # Remove the lowest recent-attention slots from explicit storage.
+    merge_idx = torch.topk(-S, k=num_merge, dim=-1).indices
+    keep_mask = torch.ones((X, L), dtype=torch.bool, device=K_layer.device)
+    keep_mask.scatter_(1, merge_idx, False)
+    keep_idx = keep_mask.nonzero(as_tuple=False)[:, 1].view(X, M)
 
-        # build Vc for the layer
-        Vc_layer_list = []
-        for k in range(num_kv_heads):
-            _, Vc_head, _, _ = merge_Ve_to_Vc_qwen(model, i, k, key_value_cache, attention, hidden_states, ratio, rope_fn=rope_fn)
-            Vc_layer_list.append(Vc_head)
-        Vc_layer = torch.stack(Vc_layer_list, dim=0).unsqueeze(0)
+    K_keep = _gather_seq_3d(K, keep_idx).float()
+    V_keep = _gather_seq_3d(V, keep_idx).float()
+    C_keep = _gather_seq_2d(C, keep_idx)
+    S_keep = _gather_seq_2d(S, keep_idx)
 
-        past_key_values_merged.append((Kc_layer, Vc_layer))
+    K_evict = _gather_seq_3d(K, merge_idx).float()
+    V_evict = _gather_seq_3d(V, merge_idx).float()
+    C_evict = _gather_seq_2d(C, merge_idx)
+    S_evict = _gather_seq_2d(S, merge_idx)
 
-    return past_key_values_merged
+    sim = torch.bmm(
+        F.normalize(K_evict, dim=-1, eps=_EPS),
+        F.normalize(K_keep, dim=-1, eps=_EPS).transpose(1, 2),
+    )
+    best_sim, target = sim.max(dim=-1)
+    if sim_thr <= -1.0:
+        merge_mask = torch.ones_like(best_sim, dtype=torch.bool)
+    else:
+        merge_mask = best_sim >= float(sim_thr)
+
+    # Electoral Votes: rejected slots are evicted rather than merged; accepted
+    # slots transfer their vote mass to the target retained slot.
+    C_evict_eff = C_evict * merge_mask.to(dtype=C_evict.dtype)
+
+    # Official implementation weights merged K/V by estimated attention mass
+    # times cluster count.  This is the practical ZIP-Merging estimator used in
+    # the released code's KV_update path.
+    W_keep = (C_keep * S_keep).clamp_min(_EPS)
+    W_evict = (C_evict_eff * S_evict).clamp_min(0.0)
+
+    scatter_index = target.unsqueeze(-1).expand(-1, -1, D)
+    add_W = torch.zeros((X, M), device=K_layer.device, dtype=torch.float32)
+    add_W.scatter_add_(dim=1, index=target, src=W_evict)
+
+    add_C = torch.zeros((X, M), device=K_layer.device, dtype=torch.float32)
+    add_C.scatter_add_(dim=1, index=target, src=C_evict_eff)
+
+    add_K = torch.zeros((X, M, D), device=K_layer.device, dtype=torch.float32)
+    add_V = torch.zeros((X, M, D), device=K_layer.device, dtype=torch.float32)
+    add_K.scatter_add_(dim=1, index=scatter_index, src=W_evict.unsqueeze(-1) * K_evict)
+    add_V.scatter_add_(dim=1, index=scatter_index, src=W_evict.unsqueeze(-1) * V_evict)
+
+    W_total = (W_keep + add_W).clamp_min(_EPS)
+    K_new = (W_keep.unsqueeze(-1) * K_keep + add_K) / W_total.unsqueeze(-1)
+    V_new = (W_keep.unsqueeze(-1) * V_keep + add_V) / W_total.unsqueeze(-1)
+    C_new = (C_keep + add_C).clamp_min(1.0)
+
+    return (
+        K_new.to(dtype=K_layer.dtype).reshape(B, H_kv, M, D).contiguous(),
+        V_new.to(dtype=V_layer.dtype).reshape(B, H_kv, M, D).contiguous(),
+        C_new.reshape(B, H_kv, M).contiguous(),
+    )
+
+
+def KeepKV(model, key_value_cache, attention, hidden_states: Optional[List[torch.Tensor]], ratio: float, sim_thr: float = -1.0):
+    """Compress a legacy HF KV cache with KeepKV."""
+    del hidden_states  # Attention tensors already provide the recent score estimate.
+
+    cache = _as_legacy_tuple(key_value_cache)
+    if cache is None:
+        raise ValueError("key_value_cache is None")
+    if attention is None:
+        raise ValueError("KeepKV requires attention tensors; call the model with output_attentions=True")
+
+    new_past = []
+    new_counts = []
+    new_log_bias_q = []
+
+    for layer_idx, (K_layer, V_layer) in enumerate(cache):
+        B, H_kv, L, D = K_layer.shape
+        if layer_idx >= len(attention) or attention[layer_idx] is None:
+            raise ValueError(f"Missing attention for layer {layer_idx}")
+        scores = _token_scores_for_kv_heads(attention[layer_idx], H_kv).to(device=K_layer.device)
+        if scores.shape[-1] != L:
+            # This can occur with some HF versions returning attentions after a
+            # cache update.  Align to the physical cache length conservatively.
+            if scores.shape[-1] > L:
+                scores = scores[..., :L]
+            else:
+                pad = torch.full((*scores.shape[:-1], L - scores.shape[-1]), _EPS, device=K_layer.device)
+                scores = torch.cat([scores, pad], dim=-1)
+        C_layer = _initial_or_existing_counts(model, layer_idx, K_layer)
+        K_new, V_new, C_new = _merge_layer_keepkv(K_layer, V_layer, C_layer, scores, ratio, sim_thr)
+
+        attn_mod = model.model.layers[layer_idx].self_attn
+        log_bias = _make_log_bias_q(C_new, _num_kv_groups(attn_mod, H_kv)).to(
+            device=K_new.device, dtype=K_new.dtype
+        )
+        new_past.append((K_new, V_new))
+        new_counts.append(C_new)
+        new_log_bias_q.append(log_bias)
+
+    _enable_keepkv_runtime_state(model, new_counts, new_log_bias_q)
+    return tuple(new_past)
+
+
+def Repair_keepkv(model, key_value_cache, attention, hidden_states, ratio: float = 0.2, sim_thr: float = -1.0):
+    return KeepKV(model, key_value_cache, attention, hidden_states, ratio, sim_thr)

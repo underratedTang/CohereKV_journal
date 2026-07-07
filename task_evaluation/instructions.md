@@ -1,92 +1,59 @@
+# task_evaluation
 
-# Instruction
+Current comparison methods:
+- none
+- SimCalKV
+- GroupLogitKV
+- KeepKV
+- CaM
 
-This file provides detailed parameter settings and corresponding explanations for several experiments mentioned in the paper.
+PyramidInfer comparison code has been removed.
 
----
+## Fair-comparison settings
 
-## 1. Input and Output Tokens Length
+### Budget
+All compression methods use the same evaluator semantics:
 
-Different datasets require different input and output lengths. Some suggested settings are as follows:
-
-| Dataset | Input + Output |
-|:----------:|:----------:|
-| XSUM | 512 + 64 |
-| CNN/DailyMail | 1024 + 64 |
-| LongBench / GovReport | 4096 + 512 |
-
-The output length can affect the quality of the generation results. For the same dataset, it is sufficient to use a consistent standard. You can adjust the values according to your hardware capacity.
-
-Parameter settings are implemented in `llama_eval.py`.
-
-- **Line 82**
-```python
-  inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=4096).to(device)
+```text
+compress_ratio = evicted fraction
+compress_ratio=0.4 => evict 40%, keep about 60% physical KV slots
 ```
 
-→ Controls the **input length**.
+The run summary records `avg_compressed_kv_len`; this should be checked after each sweep to confirm all compressed methods use the same physical KV budget.
 
-* **Line 99**
-```python
-  total_kv, _, generated_tokens, durations_cached_s, _, _ = generate_text(model, tokenizer, 512, {
-      "input_ids": next_token_id.reshape((1, 1)),
-      "attention_mask": torch.cat(
-          [inputs["attention_mask"], torch.tensor([[1]], device=device)], dim=1
-      ),
-      "past_key_values": past_key_values,
-  })
-```
+### Similarity thresholds
+There is no global `sim_thr`.
+Only methods that use similarity assignment accept a threshold:
 
-  and **Lines 143, 155**
+- `--sim_thr_grouplogitkv`
+- `--sim_thr_simcalkv`
+- `--sim_thr_keepkv`
 
-```python
-  total_kv_merged_1, attention_mask1, generated_tokens_merged_1, durations_cached_s_merged_1, attention_merged, hidden_states_merged = \
-      generate_text(model, tokenizer, 256, next_inputs)
-  total_kv_merged, _, generated_tokens_merged, durations_cached_s_merged, attention_merged, hidden_states_merged = \
-      generate_text(model, tokenizer, 256, next_inputs)
-```
+CaM does not use a similarity threshold and receives no `sim_thr` argument.
 
-  → Control the **output length** before and after compression.
+`run_ppl_kvmerge_sweep.sh` now sweeps thresholds separately per method using arrays:
 
-Our compression strategy is to **apply compression once after the prefill stage**.
-Compression during the decoding stage is optional. To enable it, simply uncomment the following line:
-
-```python
-# kv_decode_merged = apply_kv_method(method, model, total_kv_merged_1, attention_merged, hidden_states_merged, compress_ratio)
-```
-
-
-## 2. Experiment on Similarity Thresholds (Table 4 in the Paper)
-
-In `llama_eval.py`, line 68:
-
-```python
-return Repair(model, past_key_values, attention, hidden_states, compress_ratio, 0)
-```
-
-The **last parameter** is the similarity threshold.
-
-* `0` means all pairs are merged.
-* `0.8` means only key-value pairs with similarity greater than 0.8 are merged.
-
-
-## 3. Ablation Study on Bias Vector (Table 5 in the Paper)
-
-In `analysis/query_test.py`, two datasets are provided to compute the elements of the bias vector `delta_k`, which is used for comparison with `ln2`.
-
-To modify the bias vector for the ablation experiment, edit **line 16** in `merge_ours.py`:
-
-```python
-return 0.5 * (key1 + key2) + math.log(2)
-```
-
-
-## 4. Experiment of Figure 8 
-
-**Figure 8** in the paper shows model performance under finer-grained compression ratios.
-You can reproduce this experiment using the following command:
 ```bash
-bash run_cnn.sh
+SIM_THR_GROUPLOGITKV_LIST=("-1" "0.0" "0.2" "0.4" "0.6" "0.8")
+SIM_THR_SIMCALKV_LIST=("-1" "0.0" "0.2" "0.4" "0.6" "0.8")
+SIM_THR_KEEPKV_LIST=("-1" "0.0" "0.2" "0.4" "0.6" "0.8")
 ```
-This will generate the corresponding experimental results.
 
+For a strict controlled threshold comparison, keep the same list for all three similarity-merge methods. For official/recommended settings, reduce each list to the method-specific setting, such as KeepKV `0.8`.
+
+### Evaluation length
+The current evaluator contains the user's manual setting inside `evaluate_perplexity()`:
+
+```python
+m = 3
+inps = inps[:m]
+```
+
+This is applied to all methods, so it is fair across methods. The JSON field `num_eval_tokens` reports the full tokenized dataset length and is not the actual number of loss tokens when `m` is manually limited.
+
+## KeepKV
+The LLaMA and Qwen KeepKV implementations are in:
+- `llama/merge_keepkv_llama.py`
+- `qwen/merge_keepkv_qwen.py`
+
+They maintain Electoral Votes/counts and expose log(count) bias through the same eager runtime attention patch used by GroupLogitKV.
