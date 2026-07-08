@@ -11,9 +11,8 @@ cd /root/SimCalKV
 # 手动修改区
 # =========================
 
-# export HF_ENDPOINT=https://hf-mirror.com
+export HF_ENDPOINT=https://hf-mirror.com
 export CUDA_VISIBLE_DEVICES=0
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # LongBench 评测脚本完整路径
 # 你的文件放在：/root/SimCalKV/task_evaluation/evaluate_longbench_kvmerge.py
@@ -31,25 +30,24 @@ OUT_DIR="/root/SimCalKV/results/longbench_manual_test"
 
 # LLaMA 示例：
 FAMILY="llama"
-MODEL_NAME="llama-3.2-1B-Instruct"                 # LongBench/config/model2path.json 中的 key
-MODEL_PATH="meta-llama/Llama-3.2-1B-Instruct"
-# MODEL_NAME="llama-3.1-8B-Instruct"
-# MODEL_PATH="meta-llama/Meta-Llama-3.1-8B-Instruct"
+# MODEL_NAME="llama-3.2-1B-Instruct"                 # LongBench/config/model2path.json 中的 key
+# MODEL_PATH="meta-llama/Llama-3.2-1B-Instruct"
+MODEL_NAME="llama-3.1-8B-Instruct"
+MODEL_PATH="meta-llama/Meta-Llama-3.1-8B-Instruct"
 
 MODEL_SLUG="$(printf '%s' "${MODEL_PATH}" | tr '/:' '_')"
 
 # LongBench v1 数据集
 # 想少跑几个时，直接删短这个逗号分隔字符串即可。
 # DATASETS="narrativeqa,qasper,multifieldqa_en,passage_retrieval_en,2wikimqa,musique,gov_report,qmsum,multi_news,trec,triviaqa,samsum,passage_count,hotpotqa"
-DATASETS="trec"
-
+DATASETS="narrativeqa"
 
 RUN_ALL=0     # 1: 使用 -a 跑全部 DATASETS；0: 使用 --datasets "$DATASETS"
 USE_E=0       # 1: 跑 LongBench-E
 
 # dtype / runtime 设置
-TORCH_DTYPE="bfloat16"      # auto | float16 | bfloat16
-ATTN_IMPL="eager"
+TORCH_DTYPE="bfloat16"    # auto | float16 | bfloat16
+ATTN_IMPL="eager"   # mixed run is OK: kv_method=None is internally switched to sdpa
 DEVICE="cuda"
 
 # 其他设置
@@ -60,13 +58,14 @@ OVERWRITE=0
 
 # 方法
 METHODS=(
-  "GroupLogitKV"
+  "none"      # full-precision KV baseline, no compression
   "SimCalKV"
+  "GroupLogitKV"
   "KeepKV"
   "CaM"
 )
 
-# 压缩率
+# 压缩率。method=None 时不 sweep RATIOS，只跑一次 ratio=0。
 RATIOS=(
   # "0.2"
   "0.4"  # 压缩40%，保留 60%
@@ -97,19 +96,26 @@ fi
 # 所以 task_eval_dir 就是该脚本所在目录。
 TASK_EVAL_DIR="$(cd "$(dirname "${LONG_SCRIPT}")" && pwd)"
 
-LOG_DIR="${OUT_DIR}/logs"
 PRED_ROOT="${OUT_DIR}/pred"
-SUMMARY_FILE="${OUT_DIR}/longbench_summary.jsonl"
+MODEL_OUT_ROOT="${PRED_ROOT}/${FAMILY}/${MODEL_SLUG}"
+LOG_DIR="${OUT_DIR}/logs/${FAMILY}/${MODEL_SLUG}"
+SUMMARY_FILE="${MODEL_OUT_ROOT}/longbench_summary.jsonl"
 RUN_LOG="${LOG_DIR}/run_all.log"
 
-mkdir -p "${LOG_DIR}" "${PRED_ROOT}"
+mkdir -p "${LOG_DIR}" "${MODEL_OUT_ROOT}"
 
-# 避免固定 OUT_DIR 时旧 summary 混入新结果
+# run_all.log: overwrite on each script launch
+: > "${RUN_LOG}"
+# 避免固定 OUT_DIR 时当前模型旧 summary 混入新结果
+# 保留原来的 rm -f 行为，但立刻创建空 summary，方便确认路径。
 rm -f "${SUMMARY_FILE}"
+touch "${SUMMARY_FILE}"
 
 echo "LONG_SCRIPT=${LONG_SCRIPT}" | tee -a "${RUN_LOG}"
 echo "TASK_EVAL_DIR=${TASK_EVAL_DIR}" | tee -a "${RUN_LOG}"
 echo "OUT_DIR=${OUT_DIR}" | tee -a "${RUN_LOG}"
+echo "LOG_DIR=${LOG_DIR}" | tee -a "${RUN_LOG}"
+echo "MODEL_OUT_ROOT=${MODEL_OUT_ROOT}" | tee -a "${RUN_LOG}"
 echo "SUMMARY_FILE=${SUMMARY_FILE}" | tee -a "${RUN_LOG}"
 echo "FAMILY=${FAMILY}" | tee -a "${RUN_LOG}"
 echo "MODEL_NAME=${MODEL_NAME}" | tee -a "${RUN_LOG}"
@@ -151,18 +157,21 @@ run_one() {
   local tag="${FAMILY}_${MODEL_SLUG}_${method}_ratio${ratio}_sim${sim_tag}"
   tag=$(echo "${tag}" | tr '/:.-' '____')
 
-  local combo_root="${PRED_ROOT}/${FAMILY}/${MODEL_SLUG}/${method}/ratio_${ratio}/sim_${sim_tag}"
+  local combo_root="${MODEL_OUT_ROOT}/${method}/ratio_${ratio}/sim_${sim_tag}"
   local pred_path
   local result_file
+  local result_avg_file
   local log_file
 
   if [[ "${USE_E}" -eq 1 ]]; then
     pred_path="${combo_root}/pred_e"
     result_file="${combo_root}/result_e.json"
+    result_avg_file="${combo_root}/result_e_avg.jsonl"
     log_file="${LOG_DIR}/${tag}_e.log"
   else
     pred_path="${combo_root}/pred"
     result_file="${combo_root}/result.json"
+    result_avg_file="${combo_root}/result_avg.jsonl"
     log_file="${LOG_DIR}/${tag}.log"
   fi
 
@@ -171,6 +180,7 @@ run_one() {
   echo "========== ${method} | ratio=${ratio} | sim=${sim_tag} ==========" | tee -a "${RUN_LOG}"
   echo "Predictions -> ${pred_path}" | tee -a "${RUN_LOG}"
   echo "Result      -> ${result_file}" | tee -a "${RUN_LOG}"
+  echo "Result avg  -> ${result_avg_file}" | tee -a "${RUN_LOG}"
   echo "Log         -> ${log_file}" | tee -a "${RUN_LOG}"
 
   CMD=(
@@ -213,12 +223,44 @@ run_one() {
   }
 
   if [[ -f "${result_file}" ]]; then
+    avg_score=$(python - <<PY
+import json
+p = "${result_file}"
+with open(p, "r", encoding="utf-8") as f:
+    x = json.load(f)
+vals = []
+for k, v in x.items():
+    if isinstance(v, (int, float)):
+        vals.append(float(v))
+    elif isinstance(v, dict):
+        # 兼容少数 result.json 里可能嵌套 {score: ...} 的情况
+        for key in ("score", "f1", "accuracy", "rouge", "rouge-l"):
+            if isinstance(v.get(key), (int, float)):
+                vals.append(float(v[key]))
+                break
+avg = sum(vals) / len(vals) if vals else None
+print("null" if avg is None else f"{avg:.6f}")
+PY
+)
+
     python - <<PY >> "${SUMMARY_FILE}"
 import json
 
 p = "${result_file}"
+avg_p = "${result_avg_file}"
 with open(p, "r", encoding="utf-8") as f:
     x = json.load(f)
+
+vals = []
+for k, v in x.items():
+    if isinstance(v, (int, float)):
+        vals.append(float(v))
+    elif isinstance(v, dict):
+        for key in ("score", "f1", "accuracy", "rouge", "rouge-l"):
+            if isinstance(v.get(key), (int, float)):
+                vals.append(float(v[key]))
+                break
+avg_score = sum(vals) / len(vals) if vals else None
 
 row = {
     "family": "${FAMILY}",
@@ -229,13 +271,20 @@ row = {
     "sim_thr": "${sim_tag}",
     "use_e": bool(int("${USE_E}")),
     "datasets": "${DATASETS}",
+    "avg_score": avg_score,
     "scores": x,
     "_result_file": p,
+    "_result_avg_file": avg_p,
     "_pred_path": "${pred_path}",
     "_log_file": "${log_file}",
 }
-print(json.dumps(row, ensure_ascii=False))
+line = json.dumps(row, ensure_ascii=False)
+with open(avg_p, "w", encoding="utf-8") as f:
+    f.write(line + "\n")
+print(line)
 PY
+    echo "Average     -> ${avg_score}" | tee -a "${RUN_LOG}"
+    echo "Result avg  -> ${result_avg_file}" | tee -a "${RUN_LOG}"
     echo "[OK] ${tag}" | tee -a "${RUN_LOG}"
   else
     echo "[MISSING_RESULT] ${tag}: ${result_file}" | tee -a "${RUN_LOG}"
@@ -247,6 +296,11 @@ PY
 # =========================
 
 for method in "${METHODS[@]}"; do
+  if [[ "${method}" == "None" || "${method}" == "none" ]]; then
+    run_one "None" "0" "na"
+    continue
+  fi
+
   for ratio in "${RATIOS[@]}"; do
     if [[ "${method}" == "GroupLogitKV" ]]; then
       for thr in "${SIM_THR_GROUPLOGITKV_LIST[@]}"; do
@@ -269,6 +323,8 @@ done
 echo | tee -a "${RUN_LOG}"
 echo "Done." | tee -a "${RUN_LOG}"
 echo "OUT_DIR=${OUT_DIR}" | tee -a "${RUN_LOG}"
+echo "LOG_DIR=${LOG_DIR}" | tee -a "${RUN_LOG}"
+echo "MODEL_OUT_ROOT=${MODEL_OUT_ROOT}" | tee -a "${RUN_LOG}"
 echo "SUMMARY_FILE=${SUMMARY_FILE}" | tee -a "${RUN_LOG}"
 echo | tee -a "${RUN_LOG}"
 

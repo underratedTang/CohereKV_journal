@@ -69,20 +69,17 @@ def _enable_keepkv_runtime_state(model, counts_by_layer: Sequence[torch.Tensor],
     model._keepkv_counts = list(counts_by_layer)
     model._keepkv_log_bias_q = list(log_bias_by_layer)
 
-    # The supplied runtime patch reads the GroupLogitKV attribute names.  KeepKV
-    # deliberately populates the same runtime metadata because the mathematical
-    # operation is the same Electoral Votes calibration: logits += log(count).
-    model._grouplogitkv_counts = list(counts_by_layer)
-    model._grouplogitkv_log_bias_q = list(log_bias_by_layer)
+    # KeepKV uses its own runtime flags.  It must not populate the GroupLogitKV
+    # flags, otherwise decode can incorrectly enter the calibrated_qk kernel.
 
     if hasattr(model, "model") and hasattr(model.model, "layers"):
         for layer_idx, layer in enumerate(model.model.layers):
             attn = layer.self_attn
             attn._keepkv_eager_enabled = True
             attn._keepkv_log_bias_q = log_bias_by_layer[layer_idx]
-            attn._grouplogitkv_eager_enabled = True   # LLaMA patch checks this flag.
+            attn._grouplogitkv_eager_enabled = False
             attn._grouplogitkv_sdpa_enabled = False
-            attn._grouplogitkv_log_bias_q = log_bias_by_layer[layer_idx]
+            attn._grouplogitkv_log_bias_q = None
 
 
 def _initial_or_existing_counts(model, layer_idx: int, K_layer: torch.Tensor) -> torch.Tensor:
@@ -116,8 +113,13 @@ def _token_scores_for_kv_heads(layer_attention: torch.Tensor, num_kv_heads: int)
     """Aggregate [B,H_q,Q,K] attention probabilities to [B,H_kv,K]."""
     if layer_attention is None:
         raise ValueError("KeepKV requires output_attentions=True")
+    if layer_attention.dim() == 3:
+        # Pre-reduced token scores [B,H_kv,K] captured by the runtime patch.
+        if layer_attention.shape[1] != num_kv_heads:
+            raise ValueError(f"Expected pre-reduced scores with H_kv={num_kv_heads}, got {tuple(layer_attention.shape)}")
+        return layer_attention
     if layer_attention.dim() != 4:
-        raise ValueError(f"Expected attention [B,H_q,Q,K], got {tuple(layer_attention.shape)}")
+        raise ValueError(f"Expected attention [B,H_q,Q,K] or score [B,H_kv,K], got {tuple(layer_attention.shape)}")
 
     bsz, h_q, q_len, k_len = layer_attention.shape
     if h_q == num_kv_heads:

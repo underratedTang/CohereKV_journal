@@ -66,6 +66,8 @@ def disable_grouplogitkv_sdpa(model) -> None:
     """
     model._grouplogitkv_counts = None
     model._grouplogitkv_log_bias_q = None
+    model._keepkv_counts = None
+    model._keepkv_log_bias_q = None
 
     if hasattr(model, "model") and hasattr(model.model, "layers"):
         for layer in model.model.layers:
@@ -73,6 +75,8 @@ def disable_grouplogitkv_sdpa(model) -> None:
             attn._grouplogitkv_eager_enabled = False
             attn._grouplogitkv_sdpa_enabled = False
             attn._grouplogitkv_log_bias_q = None
+            attn._keepkv_eager_enabled = False
+            attn._keepkv_log_bias_q = None
 
 
 def disable_grouplogitkv_eager(model) -> None:
@@ -135,8 +139,13 @@ def _token_scores_for_kv_heads(layer_attention: torch.Tensor, num_kv_heads: int)
     """
     if layer_attention is None:
         raise ValueError("Missing attention tensor")
+    if layer_attention.dim() == 3:
+        # Pre-reduced token scores [B,H_kv,K] captured by the runtime patch.
+        if layer_attention.shape[1] != num_kv_heads:
+            raise ValueError(f"Expected pre-reduced scores with H_kv={num_kv_heads}, got {tuple(layer_attention.shape)}")
+        return layer_attention
     if layer_attention.dim() != 4:
-        raise ValueError(f"Expected attention [B,H,Q,K], got {tuple(layer_attention.shape)}")
+        raise ValueError(f"Expected attention [B,H,Q,K] or score [B,H_kv,K], got {tuple(layer_attention.shape)}")
 
     bsz, q_heads, q_len, key_len = layer_attention.shape
 

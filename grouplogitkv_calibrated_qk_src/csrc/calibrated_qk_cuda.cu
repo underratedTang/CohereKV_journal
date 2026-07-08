@@ -112,7 +112,9 @@ torch::Tensor calibrated_qk_q1_cuda(
     TORCH_CHECK(logc.size(0) == B64 && logc.size(1) == H64 && logc.size(2) == 1, "logc shape mismatch");
     TORCH_CHECK(logc.size(3) <= K64, "logc length must be <= key length");
     TORCH_CHECK(D64 <= 256, "head_dim > 256 not supported");
-    TORCH_CHECK(K64 <= 16384, "K length > 16384 not supported");
+    // No hard K-length cap. The grid uses one warp per key and supports long
+    // LongBench decode contexts as long as CUDA grid dimensions are valid.
+    TORCH_CHECK(K64 <= 2147483647LL, "K length exceeds int32 range");
 
     TORCH_CHECK(q.scalar_type() == k.scalar_type(), "q/k dtype mismatch");
     TORCH_CHECK(q.scalar_type() == logc.scalar_type(), "q/logc dtype mismatch");

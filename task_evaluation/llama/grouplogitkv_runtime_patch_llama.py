@@ -22,6 +22,7 @@ q_len > 1 execution, although it is not fused.
 """
 
 import math
+import os
 
 import torch
 import torch.nn as nn
@@ -30,7 +31,10 @@ import torch.nn.functional as F
 from transformers.models.llama import modeling_llama as llama_mod
 from transformers.models.llama.modeling_llama import LlamaAttention
 
-from grouplogitkv_calibrated_qk import calibrated_qk
+try:
+    from grouplogitkv_calibrated_qk import calibrated_qk
+except Exception:
+    calibrated_qk = None
 
 
 _ORIG_LLAMA_ATTENTION_FORWARD = LlamaAttention.forward
@@ -83,6 +87,159 @@ def _add_prefix_log_bias_(attn_weights: torch.Tensor, log_bias_q: torch.Tensor) 
     return attn_weights
 
 
+
+
+
+def _reduce_attention_scores_to_kv_heads(
+    attn_weights: torch.Tensor,
+    num_kv_heads: int,
+    reduce: str = "sum",
+) -> torch.Tensor:
+    """Reduce [B,H_q,Q,K] attention probabilities to [B,H_kv,K].
+
+    This is an engineering-equivalent replacement for returning full
+    attentions to HF.  The merge code only uses the query-reduced token scores,
+    so the patch stores that smaller tensor immediately and avoids keeping all
+    layer attentions on GPU at once.
+    """
+    if attn_weights.dim() != 4:
+        raise ValueError(f"Expected attention [B,H_q,Q,K], got {tuple(attn_weights.shape)}")
+    bsz, h_q, q_len, k_len = attn_weights.shape
+    if h_q == num_kv_heads:
+        attn_kv = attn_weights
+    else:
+        if h_q % num_kv_heads != 0:
+            raise ValueError(f"H_q={h_q} is not divisible by H_kv={num_kv_heads}")
+        groups = h_q // num_kv_heads
+        attn_kv = attn_weights.view(bsz, num_kv_heads, groups, q_len, k_len).mean(dim=2)
+    if reduce == "mean":
+        return attn_kv.mean(dim=2).detach()
+    if reduce == "sum":
+        return attn_kv.sum(dim=2).detach()
+    raise ValueError(f"Unknown attention score reduction: {reduce}")
+
+
+
+def _get_attention_chunk_size(attn_module, q_len: int) -> int:
+    """Query-block size for exact streaming attention during score capture.
+
+    This does not change the math: every query block still attends to the full
+    key sequence.  It only avoids materializing [B,H,Q,K] for all Q at once.
+    """
+    value = getattr(attn_module, "_kvmerge_attention_chunk_size", None)
+    if value is None:
+        value = os.environ.get("KVMERGE_ATTENTION_CHUNK_SIZE", "128")
+    try:
+        value = int(value)
+    except Exception:
+        value = 128
+    if value <= 0:
+        return q_len
+    return max(1, min(value, q_len))
+
+
+def _apply_chunk_attention_mask_(
+    attn_weights: torch.Tensor,
+    attention_mask: torch.Tensor,
+    q_start: int,
+    q_end: int,
+    key_len: int,
+    full_q_len: int,
+) -> torch.Tensor:
+    """Apply the same causal/additive mask for a query block.
+
+    If HF passed an additive attention_mask, slice its query dimension.  If no
+    mask is passed, build the standard causal mask for the current query block.
+    """
+    if attention_mask is not None:
+        if attention_mask.shape[-2] == 1:
+            mask = attention_mask[:, :, :, :key_len]
+        else:
+            mask = attention_mask[:, :, q_start:q_end, :key_len]
+        return attn_weights + mask
+
+    # Fallback causal mask.  In normal HF Llama forward an attention_mask is
+    # provided, but this branch keeps the patch robust.
+    chunk_len = q_end - q_start
+    past_len = key_len - full_q_len
+    if full_q_len <= 1 or past_len < 0:
+        return attn_weights
+    q_abs = torch.arange(q_start, q_end, device=attn_weights.device) + past_len
+    k_abs = torch.arange(key_len, device=attn_weights.device)
+    future = k_abs.view(1, -1) > q_abs.view(-1, 1)
+    if future.any():
+        min_val = torch.finfo(attn_weights.dtype).min
+        attn_weights = attn_weights.masked_fill(future.view(1, 1, chunk_len, key_len), min_val)
+    return attn_weights
+
+
+def _accumulate_reduced_attention_scores(
+    score_accum: torch.Tensor,
+    attn_probs: torch.Tensor,
+    num_kv_heads: int,
+) -> torch.Tensor:
+    """Accumulate query-summed [B,H_kv,K] scores from [B,H_q,C,K]."""
+    bsz, h_q, chunk_len, k_len = attn_probs.shape
+    if score_accum is None:
+        score_accum = torch.zeros(
+            (bsz, num_kv_heads, k_len),
+            device=attn_probs.device,
+            dtype=attn_probs.dtype,
+        )
+    if h_q == num_kv_heads:
+        score_accum = score_accum + attn_probs.sum(dim=2)
+    else:
+        if h_q % num_kv_heads != 0:
+            raise ValueError(f"H_q={h_q} is not divisible by H_kv={num_kv_heads}")
+        groups = h_q // num_kv_heads
+        score_accum = score_accum + attn_probs.view(bsz, num_kv_heads, groups, chunk_len, k_len).mean(dim=2).sum(dim=2)
+    return score_accum
+
+
+def _exact_chunked_attention_with_reduced_scores(
+    attn_module,
+    query_states: torch.Tensor,
+    key_states: torch.Tensor,
+    value_states: torch.Tensor,
+    attention_mask: torch.Tensor,
+    log_bias_q: torch.Tensor,
+    full_q_len: int,
+    output_attentions: bool,
+):
+    """Exact query-blocked attention plus reduced score capture.
+
+    It computes the same softmax(q @ k.T + mask + log_bias) for each query as
+    the dense implementation, but processes query positions in blocks.  The
+    saved score is exactly the same reduction consumed by the merge code:
+    [B,H_q,Q,K] -> [B,H_kv,K].
+    """
+    del output_attentions  # full attentions are intentionally not materialized
+    bsz, h_q, q_len, _ = query_states.shape
+    key_len = key_states.shape[-2]
+    chunk_size = _get_attention_chunk_size(attn_module, q_len)
+
+    outputs = []
+    score_accum = None
+    for q_start in range(0, q_len, chunk_size):
+        q_end = min(q_start + chunk_size, q_len)
+        q_chunk = query_states[:, :, q_start:q_end, :]
+        attn_weights = torch.matmul(q_chunk, key_states.transpose(2, 3)) / math.sqrt(attn_module.head_dim)
+        attn_weights = _add_prefix_log_bias_(attn_weights, log_bias_q)
+        attn_weights = _apply_chunk_attention_mask_(attn_weights, attention_mask, q_start, q_end, key_len, full_q_len)
+        attn_probs = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
+        attn_probs = nn.functional.dropout(attn_probs, p=attn_module.attention_dropout, training=attn_module.training)
+        score_accum = _accumulate_reduced_attention_scores(score_accum, attn_probs, attn_module.num_key_value_heads)
+        outputs.append(torch.matmul(attn_probs, value_states))
+        del attn_weights, attn_probs, q_chunk
+
+    attn_output = torch.cat(outputs, dim=2)
+    reduce_mode = getattr(attn_module, "_kvmerge_attention_score_reduce", "sum")
+    if reduce_mode == "mean":
+        score_accum = score_accum / float(q_len)
+    elif reduce_mode != "sum":
+        raise ValueError(f"Unknown attention score reduction: {reduce_mode}")
+    attn_module._kvmerge_captured_attention_score = score_accum.detach()
+    return attn_output, None
 
 def _add_layer_local_chunk_causal_mask_(attn_weights: torch.Tensor, q_len: int, key_len: int) -> torch.Tensor:
     """Apply causal masking for the current physical chunk using this layer's KV length.
@@ -171,12 +328,21 @@ def _grouplogitkv_llama_attention_forward(
     value_states = llama_mod.repeat_kv(value_states, self.num_key_value_groups)
 
     log_bias_q = None
+    decode_bias_source = None
+
     grouplogitkv_enabled = (
         getattr(self, "_grouplogitkv_eager_enabled", False)
         and (not self.training)
         and hasattr(self, "_grouplogitkv_log_bias_q")
         and self._grouplogitkv_log_bias_q is not None
     )
+    keepkv_enabled = (
+        getattr(self, "_keepkv_eager_enabled", False)
+        and (not self.training)
+        and hasattr(self, "_keepkv_log_bias_q")
+        and self._keepkv_log_bias_q is not None
+    )
+
     if grouplogitkv_enabled:
         log_bias_q = _prepare_log_bias(
             self,
@@ -184,31 +350,67 @@ def _grouplogitkv_llama_attention_forward(
             key_states.shape[-2],
             query_states,
         )
+        decode_bias_source = "GroupLogitKV"
+    elif keepkv_enabled:
+        log_bias_q = _prepare_log_bias(
+            self,
+            self._keepkv_log_bias_q,
+            key_states.shape[-2],
+            query_states,
+        )
+        decode_bias_source = "KeepKV"
 
+    # Only GroupLogitKV uses the calibrated_qk CUDA kernel.  KeepKV may also
+    # use a log-count bias, but it must not enter the GroupLogitKV kernel path.
+    # The patched calibrated_qk extension supports K > 16384; if an old extension
+    # is installed, reinstall grouplogitkv_calibrated_qk from the patched source.
     use_calibrated_qk = (
-        log_bias_q is not None
+        calibrated_qk is not None
+        and decode_bias_source == "GroupLogitKV"
+        and log_bias_q is not None
         and q_len == 1
         and query_states.is_cuda
         and key_states.is_cuda
     )
 
-    if use_calibrated_qk:
-        attn_weights = calibrated_qk(query_states, key_states, log_bias_q)
-    else:
-        attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
-        attn_weights = _add_prefix_log_bias_(attn_weights, log_bias_q)
+    capture_scores = getattr(self, "_kvmerge_capture_attention_scores", False) and (not self.training)
 
-    if getattr(past_key_value, "_ppl_use_physical_causal_mask", False):
-        attn_weights = _add_layer_local_chunk_causal_mask_(
-            attn_weights, q_len=q_len, key_len=key_states.shape[-2]
+    if capture_scores and q_len > 1 and not getattr(past_key_value, "_ppl_use_physical_causal_mask", False):
+        attn_output, attn_weights = _exact_chunked_attention_with_reduced_scores(
+            self,
+            query_states,
+            key_states,
+            value_states,
+            attention_mask,
+            log_bias_q,
+            full_q_len=q_len,
+            output_attentions=output_attentions,
         )
-    elif attention_mask is not None:
-        causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
-        attn_weights = attn_weights + causal_mask
+    else:
+        if use_calibrated_qk:
+            attn_weights = calibrated_qk(query_states, key_states, log_bias_q)
+        else:
+            attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
+            attn_weights = _add_prefix_log_bias_(attn_weights, log_bias_q)
 
-    attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
-    attn_weights = nn.functional.dropout(attn_weights, p=self.attention_dropout, training=self.training)
-    attn_output = torch.matmul(attn_weights, value_states)
+        if getattr(past_key_value, "_ppl_use_physical_causal_mask", False):
+            attn_weights = _add_layer_local_chunk_causal_mask_(
+                attn_weights, q_len=q_len, key_len=key_states.shape[-2]
+            )
+        elif attention_mask is not None:
+            causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
+            attn_weights = attn_weights + causal_mask
+
+        attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
+        attn_weights = nn.functional.dropout(attn_weights, p=self.attention_dropout, training=self.training)
+
+        if capture_scores:
+            reduce_mode = getattr(self, "_kvmerge_attention_score_reduce", "sum")
+            self._kvmerge_captured_attention_score = _reduce_attention_scores_to_kv_heads(
+                attn_weights, self.num_key_value_heads, reduce=reduce_mode
+            )
+
+        attn_output = torch.matmul(attn_weights, value_states)
 
     if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
         raise ValueError(
@@ -226,7 +428,7 @@ def _grouplogitkv_llama_attention_forward(
     else:
         attn_output = self.o_proj(attn_output)
 
-    if not output_attentions:
+    if getattr(self, "_kvmerge_capture_attention_scores", False) or not output_attentions:
         attn_weights = None
 
     return attn_output, attn_weights, past_key_value

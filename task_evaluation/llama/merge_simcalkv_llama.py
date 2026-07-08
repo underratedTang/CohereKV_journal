@@ -13,8 +13,13 @@ def _aggregate_attention_scores_to_kv_heads(layer_attention: torch.Tensor, num_k
     Works for MHA, GQA and MQA. HF attentions are over query heads with shape
     (B, H_q, Q, K). KV cache is over KV heads with shape (B, H_kv, K, D).
     """
+    if layer_attention.dim() == 3:
+        # Pre-reduced token scores [B,H_kv,K] captured by the runtime patch.
+        if layer_attention.shape[1] != num_kv_heads:
+            raise ValueError(f"Expected pre-reduced scores with H_kv={num_kv_heads}, got {tuple(layer_attention.shape)}")
+        return layer_attention
     if layer_attention.dim() != 4:
-        raise ValueError(f"attention must be (B,Hq,Q,K), got {tuple(layer_attention.shape)}")
+        raise ValueError(f"attention must be (B,Hq,Q,K) or score (B,H_kv,K), got {tuple(layer_attention.shape)}")
     B, H_q, Q, L = layer_attention.shape
     if H_q == num_kv_heads:
         attn_kv = layer_attention

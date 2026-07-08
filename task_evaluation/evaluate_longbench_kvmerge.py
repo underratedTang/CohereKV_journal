@@ -4,6 +4,7 @@ import json
 import time
 import random
 import argparse
+import gc
 import zipfile
 from pathlib import Path
 
@@ -54,7 +55,7 @@ MODELS = [
     "Qwen2.5-72B-Instruct",
 ]
 
-METHODS = ["GroupLogitKV", "SimCalKV", "KeepKV", "CaM"]
+METHODS = ["GroupLogitKV", "SimCalKV", "KeepKV", "CaM", "None", "none"]
 
 
 def parse_args(args=None):
@@ -99,6 +100,14 @@ def get_torch_dtype(name):
     raise ValueError(name)
 
 
+def normalize_kv_method(method):
+    if method is None:
+        return None
+    if str(method).lower() in ["none", "full", "fullkv", "nocompress", "no_compress", "baseline"]:
+        return "None"
+    return method
+
+
 def infer_arch(model_name, model_path):
     s = f"{model_name} {model_path or ''}".lower()
     if "qwen" in s:
@@ -109,6 +118,16 @@ def infer_arch(model_name, model_path):
 
 
 def setup_kv_imports(task_eval_dir, arch, kv_method):
+    kv_method = normalize_kv_method(kv_method)
+    if kv_method == "None":
+        def reset(model):
+            return None
+
+        def apply(method, model, pkv, attn, hidden, ratio, sim_thr):
+            return pkv
+
+        return apply, reset
+
     root = Path(task_eval_dir).resolve()
     method_dir = root / arch
     if not method_dir.exists():
@@ -120,7 +139,9 @@ def setup_kv_imports(task_eval_dir, arch, kv_method):
         from merge_grouplogitkv_llama import Repair as GroupRepair, disable_grouplogitkv_sdpa
         from merge_keepkv_llama import KeepKV as KeepRepair
         from merge_cam_llama import CaMPress
-        if kv_method in ["GroupLogitKV", "KeepKV"]:
+        # The runtime patch is used both for GroupLogitKV/KeepKV decode bias and
+        # for engineering-equivalent reduced-attention-score capture during prefill.
+        if kv_method in ["GroupLogitKV", "SimCalKV", "KeepKV", "CaM"]:
             from grouplogitkv_runtime_patch_llama import apply_grouplogitkv_runtime_patch
             apply_grouplogitkv_runtime_patch()
 
@@ -145,7 +166,9 @@ def setup_kv_imports(task_eval_dir, arch, kv_method):
         from merge_grouplogitkv_qwen import Repair as GroupRepair, disable_grouplogitkv_sdpa
         from merge_keepkv_qwen import Repair_keepkv as KeepRepair
         from merge_cam_qwen import Repair as CaMRepair
-        if kv_method in ["GroupLogitKV", "KeepKV"]:
+        # The runtime patch is used both for GroupLogitKV/KeepKV decode bias and
+        # for engineering-equivalent reduced-attention-score capture during prefill.
+        if kv_method in ["GroupLogitKV", "SimCalKV", "KeepKV", "CaM"]:
             from grouplogitkv_runtime_patch_qwen import apply_grouplogitkv_qwen_runtime_patch
             apply_grouplogitkv_qwen_runtime_patch()
 
@@ -241,7 +264,8 @@ def manual_generate_after_compress(model, tokenizer, inputs, compressed_pkv, fir
 
     for _ in range(max_new_tokens - 1):
         with torch.no_grad():
-            out = model(**next_inputs, use_cache=True)
+            next_inputs["use_cache"] = True
+            out = model(**next_inputs)
             tok = out.logits[0, -1, :].argmax()
         generated.append(tok.reshape(()))
         if int(tok) in stop_ids:
@@ -380,19 +404,131 @@ def load_model_and_tokenizer(path, model_name, device, torch_dtype=torch.bfloat1
 
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token_id = tokenizer.eos_token_id
+    # Make the requested attention backend explicit. Some transformer versions
+    # keep this on config rather than honoring only the from_pretrained kwarg.
+    if attn_implementation:
+        try:
+            model.config._attn_implementation = attn_implementation
+        except Exception:
+            pass
+        try:
+            model.generation_config._attn_implementation = attn_implementation
+        except Exception:
+            pass
+
     model.generation_config.pad_token_id = tokenizer.pad_token_id
     model = model.eval()
     return model, tokenizer
 
 
 def get_selected_sim_thr(args):
-    if args.kv_method == "GroupLogitKV":
+    method = normalize_kv_method(args.kv_method)
+    if method == "None":
+        return -1.0
+    if method == "GroupLogitKV":
         return float(args.sim_thr_grouplogitkv)
-    if args.kv_method == "SimCalKV":
+    if method == "SimCalKV":
         return float(args.sim_thr_simcalkv)
-    if args.kv_method == "KeepKV":
+    if method == "KeepKV":
         return float(args.sim_thr_keepkv)
     return -1.0
+
+
+def _self_attention_modules(model):
+    """Return model self-attention modules in layer order for Llama/Qwen-style models."""
+    if hasattr(model, "model") and hasattr(model.model, "layers"):
+        layers = model.model.layers
+    elif hasattr(model, "transformer") and hasattr(model.transformer, "h"):
+        layers = model.transformer.h
+    else:
+        raise AttributeError("Cannot find transformer layers for attention-score capture")
+    modules = []
+    for layer in layers:
+        if hasattr(layer, "self_attn"):
+            modules.append(layer.self_attn)
+        elif hasattr(layer, "attention"):
+            modules.append(layer.attention)
+        else:
+            raise AttributeError(f"Cannot find self-attention module in layer {layer}")
+    return modules
+
+
+def _set_reduced_attention_capture(model, enabled: bool, reduce: str = "sum"):
+    """Enable/disable per-layer reduced attention-score capture.
+
+    This avoids returning full HF attentions [B,H_q,Q,K].  The runtime attention
+    patch computes exactly the query-reduced token scores consumed by the merge
+    algorithms and stores one [B,H_kv,K] tensor per layer.
+    """
+    for attn in _self_attention_modules(model):
+        setattr(attn, "_kvmerge_capture_attention_scores", bool(enabled))
+        setattr(attn, "_kvmerge_attention_score_reduce", reduce)
+        if hasattr(attn, "_kvmerge_captured_attention_score"):
+            delattr(attn, "_kvmerge_captured_attention_score")
+
+
+def _get_reduced_attention_scores(model):
+    scores = []
+    for idx, attn in enumerate(_self_attention_modules(model)):
+        score = getattr(attn, "_kvmerge_captured_attention_score", None)
+        if score is None:
+            raise RuntimeError(f"Missing reduced attention score for layer {idx}")
+        scores.append(score)
+    return tuple(scores)
+
+
+def _clear_reduced_attention_scores(model):
+    for attn in _self_attention_modules(model):
+        if hasattr(attn, "_kvmerge_captured_attention_score"):
+            delattr(attn, "_kvmerge_captured_attention_score")
+
+
+def _attention_reduce_mode_for_method(method: str) -> str:
+    method = normalize_kv_method(method)
+    # GroupLogitKV and SimCalKV use sum over query positions.
+    # KeepKV and CaM use mean over query positions.  These are computed before
+    # returning from the attention layer, instead of storing full attentions.
+    return "mean" if method in ["KeepKV", "CaM"] else "sum"
+
+
+def _need_attention_scores_for_method(method: str) -> bool:
+    return normalize_kv_method(method) != "None"
+
+
+def _need_hidden_states_for_method(method: str) -> bool:
+    return normalize_kv_method(method) == "SimCalKV"
+
+
+
+
+def generate_full_kv_baseline(model, tokenizer, inputs, max_gen, dataset):
+    """Full-precision, no-compression baseline.
+
+    This path intentionally uses Hugging Face generate instead of the KV-merge
+    prefill/compress/manual-decode path. It is mathematically the full-KV
+    baseline and avoids forcing eager attention or any score-capture patch.
+    """
+    context_length = inputs.input_ids.shape[-1]
+    gen_kwargs = dict(
+        **inputs,
+        max_new_tokens=max_gen,
+        num_beams=1,
+        do_sample=False,
+        temperature=1.0,
+        use_cache=True,
+    )
+    if dataset == "samsum":
+        stop_ids = [tokenizer.eos_token_id]
+        try:
+            stop_ids.append(tokenizer.encode("\n", add_special_tokens=False)[-1])
+        except Exception:
+            pass
+        gen_kwargs.update(
+            min_length=context_length + 1,
+            eos_token_id=[x for x in stop_ids if x is not None],
+        )
+    output = model.generate(**gen_kwargs)[0]
+    return output[context_length:]
 
 
 def run_dataset(model, tokenizer, apply_kv, reset_kv, data, max_length, max_gen, prompt_format, dataset, model_name, out_file, args):
@@ -412,27 +548,70 @@ def run_dataset(model, tokenizer, apply_kv, reset_kv, data, max_length, max_gen,
 
         inputs = tokenizer(prompt, truncation=False, return_tensors="pt").to(args.device)
 
-        with torch.no_grad():
-            outputs = model(
-                **inputs,
-                output_attentions=True,
-                output_hidden_states=True,
-                use_cache=True,
-            )
-            first_token_id = outputs.logits[0, -1, :].argmax()
+        method = normalize_kv_method(args.kv_method)
 
-        if outputs.attentions is None:
-            raise RuntimeError(
-                "Model did not return attentions. Use --attn_implementation eager "
-                "or a transformers/model version that supports output_attentions=True."
-            )
+        if method == "None":
+            with torch.no_grad():
+                generated_tokens = generate_full_kv_baseline(model, tokenizer, inputs, max_gen, dataset)
+            pred = tokenizer.decode(generated_tokens, skip_special_tokens=True)
+            pred = post_process(pred, model_name)
+            row = {
+                "pred": pred,
+                "answers": json_obj["answers"],
+                "all_classes": json_obj["all_classes"],
+                "length": json_obj["length"],
+                "kv_method": method,
+                "compress_ratio": 0.0,
+                "sim_thr": "na",
+                "merge_time_sec": 0.0,
+            }
+            with open(out_file, "a", encoding="utf-8") as f:
+                json.dump(row, f, ensure_ascii=False)
+                f.write("\n")
+            del inputs, generated_tokens, row
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            continue
+
+        reduce_mode = _attention_reduce_mode_for_method(method)
+        need_attention_scores = _need_attention_scores_for_method(method)
+        need_hidden_states = _need_hidden_states_for_method(method)
+
+        if need_attention_scores:
+            _set_reduced_attention_capture(model, True, reduce=reduce_mode)
+        try:
+            with torch.no_grad():
+                outputs = model(
+                    **inputs,
+                    output_attentions=False,
+                    output_hidden_states=need_hidden_states,
+                    use_cache=True,
+                    return_dict=True,
+                )
+                first_token_id = outputs.logits[0, -1, :].argmax()
+            reduced_attentions = _get_reduced_attention_scores(model) if need_attention_scores else None
+        finally:
+            if need_attention_scores:
+                _set_reduced_attention_capture(model, False, reduce=reduce_mode)
 
         _sync(args.device)
         t0 = time.time()
         sim_thr = get_selected_sim_thr(args)
-        compressed_pkv = apply_kv(args.kv_method, model, outputs.past_key_values, outputs.attentions, outputs.hidden_states, args.compress_ratio, sim_thr)
+        compressed_pkv = apply_kv(
+            method,
+            model,
+            outputs.past_key_values,
+            reduced_attentions,
+            outputs.hidden_states if need_hidden_states else None,
+            args.compress_ratio,
+            sim_thr,
+        )
         _sync(args.device)
         merge_time = time.time() - t0
+
+        if reduced_attentions is not None:
+            del reduced_attentions
 
         stop_token_ids = None
         if dataset == "samsum":
@@ -447,6 +626,16 @@ def run_dataset(model, tokenizer, apply_kv, reset_kv, data, max_length, max_gen,
         pred = tokenizer.decode(generated, skip_special_tokens=True)
         pred = post_process(pred, model_name)
         reset_kv(model)
+        _clear_reduced_attention_scores(model)
+
+        # Release large tensors before the next sample.  This does not change
+        # numerical results; it only removes Python references.
+        try:
+            del outputs, compressed_pkv, generated, first_token_id
+        except Exception:
+            pass
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
         row = {
             "pred": pred,
@@ -589,6 +778,7 @@ def load_longbench_dataset(dataset_name, task_eval_dir):
 def main():
     time_started = time.time()
     args = parse_args()
+    args.kv_method = normalize_kv_method(args.kv_method)
     seed_everything(args.seed)
     if args.model is None:
         raise ValueError("--model is required")
@@ -622,10 +812,23 @@ def main():
             if ds not in DATASETS:
                 raise ValueError(f"dataset {ds} not supported by this LongBench v1 runner")
 
-    apply_kv, reset_kv = setup_kv_imports(task_eval_dir, args.arch, args.kv_method)
+    method_norm = normalize_kv_method(args.kv_method)
+    apply_kv, reset_kv = setup_kv_imports(task_eval_dir, args.arch, method_norm)
     torch_dtype = get_torch_dtype(args.dtype)
+
+    # Full-KV baseline should not use eager attention on long contexts; eager
+    # materializes [B,H,S,S] and OOMs for larger models.  The original AquaKV
+    # LongBench loader also did not force eager for this path.  Keep eager for
+    # KV-merge methods because their runtime patch supplies the exact reduced
+    # attention scores needed by the compressors.
+    effective_attn_impl = args.attn_implementation
+    if method_norm == "None":
+        if str(effective_attn_impl).lower() == "eager":
+            effective_attn_impl = "sdpa"
+        print(f"[INFO] kv_method=None: using full-KV generate path with attn_implementation={effective_attn_impl}.", flush=True)
+
     model, tokenizer = load_model_and_tokenizer(
-        model_path, args.model, args.device, torch_dtype=torch_dtype, attn_implementation=args.attn_implementation
+        model_path, args.model, args.device, torch_dtype=torch_dtype, attn_implementation=effective_attn_impl
     )
     reset_kv(model)
 

@@ -57,9 +57,14 @@ def _layer_item(items: Optional[Sequence[torch.Tensor]], layer_idx: int):
 
 def _aggregate_attention_to_kv_heads(attentions: torch.Tensor, num_kv_heads: int) -> torch.Tensor:
     """Map query-head attentions to KV-head attentions for MHA/GQA/MQA."""
+    if attentions.dim() == 3:
+        # Pre-reduced mean attention scores [B,H_kv,K] captured by the runtime patch.
+        if attentions.shape[1] != num_kv_heads:
+            raise ValueError(f"Expected pre-reduced scores with H_kv={num_kv_heads}, got {tuple(attentions.shape)}")
+        return attentions
     if attentions.dim() != 4:
         raise ValueError(
-            f"attentions must have shape (batch, q_heads, q_len, kv_len); got {tuple(attentions.shape)}"
+            f"attentions must have shape (batch, q_heads, q_len, kv_len) or score (batch, kv_heads, kv_len); got {tuple(attentions.shape)}"
         )
     bsz, num_q_heads, q_len, kv_len = attentions.shape
     if num_q_heads == num_kv_heads:
@@ -146,9 +151,9 @@ class CaMPress:
                 f"attention shape {tuple(attn.shape)} is incompatible with cache shape {tuple(keys.shape)}"
             )
 
-        # Abar proxy available in this chunked PPL setting: mean attention over
-        # query positions returned by the current forward chunk.
-        score = attn.mean(dim=2)  # (batch, kv_heads, seq_len)
+        # If the runtime patch already returned [B,H_kv,L], it is already
+        # query-reduced. Otherwise reduce [B,H_kv,Q,L] by mean over Q.
+        score = attn if attn.dim() == 3 else attn.mean(dim=2)  # (batch, kv_heads, seq_len)
         score = torch.nan_to_num(score, nan=0.0, posinf=0.0, neginf=0.0).clamp_min(0.0)
 
         merged_values = values.clone()
