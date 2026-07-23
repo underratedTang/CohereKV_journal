@@ -1,0 +1,81 @@
+PPL_SCRIPT=/root/SimCalKV/task_evaluation/evaluate_ppl_kvmerge_aquakvstyle.py
+TASK_EVAL_DIR=/root/SimCalKV/task_evaluation
+OUT_DIR=/root/SimCalKV/results/ppl_manual_test
+MODEL_SLUG=Qwen_Qwen2.5-7B
+MODEL_OUT_DIR=/root/SimCalKV/results/ppl_manual_test/Qwen_Qwen2.5-7B
+SUMMARY_FILE=/root/SimCalKV/results/ppl_manual_test/Qwen_Qwen2.5-7B/ppl_summary_20260711_060329.jsonl
+FAMILY=qwen
+MODEL=Qwen/Qwen2.5-7B
+MODEL_SEQLEN=8192
+CHUNK_SIZE=32
+MIN_KV_LEN=2
+COMPRESS_EVERY=1
+TORCH_DTYPE=bfloat16
+AMP_DTYPE=none
+ATTN_IMPL=eager
+DEVICE=cuda
+DEVICE_MAP=auto
+SEED=0
+DATASETS=wikitext2
+METHODS=GroupLogitKV
+RATIOS=0.2 0.4 0.6 0.8
+SIM_THR_GROUPLOGITKV_LIST=-1 0.0 0.2 0.4 0.6 0.8
+SIM_THR_SIMCALKV_LIST=-1
+SIM_THR_KEEPKV_LIST=0.8
+
+========== wikitext2 | GroupLogitKV | ratio=0.2 | sim=-1 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p2_sim_1
+========== wikitext2 | GroupLogitKV | ratio=0.2 | sim=0.0 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p2_sim0p0
+========== wikitext2 | GroupLogitKV | ratio=0.2 | sim=0.2 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p2_sim0p2
+========== wikitext2 | GroupLogitKV | ratio=0.2 | sim=0.4 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p2_sim0p4
+========== wikitext2 | GroupLogitKV | ratio=0.2 | sim=0.6 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p2_sim0p6
+========== wikitext2 | GroupLogitKV | ratio=0.2 | sim=0.8 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p2_sim0p8
+========== wikitext2 | GroupLogitKV | ratio=0.4 | sim=-1 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p4_sim_1
+========== wikitext2 | GroupLogitKV | ratio=0.4 | sim=0.0 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p4_sim0p0
+========== wikitext2 | GroupLogitKV | ratio=0.4 | sim=0.2 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p4_sim0p2
+========== wikitext2 | GroupLogitKV | ratio=0.4 | sim=0.4 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p4_sim0p4
+========== wikitext2 | GroupLogitKV | ratio=0.4 | sim=0.6 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p4_sim0p6
+========== wikitext2 | GroupLogitKV | ratio=0.4 | sim=0.8 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p4_sim0p8
+========== wikitext2 | GroupLogitKV | ratio=0.6 | sim=-1 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p6_sim_1
+========== wikitext2 | GroupLogitKV | ratio=0.6 | sim=0.0 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p6_sim0p0
+========== wikitext2 | GroupLogitKV | ratio=0.6 | sim=0.2 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p6_sim0p2
+========== wikitext2 | GroupLogitKV | ratio=0.6 | sim=0.4 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p6_sim0p4
+========== wikitext2 | GroupLogitKV | ratio=0.6 | sim=0.6 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p6_sim0p6
+========== wikitext2 | GroupLogitKV | ratio=0.6 | sim=0.8 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p6_sim0p8
+========== wikitext2 | GroupLogitKV | ratio=0.8 | sim=-1 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p8_sim_1
+========== wikitext2 | GroupLogitKV | ratio=0.8 | sim=0.0 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p8_sim0p0
+========== wikitext2 | GroupLogitKV | ratio=0.8 | sim=0.2 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p8_sim0p2
+========== wikitext2 | GroupLogitKV | ratio=0.8 | sim=0.4 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p8_sim0p4
+========== wikitext2 | GroupLogitKV | ratio=0.8 | sim=0.6 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p8_sim0p6
+========== wikitext2 | GroupLogitKV | ratio=0.8 | sim=0.8 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p8_sim0p8
+
+Done.
+OUT_DIR=/root/SimCalKV/results/ppl_manual_test
+MODEL_SLUG=Qwen_Qwen2.5-7B
+MODEL_OUT_DIR=/root/SimCalKV/results/ppl_manual_test/Qwen_Qwen2.5-7B
+SUMMARY_FILE=/root/SimCalKV/results/ppl_manual_test/Qwen_Qwen2.5-7B/ppl_summary_20260711_060329.jsonl
+
+Preview:

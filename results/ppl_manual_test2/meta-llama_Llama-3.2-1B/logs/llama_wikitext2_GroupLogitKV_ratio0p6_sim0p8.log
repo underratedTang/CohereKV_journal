@@ -1,0 +1,53 @@
+Loading model: meta-llama/Llama-3.2-1B
+Transformers version: 4.46.3
+KV method: GroupLogitKV, ratio=0.6
+Loading eval dataset: wikitext2
+Token indices sequence length is longer than the specified maximum sequence length for this model (289077 > 131072). Running this sequence through the model will result in indexing errors
+PPL evaluation windows: 35 (seqlen=8192, dataset_tokens=289077, limit=0)
+Evaluating perplexity:   0%|          | 0/35 [00:00<?, ?it/s]Evaluating perplexity:   3%|▎         | 1/35 [00:08<05:02,  8.89s/it]Evaluating perplexity:   6%|▌         | 2/35 [00:17<04:41,  8.54s/it]Evaluating perplexity:   9%|▊         | 3/35 [00:25<04:28,  8.40s/it]Evaluating perplexity:  11%|█▏        | 4/35 [00:33<04:18,  8.34s/it]Evaluating perplexity:  14%|█▍        | 5/35 [00:41<04:09,  8.30s/it]Evaluating perplexity:  17%|█▋        | 6/35 [00:50<04:00,  8.28s/it]Evaluating perplexity:  20%|██        | 7/35 [00:58<03:51,  8.27s/it]Evaluating perplexity:  23%|██▎       | 8/35 [01:06<03:42,  8.26s/it]Evaluating perplexity:  26%|██▌       | 9/35 [01:14<03:34,  8.25s/it]Evaluating perplexity:  29%|██▊       | 10/35 [01:23<03:26,  8.24s/it]Evaluating perplexity:  31%|███▏      | 11/35 [01:31<03:17,  8.24s/it]Evaluating perplexity:  34%|███▍      | 12/35 [01:39<03:09,  8.24s/it]Evaluating perplexity:  37%|███▋      | 13/35 [01:47<03:01,  8.23s/it]Evaluating perplexity:  40%|████      | 14/35 [01:55<02:52,  8.23s/it]Evaluating perplexity:  43%|████▎     | 15/35 [02:04<02:44,  8.22s/it]Evaluating perplexity:  46%|████▌     | 16/35 [02:12<02:36,  8.22s/it]Evaluating perplexity:  49%|████▊     | 17/35 [02:20<02:28,  8.22s/it]Evaluating perplexity:  51%|█████▏    | 18/35 [02:28<02:19,  8.23s/it]Evaluating perplexity:  54%|█████▍    | 19/35 [02:37<02:11,  8.23s/it]Evaluating perplexity:  57%|█████▋    | 20/35 [02:45<02:03,  8.22s/it]Evaluating perplexity:  60%|██████    | 21/35 [02:53<01:55,  8.22s/it]Evaluating perplexity:  63%|██████▎   | 22/35 [03:01<01:46,  8.22s/it]Evaluating perplexity:  66%|██████▌   | 23/35 [03:09<01:38,  8.22s/it]Evaluating perplexity:  69%|██████▊   | 24/35 [03:18<01:30,  8.22s/it]Evaluating perplexity:  71%|███████▏  | 25/35 [03:26<01:22,  8.23s/it]Evaluating perplexity:  74%|███████▍  | 26/35 [03:34<01:14,  8.24s/it]Evaluating perplexity:  77%|███████▋  | 27/35 [03:42<01:05,  8.23s/it]Evaluating perplexity:  80%|████████  | 28/35 [03:51<00:57,  8.23s/it]Evaluating perplexity:  83%|████████▎ | 29/35 [03:59<00:49,  8.23s/it]Evaluating perplexity:  86%|████████▌ | 30/35 [04:07<00:41,  8.23s/it]Evaluating perplexity:  89%|████████▊ | 31/35 [04:15<00:32,  8.24s/it]Evaluating perplexity:  91%|█████████▏| 32/35 [04:24<00:24,  8.26s/it]Evaluating perplexity:  94%|█████████▍| 33/35 [04:32<00:16,  8.26s/it]Evaluating perplexity:  97%|█████████▋| 34/35 [04:40<00:08,  8.26s/it]Evaluating perplexity: 100%|██████████| 35/35 [04:48<00:00,  8.25s/it]Evaluating perplexity: 100%|██████████| 35/35 [04:48<00:00,  8.25s/it]
+{
+  "model_name": "meta-llama/Llama-3.2-1B",
+  "family": "llama",
+  "dataset": "wikitext2",
+  "kv_method": "GroupLogitKV",
+  "compress_ratio": 0.6,
+  "cam_protocol": null,
+  "cam_merge_size": null,
+  "cam_start_fraction": null,
+  "sim_thr_effective": 0.8,
+  "sim_thr_grouplogitkv": 0.8,
+  "sim_thr_simcalkv": null,
+  "sim_thr_keepkv": null,
+  "keepkv_similarity_threshold": 0.8,
+  "keepkv_prefill_similarity_threshold": 0.8,
+  "keepkv_epsilon_times": 1.0,
+  "keepkv_pyramid_recent_ratio": 0.2,
+  "keepkv_pyramid_budget": false,
+  "keepkv_pyramid_decay_strategy": "cosine",
+  "keepkv_pyramid_decay_ratio": 0.8,
+  "keepkv_distance_weight": 1.2,
+  "keepkv_sink_len": 4,
+  "keepkv_protect_sink": false,
+  "keepkv_assert_causal": false,
+  "keepkv_disable_vote_bias": false,
+  "keepkv_runtime_only": false,
+  "max_eval_sequences": 0,
+  "model_seqlen": 8192,
+  "chunk_size": 32,
+  "actual_step_size": 32,
+  "min_kv_len": 2,
+  "compress_every": 1,
+  "torch_dtype": "bfloat16",
+  "amp_dtype": "none",
+  "attn_implementation": "eager",
+  "seed": 0,
+  "ppl": 9.136573309752345,
+  "elapsed_s": 288.89767575263977,
+  "num_eval_tokens": 286685,
+  "num_eval_sequences": 35,
+  "num_compressions": 8960,
+  "total_compress_time_s": 120.94003677368164,
+  "avg_compress_time_s": 0.013497771961348397,
+  "avg_compressed_kv_len": 1644.80078125,
+  "avg_compressed_kv_mib": 51.4000244140625
+}

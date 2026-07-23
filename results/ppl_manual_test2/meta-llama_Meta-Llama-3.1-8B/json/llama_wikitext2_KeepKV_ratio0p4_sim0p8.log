@@ -1,0 +1,34 @@
+Loading model: meta-llama/Meta-Llama-3.1-8B
+Transformers version: 4.46.3
+KV method: KeepKV, ratio=0.4
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:04,  1.47s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.48s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:04<00:01,  1.54s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.10s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.25s/it]
+Loading eval dataset: wikitext2
+Token indices sequence length is longer than the specified maximum sequence length for this model (289077 > 131072). Running this sequence through the model will result in indexing errors
+PPL evaluation windows: 35 (seqlen=8192, dataset_tokens=289077, limit=0)
+Evaluating perplexity:   0%|          | 0/35 [00:00<?, ?it/s]Evaluating perplexity:   3%|▎         | 1/35 [01:39<56:26, 99.61s/it]Evaluating perplexity:   6%|▌         | 2/35 [03:18<54:32, 99.16s/it]Evaluating perplexity:   6%|▌         | 2/35 [04:31<1:14:38, 135.70s/it]
+Traceback (most recent call last):
+  File "/root/SimCalKV/task_evaluation/evaluate_ppl_kvmerge.py", line 1060, in <module>
+    main()
+  File "/root/SimCalKV/task_evaluation/evaluate_ppl_kvmerge.py", line 992, in main
+    ppl = evaluate_perplexity(
+  File "/root/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 120, in decorate_context
+    return func(*args, **kwargs)
+  File "/root/SimCalKV/task_evaluation/evaluate_ppl_kvmerge.py", line 101, in evaluate_perplexity
+    out = model(
+  File "/root/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1775, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/root/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1786, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/root/SimCalKV/task_evaluation/evaluate_ppl_kvmerge.py", line 722, in wrapped_forward
+    cache.maybe_compress(getattr(out, "attentions", None), getattr(out, "hidden_states", None))
+  File "/root/SimCalKV/task_evaluation/evaluate_ppl_kvmerge.py", line 500, in maybe_compress
+    merged = apply_kv_method(
+  File "/root/SimCalKV/task_evaluation/evaluate_ppl_kvmerge.py", line 630, in apply_kv_method
+    return _import_from_family(family, import_root, f"merge_keepkv_{family}").Repair_keepkv(
+  File "/root/SimCalKV/task_evaluation/models/llama/merge_keepkv_llama.py", line 53, in Repair_keepkv
+    return compress_keepkv(model, past_key_values, attention, compress_ratio, sim_thr, cfg)
+  File "/root/SimCalKV/task_evaluation/models/common/keepkv_common.py", line 594, in compress_keepkv
+    new_key, new_value = _official_compress_layer(key, value, state, budget, threshold, cfg)
+  File "/root/SimCalKV/task_evaluation/models/common/keepkv_common.py", line 536, in _official_compress_layer
+    new_recent_scores = new_recent_scores / cnt_total.unsqueeze(-2)
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 116.00 MiB. GPU 0 has a total capacity of 23.52 GiB of which 10.69 MiB is free. Including non-PyTorch memory, this process has 23.50 GiB memory in use. Of the allocated memory 19.94 GiB is allocated by PyTorch, and 3.10 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)

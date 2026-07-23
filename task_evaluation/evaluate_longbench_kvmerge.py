@@ -76,8 +76,11 @@ def parse_args(args=None):
     p.add_argument("--dtype", type=str, default="fp16", choices=["fp16", "float16", "bf16", "bfloat16", "auto"])
     p.add_argument("--device", type=str, default="cuda")
     p.add_argument("--attn_implementation", type=str, default="eager", help="Use eager for KV-merge methods that need attention logits/weights.")
+    p.add_argument("--prefill_chunk_size", type=int, default=128, help="Prompt forward chunk size for memory-efficient KeepKV one-shot prefill.")
+    p.add_argument("--keepkv_similarity_chunk_size", type=int, default=256, help="Discard-token block size used by memory-bounded KeepKV cosine matching.")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--overwrite", action="store_true", help="Overwrite existing dataset jsonl files.")
+    p.add_argument("--cleanup_interval", type=int, default=0, help="Run Python GC/CUDA cache cleanup every N samples; 0 disables forced cleanup (faster and usually lower fragmentation).")
     return p.parse_args(args)
 
 
@@ -118,6 +121,13 @@ def infer_arch(model_name, model_path):
 
 
 def setup_kv_imports(task_eval_dir, arch, kv_method):
+    """Load the current KV-compression entry points and runtime patches.
+
+    The method implementations live under ``models/<arch>`` and now expose
+    function-based entry points.  KeepKV also has its own decode-time runtime
+    patch, while the other compressed-cache methods share the GroupLogitKV
+    eager-attention patch.
+    """
     kv_method = normalize_kv_method(kv_method)
     if kv_method == "None":
         def reset(model):
@@ -129,66 +139,93 @@ def setup_kv_imports(task_eval_dir, arch, kv_method):
         return apply, reset
 
     root = Path(task_eval_dir).resolve()
-    method_dir = root / arch
+    method_dir = root / "models" / arch
     if not method_dir.exists():
         raise FileNotFoundError(f"Missing method directory: {method_dir}")
-    sys.path.insert(0, str(method_dir))
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    if str(method_dir) not in sys.path:
+        sys.path.insert(0, str(method_dir))
 
     if arch == "llama":
         from merge_simcalkv_llama import Repair as SimCalRepair
-        from merge_grouplogitkv_llama import Repair as GroupRepair, disable_grouplogitkv_sdpa
-        from merge_keepkv_llama import KeepKV as KeepRepair
-        from merge_cam_llama import CaMPress
-        # The runtime patch is used both for GroupLogitKV/KeepKV decode bias and
-        # for engineering-equivalent reduced-attention-score capture during prefill.
-        if kv_method in ["GroupLogitKV", "SimCalKV", "KeepKV", "CaM"]:
+        from merge_grouplogitkv_llama import (
+            Repair as GroupRepair,
+            disable_grouplogitkv_eager,
+            disable_grouplogitkv_sdpa,
+        )
+        from merge_keepkv_llama import (
+            Repair_keepkv as KeepRepair, reset_keepkv_state,
+            prepare_longbench_keepkv, set_longbench_keepkv_chunk, finalize_longbench_keepkv,
+        )
+        from merge_cam_llama import Repair as CaMRepair, reset_cam_state
+
+        if kv_method == "KeepKV":
+            from keepkv_runtime_patch_llama import apply_keepkv_runtime_patch
+            apply_keepkv_runtime_patch()
+        else:
             from grouplogitkv_runtime_patch_llama import apply_grouplogitkv_runtime_patch
             apply_grouplogitkv_runtime_patch()
 
-        def reset(model):
-            disable_grouplogitkv_sdpa(model)
-
-        def apply(method, model, pkv, attn, hidden, ratio, sim_thr):
-            if method == "SimCalKV":
-                return SimCalRepair(model, pkv, attn, hidden, ratio, sim_thr)
-            if method == "GroupLogitKV":
-                return GroupRepair(model, pkv, attn, hidden, ratio, sim_thr)
-            if method == "KeepKV":
-                return KeepRepair(model, pkv, attn, hidden, ratio, sim_thr)
-            if method == "CaM":
-                compressor = CaMPress(compression_ratio=ratio)
-                return tuple(compressor.compress(None, None, layer[0], layer[1], attn[i], None) for i, layer in enumerate(_as_legacy_tuple(pkv)))
-            raise ValueError(method)
-        return apply, reset
-
-    if arch == "qwen":
+    elif arch == "qwen":
         from merge_simcalkv_qwen import Repair as SimCalRepair
-        from merge_grouplogitkv_qwen import Repair as GroupRepair, disable_grouplogitkv_sdpa
-        from merge_keepkv_qwen import Repair_keepkv as KeepRepair
-        from merge_cam_qwen import Repair as CaMRepair
-        # The runtime patch is used both for GroupLogitKV/KeepKV decode bias and
-        # for engineering-equivalent reduced-attention-score capture during prefill.
-        if kv_method in ["GroupLogitKV", "SimCalKV", "KeepKV", "CaM"]:
+        from merge_grouplogitkv_qwen import (
+            Repair as GroupRepair,
+            disable_grouplogitkv_eager,
+            disable_grouplogitkv_sdpa,
+        )
+        from merge_keepkv_qwen import (
+            Repair_keepkv as KeepRepair, reset_keepkv_state,
+            prepare_longbench_keepkv, set_longbench_keepkv_chunk, finalize_longbench_keepkv,
+        )
+        from merge_cam_qwen import Repair as CaMRepair, reset_cam_state
+
+        if kv_method == "KeepKV":
+            from keepkv_runtime_patch_qwen import apply_keepkv_qwen_runtime_patch
+            apply_keepkv_qwen_runtime_patch()
+        else:
             from grouplogitkv_runtime_patch_qwen import apply_grouplogitkv_qwen_runtime_patch
             apply_grouplogitkv_qwen_runtime_patch()
+    else:
+        raise ValueError(arch)
 
-        def reset(model):
+    def reset(model):
+        """Clear sequence-local metadata before each independent prompt."""
+        if kv_method == "KeepKV":
+            reset_keepkv_state(model)
+        elif kv_method == "CaM":
+            reset_cam_state(model)
+        else:
             disable_grouplogitkv_sdpa(model)
+            disable_grouplogitkv_eager(model)
 
-        def apply(method, model, pkv, attn, hidden, ratio, sim_thr):
-            if method == "SimCalKV":
-                return SimCalRepair(model, pkv, attn, hidden, ratio, sim_thr)
-            if method == "GroupLogitKV":
-                return GroupRepair(model, pkv, attn, hidden, ratio, sim_thr)
-            if method == "KeepKV":
-                return KeepRepair(model, pkv, attn, hidden, ratio, sim_thr)
-            if method == "CaM":
-                return CaMRepair(model, pkv, attn, hidden, ratio, sim_thr)
-            raise ValueError(method)
-        return apply, reset
+    def apply(method, model, pkv, attn, hidden, ratio, sim_thr):
+        legacy_pkv = _as_legacy_tuple(pkv)
+        if method == "SimCalKV":
+            return SimCalRepair(model, legacy_pkv, attn, hidden, ratio, sim_thr)
+        if method == "GroupLogitKV":
+            return GroupRepair(model, legacy_pkv, attn, hidden, ratio, sim_thr)
+        if method == "KeepKV":
+            # A None threshold preserves KeepKVConfig's official separate
+            # prefill/decode defaults; a numeric CLI value overrides both.
+            keepkv_thr = None if sim_thr is None else float(sim_thr)
+            return KeepRepair(model, legacy_pkv, attn, hidden, ratio, keepkv_thr)
+        if method == "CaM":
+            # The runtime patch returns query-reduced scores [B,Hkv,K].
+            # CaM only sums over Q before reducing query heads, so a singleton
+            # query axis is an exact one-shot adapter up to a global scale that
+            # cancels in its merge-probability ratio.
+            if attn is not None:
+                attn = tuple(x.unsqueeze(-2) if x.dim() == 3 else x for x in attn)
+            return CaMRepair(model, legacy_pkv, attn, hidden, ratio)
+        raise ValueError(method)
 
-    raise ValueError(arch)
+    if kv_method == "KeepKV":
+        apply.keepkv_prepare_longbench = prepare_longbench_keepkv
+        apply.keepkv_set_chunk = set_longbench_keepkv_chunk
+        apply.keepkv_finalize_longbench = finalize_longbench_keepkv
 
+    return apply, reset
 
 def _as_legacy_tuple(pkv):
     if hasattr(pkv, "to_legacy_cache"):
@@ -240,7 +277,15 @@ def _sync(device):
         torch.cuda.synchronize()
 
 
+@torch.inference_mode()
 def manual_generate_after_compress(model, tokenizer, inputs, compressed_pkv, first_token_id, max_new_tokens, device, stop_token_ids=None):
+    """Greedy decode from a compressed physical cache using logical positions.
+
+    The cache sequence length is smaller than the original prompt length.  HF
+    otherwise derives RoPE positions from the *physical* cache length, which is
+    wrong after KV compression and causes severe repetition.  Keep the compact
+    physical attention mask, but pass the original logical position explicitly.
+    """
     generated = [first_token_id.reshape(())]
     stop_ids = set()
     if tokenizer.eos_token_id is not None:
@@ -251,35 +296,112 @@ def manual_generate_after_compress(model, tokenizer, inputs, compressed_pkv, fir
     if int(first_token_id) in stop_ids:
         return generated
 
-    next_inputs = {
-        "input_ids": first_token_id.reshape((1, 1)).to(device),
-        # Preserve original absolute positions as in task_evaluation's decode path.
-        "attention_mask": torch.cat([
-            inputs["attention_mask"],
-            torch.ones((1, 1), device=device, dtype=inputs["attention_mask"].dtype),
-        ], dim=1),
-        "past_key_values": compressed_pkv,
-        "use_cache": True,
-    }
+    logical_prompt_len = int(inputs["input_ids"].shape[1])
+    legacy = _as_legacy_tuple(compressed_pkv)
+    physical_prefix_len = int(legacy[0][0].shape[-2])
+    mask_dtype = inputs["attention_mask"].dtype
 
-    for _ in range(max_new_tokens - 1):
-        with torch.no_grad():
-            next_inputs["use_cache"] = True
-            out = model(**next_inputs)
-            tok = out.logits[0, -1, :].argmax()
+    past = compressed_pkv
+    # Reuse decode metadata buffers instead of allocating new CUDA tensors for
+    # every generated token. Slicing is a view and preserves identical values.
+    max_physical_len = physical_prefix_len + max(0, max_new_tokens - 1)
+    decode_mask = torch.ones((1, max_physical_len), device=device, dtype=mask_dtype)
+    decode_positions = torch.arange(
+        logical_prompt_len,
+        logical_prompt_len + max(0, max_new_tokens - 1),
+        device=device,
+        dtype=torch.long,
+    ).view(1, -1)
+    for step in range(max_new_tokens - 1):
+        token = generated[-1].view(1, 1)
+        physical_len = physical_prefix_len + step + 1
+        out = model(
+            input_ids=token,
+            attention_mask=decode_mask[:, :physical_len],
+            position_ids=decode_positions[:, step:step + 1],
+            past_key_values=past,
+            use_cache=True,
+            return_dict=True,
+        )
+        tok = out.logits[:, -1, :].argmax(dim=-1)
         generated.append(tok.reshape(()))
-        if int(tok) in stop_ids:
+        past = out.past_key_values
+        del out
+        if tok.item() in stop_ids:
             break
-        next_inputs = {
-            "input_ids": tok.reshape((1, 1)).to(device),
-            "attention_mask": torch.cat([
-                next_inputs["attention_mask"],
-                torch.ones((1, 1), device=device, dtype=next_inputs["attention_mask"].dtype),
-            ], dim=1),
-            "past_key_values": out.past_key_values,
-            "use_cache": True,
-        }
     return generated
+
+
+def _chunked_prefill_and_compress(
+    model,
+    inputs,
+    method,
+    apply_kv,
+    ratio,
+    sim_thr,
+    device,
+    chunk_size=64,
+    similarity_chunk_size=256,
+):
+    """Memory-efficient one-shot KeepKV prompt prefill.
+
+    The prompt is forwarded in small chunks, but no physical compression or
+    score-history tensor is materialized per chunk.  The KeepKV runtime patch
+    accumulates only two [B,Hkv,K] sufficient statistics.  The complete prompt
+    cache is compressed exactly once after the final chunk.
+    """
+    if method != "KeepKV":
+        raise ValueError("This optimized path is KeepKV-only")
+    prepare = getattr(apply_kv, "keepkv_prepare_longbench", None)
+    set_chunk = getattr(apply_kv, "keepkv_set_chunk", None)
+    finalize = getattr(apply_kv, "keepkv_finalize_longbench", None)
+    if not callable(prepare) or not callable(set_chunk) or not callable(finalize):
+        raise RuntimeError("Installed KeepKV adapter lacks LongBench one-shot APIs")
+
+    input_ids = inputs["input_ids"]
+    total_len = int(input_ids.shape[1])
+    chunk_size = max(1, int(chunk_size))
+    prepare(
+        model, total_len, ratio,
+        similarity_chunk_size=max(1, int(similarity_chunk_size)),
+    )
+
+    past = None
+    last_logits = None
+    for start in range(0, total_len, chunk_size):
+        end = min(start + chunk_size, total_len)
+        ids = input_ids[:, start:end]
+        q_len = end - start
+        legacy = None if past is None else _as_legacy_tuple(past)
+        physical_prefix = 0 if legacy is None else int(legacy[0][0].shape[-2])
+        set_chunk(model, start)
+        kwargs = {
+            "input_ids": ids,
+            "attention_mask": torch.ones(
+                (ids.shape[0], physical_prefix + q_len),
+                device=device,
+                dtype=inputs["attention_mask"].dtype,
+            ),
+            "position_ids": torch.arange(start, end, device=device, dtype=torch.long).unsqueeze(0),
+            "past_key_values": past,
+            "use_cache": True,
+            "output_attentions": False,
+            "output_hidden_states": False,
+            "return_dict": True,
+        }
+        with torch.no_grad():
+            out = model(**kwargs)
+        # Keep only the final-token logits; release the rest immediately.
+        last_logits = out.logits[:, -1, :].detach()
+        past = out.past_key_values
+        del out
+
+    if last_logits is None or past is None:
+        raise RuntimeError("Empty prompt in chunked prefill")
+    first_token_id = last_logits[0].argmax()
+    compressed = finalize(model, _as_legacy_tuple(past), sim_thr)
+    del last_logits, past
+    return compressed, first_token_id
 
 
 
@@ -291,7 +413,7 @@ class LlamaForCausalLMWithInputPartitioningForGenerationOnly(transformers.LlamaF
     back to normal Llama forward; cached generation calls can still be chunked.
     """
     chunk_size_tokens = 8192
-    TENSOR_KEYS = {"input_ids", "attention_mask", "cache_position"}
+    TENSOR_KEYS = {"input_ids", "attention_mask", "cache_position", "position_ids"}
 
     def forward(self, *args, **kwargs):
         if kwargs.get("past_key_values", None) is None or not kwargs.get("use_cache", False):
@@ -303,6 +425,12 @@ class LlamaForCausalLMWithInputPartitioningForGenerationOnly(transformers.LlamaF
             assert (key in self.TENSOR_KEYS) == isinstance(value, torch.Tensor), (key, kwargs)
 
         input_len = kwargs["input_ids"].shape[1]
+        # Manual compressed-cache decoding feeds one token at a time.  Calling
+        # the native forward here is required so the returned cache grows; the
+        # partitioning wrapper below intentionally reuses an existing cache and
+        # is only appropriate for genuinely long cached input blocks.
+        if input_len <= self.chunk_size_tokens:
+            return super().forward(*args, **kwargs)
         cache_position = kwargs.get("cache_position", None)
         start_position = 0 if cache_position is None else cache_position[0].item()
         last_logits = None
@@ -337,6 +465,12 @@ class Qwen2ForCausalLMWithInputPartitioningForGenerationOnly(Qwen2ForCausalLM):
             assert (key in self.TENSOR_KEYS) == isinstance(value, torch.Tensor), (key, kwargs)
 
         input_len = kwargs["input_ids"].shape[1]
+        # Manual compressed-cache decoding feeds one token at a time.  Calling
+        # the native forward here is required so the returned cache grows; the
+        # partitioning wrapper below intentionally reuses an existing cache and
+        # is only appropriate for genuinely long cached input blocks.
+        if input_len <= self.chunk_size_tokens:
+            return super().forward(*args, **kwargs)
         cache_position = kwargs.get("cache_position", None)
         start_position = 0 if cache_position is None else cache_position[0].item()
         last_logits = None
@@ -370,7 +504,11 @@ def load_model_and_tokenizer(path, model_name, device, torch_dtype=torch.bfloat1
 
     Not kept: AquaKV quantized-cache arguments and predictor logic.
     """
-    model_kwargs = dict(trust_remote_code=True, torch_dtype=torch_dtype)
+    model_kwargs = dict(
+        trust_remote_code=True,
+        torch_dtype=torch_dtype,
+        low_cpu_mem_usage=True,
+    )
     if attn_implementation:
         model_kwargs["attn_implementation"] = attn_implementation
 
@@ -492,7 +630,10 @@ def _attention_reduce_mode_for_method(method: str) -> str:
 
 
 def _need_attention_scores_for_method(method: str) -> bool:
-    return normalize_kv_method(method) != "None"
+    method = normalize_kv_method(method)
+    # KeepKV captures its official masked exponential scores internally through
+    # keepkv_runtime_patch_*; Repair_keepkv intentionally ignores this argument.
+    return method in {"GroupLogitKV", "SimCalKV", "CaM"}
 
 
 def _need_hidden_states_for_method(method: str) -> bool:
@@ -533,8 +674,11 @@ def generate_full_kv_baseline(model, tokenizer, inputs, max_gen, dataset):
 
 def run_dataset(model, tokenizer, apply_kv, reset_kv, data, max_length, max_gen, prompt_format, dataset, model_name, out_file, args):
     for idx, json_obj in enumerate(tqdm(data)):
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        cleanup_interval = max(0, int(getattr(args, "cleanup_interval", 0)))
+        if cleanup_interval and idx and idx % cleanup_interval == 0:
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
         reset_kv(model)
 
         prompt = prompt_format.format(**json_obj)
@@ -551,7 +695,7 @@ def run_dataset(model, tokenizer, apply_kv, reset_kv, data, max_length, max_gen,
         method = normalize_kv_method(args.kv_method)
 
         if method == "None":
-            with torch.no_grad():
+            with torch.inference_mode():
                 generated_tokens = generate_full_kv_baseline(model, tokenizer, inputs, max_gen, dataset)
             pred = tokenizer.decode(generated_tokens, skip_special_tokens=True)
             pred = post_process(pred, model_name)
@@ -569,49 +713,66 @@ def run_dataset(model, tokenizer, apply_kv, reset_kv, data, max_length, max_gen,
                 json.dump(row, f, ensure_ascii=False)
                 f.write("\n")
             del inputs, generated_tokens, row
-            gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
             continue
 
         reduce_mode = _attention_reduce_mode_for_method(method)
         need_attention_scores = _need_attention_scores_for_method(method)
         need_hidden_states = _need_hidden_states_for_method(method)
-
-        if need_attention_scores:
-            _set_reduced_attention_capture(model, True, reduce=reduce_mode)
-        try:
-            with torch.no_grad():
-                outputs = model(
-                    **inputs,
-                    output_attentions=False,
-                    output_hidden_states=need_hidden_states,
-                    use_cache=True,
-                    return_dict=True,
-                )
-                first_token_id = outputs.logits[0, -1, :].argmax()
-            reduced_attentions = _get_reduced_attention_scores(model) if need_attention_scores else None
-        finally:
-            if need_attention_scores:
-                _set_reduced_attention_capture(model, False, reduce=reduce_mode)
-
-        _sync(args.device)
-        t0 = time.time()
         sim_thr = get_selected_sim_thr(args)
-        compressed_pkv = apply_kv(
-            method,
-            model,
-            outputs.past_key_values,
-            reduced_attentions,
-            outputs.hidden_states if need_hidden_states else None,
-            args.compress_ratio,
-            sim_thr,
-        )
-        _sync(args.device)
-        merge_time = time.time() - t0
 
-        if reduced_attentions is not None:
-            del reduced_attentions
+        if method == "KeepKV":
+            _sync(args.device)
+            t0 = time.time()
+            compressed_pkv, first_token_id = _chunked_prefill_and_compress(
+                model=model,
+                inputs=inputs,
+                method=method,
+                apply_kv=apply_kv,
+                ratio=args.compress_ratio,
+                sim_thr=sim_thr,
+                device=args.device,
+                chunk_size=getattr(args, "prefill_chunk_size", 64),
+                similarity_chunk_size=getattr(args, "keepkv_similarity_chunk_size", 256),
+            )
+            _sync(args.device)
+            merge_time = time.time() - t0
+            outputs = None
+            reduced_attentions = None
+        else:
+            if need_attention_scores:
+                _set_reduced_attention_capture(model, True, reduce=reduce_mode)
+            try:
+                with torch.no_grad():
+                    outputs = model(
+                        **inputs,
+                        output_attentions=False,
+                        output_hidden_states=need_hidden_states,
+                        use_cache=True,
+                        return_dict=True,
+                    )
+                    first_token_id = outputs.logits[0, -1, :].argmax()
+                reduced_attentions = _get_reduced_attention_scores(model) if need_attention_scores else None
+            finally:
+                if need_attention_scores:
+                    _set_reduced_attention_capture(model, False, reduce=reduce_mode)
+
+            _sync(args.device)
+            t0 = time.time()
+            with torch.no_grad():
+                compressed_pkv = apply_kv(
+                    method,
+                    model,
+                    outputs.past_key_values,
+                    reduced_attentions,
+                    outputs.hidden_states if need_hidden_states else None,
+                    args.compress_ratio,
+                    sim_thr,
+                )
+            _sync(args.device)
+            merge_time = time.time() - t0
+
+            if reduced_attentions is not None:
+                del reduced_attentions
 
         stop_token_ids = None
         if dataset == "samsum":
@@ -631,12 +792,11 @@ def run_dataset(model, tokenizer, apply_kv, reset_kv, data, max_length, max_gen,
         # Release large tensors before the next sample.  This does not change
         # numerical results; it only removes Python references.
         try:
-            del outputs, compressed_pkv, generated, first_token_id
+            del compressed_pkv, generated, first_token_id
+            if outputs is not None:
+                del outputs
         except Exception:
             pass
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-
         row = {
             "pred": pred,
             "answers": json_obj["answers"],

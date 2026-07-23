@@ -1,0 +1,26 @@
+PPL_SCRIPT=/root/SimCalKV/task_evaluation/evaluate_ppl_kvmerge.py
+TASK_EVAL_DIR=/root/SimCalKV/task_evaluation
+OUT_DIR=/root/SimCalKV/results/ppl_manual_test2
+MODEL_SLUG=meta-llama_Llama-3.2-3B
+MODEL_OUT_DIR=/root/SimCalKV/results/ppl_manual_test2/meta-llama_Llama-3.2-3B
+SUMMARY_FILE=/root/SimCalKV/results/ppl_manual_test2/meta-llama_Llama-3.2-3B/ppl_summary_20260720_041051.jsonl
+FAMILY=llama
+MODEL=meta-llama/Llama-3.2-3B
+MODEL_SEQLEN=8192
+CHUNK_SIZE=32
+MIN_KV_LEN=2
+COMPRESS_EVERY=1
+TORCH_DTYPE=bfloat16
+AMP_DTYPE=none
+ATTN_IMPL=eager
+DEVICE=cuda
+DEVICE_MAP=auto
+SEED=0
+DATASETS=wikitext2
+METHODS=KeepKV CaM SimCalKV
+RATIOS=0.2 0.4 0.6 0.8
+SIM_THR_GROUPLOGITKV_LIST=0.8
+SIM_THR_SIMCALKV_LIST=-1
+SIM_THR_KEEPKV_LIST=0.8
+
+========== wikitext2 | KeepKV | ratio=0.2 | sim=0.8 ==========

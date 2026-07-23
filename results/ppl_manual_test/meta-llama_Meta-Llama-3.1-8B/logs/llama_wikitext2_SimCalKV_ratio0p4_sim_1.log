@@ -1,0 +1,35 @@
+Loading model: meta-llama/Meta-Llama-3.1-8B
+Transformers version: 4.46.3
+KV method: SimCalKV, ratio=0.4
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:03,  1.08s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.18s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:03<00:01,  1.14s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.23it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.07it/s]
+Loading eval dataset: wikitext2
+Token indices sequence length is longer than the specified maximum sequence length for this model (289077 > 131072). Running this sequence through the model will result in indexing errors
+Evaluating perplexity:   0%|          | 0/35 [00:00<?, ?it/s]Evaluating perplexity:   3%|▎         | 1/35 [01:40<57:11, 100.94s/it]Evaluating perplexity:   6%|▌         | 2/35 [03:20<55:06, 100.18s/it]Evaluating perplexity:   9%|▊         | 3/35 [05:01<53:42, 100.70s/it]Evaluating perplexity:  11%|█▏        | 4/35 [06:41<51:44, 100.16s/it]Evaluating perplexity:  14%|█▍        | 5/35 [08:21<50:07, 100.25s/it]Evaluating perplexity:  17%|█▋        | 6/35 [10:02<48:36, 100.58s/it]Evaluating perplexity:  20%|██        | 7/35 [11:42<46:45, 100.19s/it]Evaluating perplexity:  23%|██▎       | 8/35 [13:22<45:07, 100.26s/it]Evaluating perplexity:  26%|██▌       | 9/35 [15:02<43:22, 100.11s/it]Evaluating perplexity:  29%|██▊       | 10/35 [16:42<41:39, 99.96s/it]Evaluating perplexity:  31%|███▏      | 11/35 [18:22<40:03, 100.14s/it]Evaluating perplexity:  34%|███▍      | 12/35 [20:02<38:21, 100.08s/it]Evaluating perplexity:  37%|███▋      | 13/35 [21:42<36:40, 100.00s/it]Evaluating perplexity:  40%|████      | 14/35 [23:23<35:08, 100.39s/it]Evaluating perplexity:  43%|████▎     | 15/35 [25:03<33:24, 100.23s/it]Evaluating perplexity:  46%|████▌     | 16/35 [26:42<31:39, 99.97s/it] Evaluating perplexity:  49%|████▊     | 17/35 [28:25<30:15, 100.86s/it]Evaluating perplexity:  51%|█████▏    | 18/35 [30:06<28:35, 100.91s/it]Evaluating perplexity:  54%|█████▍    | 19/35 [31:48<27:00, 101.26s/it]Evaluating perplexity:  57%|█████▋    | 20/35 [33:28<25:11, 100.78s/it]Evaluating perplexity:  60%|██████    | 21/35 [35:08<23:27, 100.52s/it]Evaluating perplexity:  63%|██████▎   | 22/35 [36:48<21:44, 100.32s/it]Evaluating perplexity:  66%|██████▌   | 23/35 [38:29<20:06, 100.51s/it]Evaluating perplexity:  69%|██████▊   | 24/35 [40:09<18:23, 100.34s/it]Evaluating perplexity:  71%|███████▏  | 25/35 [41:49<16:43, 100.36s/it]Evaluating perplexity:  74%|███████▍  | 26/35 [43:30<15:04, 100.48s/it]Evaluating perplexity:  77%|███████▋  | 27/35 [45:11<13:25, 100.74s/it]Evaluating perplexity:  80%|████████  | 28/35 [46:52<11:45, 100.72s/it]Evaluating perplexity:  83%|████████▎ | 29/35 [48:31<10:01, 100.32s/it]Evaluating perplexity:  86%|████████▌ | 30/35 [50:11<08:20, 100.10s/it]Evaluating perplexity:  89%|████████▊ | 31/35 [51:50<06:39, 99.93s/it] Evaluating perplexity:  91%|█████████▏| 32/35 [53:30<04:59, 99.81s/it]Evaluating perplexity:  94%|█████████▍| 33/35 [55:10<03:19, 99.83s/it]Evaluating perplexity:  97%|█████████▋| 34/35 [56:51<01:40, 100.36s/it]Evaluating perplexity: 100%|██████████| 35/35 [58:31<00:00, 100.11s/it]Evaluating perplexity: 100%|██████████| 35/35 [58:31<00:00, 100.33s/it]
+{
+  "model_name": "meta-llama/Meta-Llama-3.1-8B",
+  "family": "llama",
+  "dataset": "wikitext2",
+  "kv_method": "SimCalKV",
+  "compress_ratio": 0.4,
+  "sim_thr_effective": -1.0,
+  "sim_thr_grouplogitkv": null,
+  "sim_thr_simcalkv": -1.0,
+  "sim_thr_keepkv": null,
+  "model_seqlen": 8192,
+  "chunk_size": 32,
+  "actual_step_size": 32,
+  "min_kv_len": 2,
+  "compress_every": 1,
+  "torch_dtype": "bfloat16",
+  "amp_dtype": "none",
+  "attn_implementation": "eager",
+  "seed": 0,
+  "ppl": 10.131252973503575,
+  "elapsed_s": 3511.514931678772,
+  "num_eval_tokens": 289077,
+  "num_compressions": 8960,
+  "total_compress_time_s": 3183.653548717499,
+  "avg_compress_time_s": 0.3553184764193637,
+  "avg_compressed_kv_len": 47.7578125,
+  "avg_compressed_kv_mib": 5.9697265625
+}

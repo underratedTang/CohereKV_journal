@@ -1,0 +1,58 @@
+'(ReadTimeoutError("HTTPSConnectionPool(host='hf-mirror.com', port=443): Read timed out. (read timeout=10)"), '(Request ID: 2d3e58ec-b909-4691-a986-a5239451ca19)')' thrown while requesting HEAD https://hf-mirror.com/Qwen/Qwen2.5-7B/resolve/main/config.json
+Retrying in 1s [Retry 1/5].
+'(ReadTimeoutError("HTTPSConnectionPool(host='hf-mirror.com', port=443): Read timed out. (read timeout=10)"), '(Request ID: d9d62210-9039-49b0-b0c5-b21f6af6b925)')' thrown while requesting HEAD https://hf-mirror.com/Qwen/Qwen2.5-7B/resolve/main/config.json
+Retrying in 2s [Retry 2/5].
+Loading model: Qwen/Qwen2.5-7B
+Transformers version: 4.46.3
+KV method: GroupLogitKV, ratio=0.8
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:02,  1.12it/s]Loading checkpoint shards:  50%|█████     | 2/4 [00:01<00:01,  1.08it/s]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:02<00:00,  1.04it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.12it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.10it/s]
+Loading eval dataset: wikitext2
+Token indices sequence length is longer than the specified maximum sequence length for this model (299078 > 131072). Running this sequence through the model will result in indexing errors
+PPL evaluation windows: 36 (seqlen=8192, dataset_tokens=299078, limit=0)
+Evaluating perplexity:   0%|          | 0/36 [00:00<?, ?it/s]Evaluating perplexity:   3%|▎         | 1/36 [00:16<09:28, 16.26s/it]Evaluating perplexity:   6%|▌         | 2/36 [00:31<08:51, 15.65s/it]Evaluating perplexity:   8%|▊         | 3/36 [00:46<08:34, 15.58s/it]Evaluating perplexity:  11%|█         | 4/36 [01:02<08:23, 15.73s/it]Evaluating perplexity:  14%|█▍        | 5/36 [01:18<08:10, 15.82s/it]Evaluating perplexity:  17%|█▋        | 6/36 [01:34<07:56, 15.90s/it]Evaluating perplexity:  19%|█▉        | 7/36 [01:50<07:42, 15.94s/it]Evaluating perplexity:  22%|██▏       | 8/36 [02:06<07:25, 15.90s/it]Evaluating perplexity:  25%|██▌       | 9/36 [02:21<07:03, 15.67s/it]Evaluating perplexity:  28%|██▊       | 10/36 [02:37<06:43, 15.53s/it]Evaluating perplexity:  31%|███       | 11/36 [02:52<06:26, 15.45s/it]Evaluating perplexity:  33%|███▎      | 12/36 [03:07<06:11, 15.47s/it]Evaluating perplexity:  36%|███▌      | 13/36 [03:23<05:54, 15.39s/it]Evaluating perplexity:  39%|███▉      | 14/36 [03:38<05:37, 15.33s/it]Evaluating perplexity:  42%|████▏     | 15/36 [03:53<05:21, 15.31s/it]Evaluating perplexity:  44%|████▍     | 16/36 [04:08<05:05, 15.29s/it]Evaluating perplexity:  47%|████▋     | 17/36 [04:24<04:49, 15.26s/it]Evaluating perplexity:  50%|█████     | 18/36 [04:39<04:34, 15.25s/it]Evaluating perplexity:  53%|█████▎    | 19/36 [04:54<04:19, 15.26s/it]Evaluating perplexity:  56%|█████▌    | 20/36 [05:09<04:03, 15.24s/it]Evaluating perplexity:  58%|█████▊    | 21/36 [05:25<03:48, 15.25s/it]Evaluating perplexity:  61%|██████    | 22/36 [05:40<03:33, 15.27s/it]Evaluating perplexity:  64%|██████▍   | 23/36 [05:55<03:19, 15.31s/it]Evaluating perplexity:  67%|██████▋   | 24/36 [06:11<03:03, 15.30s/it]Evaluating perplexity:  69%|██████▉   | 25/36 [06:26<02:48, 15.29s/it]Evaluating perplexity:  72%|███████▏  | 26/36 [06:42<02:34, 15.46s/it]Evaluating perplexity:  75%|███████▌  | 27/36 [06:57<02:18, 15.40s/it]Evaluating perplexity:  78%|███████▊  | 28/36 [07:12<02:02, 15.37s/it]Evaluating perplexity:  81%|████████  | 29/36 [07:28<01:47, 15.39s/it]Evaluating perplexity:  83%|████████▎ | 30/36 [07:43<01:32, 15.44s/it]Evaluating perplexity:  86%|████████▌ | 31/36 [07:58<01:16, 15.39s/it]Evaluating perplexity:  89%|████████▉ | 32/36 [08:14<01:01, 15.38s/it]Evaluating perplexity:  92%|█████████▏| 33/36 [08:29<00:45, 15.32s/it]Evaluating perplexity:  94%|█████████▍| 34/36 [08:44<00:30, 15.29s/it]Evaluating perplexity:  97%|█████████▋| 35/36 [08:59<00:15, 15.26s/it]Evaluating perplexity: 100%|██████████| 36/36 [09:15<00:00, 15.23s/it]Evaluating perplexity: 100%|██████████| 36/36 [09:15<00:00, 15.42s/it]
+{
+  "model_name": "Qwen/Qwen2.5-7B",
+  "family": "qwen",
+  "dataset": "wikitext2",
+  "kv_method": "GroupLogitKV",
+  "compress_ratio": 0.8,
+  "cam_protocol": null,
+  "cam_merge_size": null,
+  "cam_start_fraction": null,
+  "sim_thr_effective": 0.8,
+  "sim_thr_grouplogitkv": 0.8,
+  "sim_thr_simcalkv": null,
+  "sim_thr_keepkv": null,
+  "keepkv_similarity_threshold": 0.8,
+  "keepkv_prefill_similarity_threshold": 0.8,
+  "keepkv_epsilon_times": 1.0,
+  "keepkv_pyramid_recent_ratio": 0.2,
+  "keepkv_pyramid_budget": false,
+  "keepkv_pyramid_decay_strategy": "cosine",
+  "keepkv_pyramid_decay_ratio": 0.8,
+  "keepkv_distance_weight": 1.2,
+  "keepkv_sink_len": 4,
+  "keepkv_protect_sink": false,
+  "keepkv_assert_causal": false,
+  "keepkv_disable_vote_bias": false,
+  "keepkv_runtime_only": false,
+  "max_eval_sequences": 0,
+  "model_seqlen": 8192,
+  "chunk_size": 32,
+  "actual_step_size": 32,
+  "min_kv_len": 2,
+  "compress_every": 1,
+  "torch_dtype": "bfloat16",
+  "amp_dtype": "none",
+  "attn_implementation": "eager",
+  "seed": 0,
+  "ppl": 7.502520304916625,
+  "elapsed_s": 555.0865287780762,
+  "num_eval_tokens": 294876,
+  "num_eval_sequences": 36,
+  "num_compressions": 9216,
+  "total_compress_time_s": 223.32283854484558,
+  "avg_compress_time_s": 0.024232078835161194,
+  "avg_compressed_kv_len": 822.3984375,
+  "avg_compressed_kv_mib": 44.97491455078125
+}
