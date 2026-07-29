@@ -1,0 +1,39 @@
+PPL_SCRIPT=/root/SimCalKV/task_evaluation/evaluate_ppl_kvmerge.py
+TASK_EVAL_DIR=/root/SimCalKV/task_evaluation
+OUT_DIR=/root/SimCalKV/results/ppl_manual_test2
+MODEL_SLUG=Qwen_Qwen2.5-7B
+MODEL_OUT_DIR=/root/SimCalKV/results/ppl_manual_test2/Qwen_Qwen2.5-7B
+SUMMARY_FILE=/root/SimCalKV/results/ppl_manual_test2/Qwen_Qwen2.5-7B/ppl_summary_20260725_095807.jsonl
+FAMILY=qwen
+MODEL=Qwen/Qwen2.5-7B
+MODEL_SEQLEN=8192
+CHUNK_SIZE=32
+MIN_KV_LEN=2
+COMPRESS_EVERY=1
+TORCH_DTYPE=bfloat16
+AMP_DTYPE=none
+ATTN_IMPL=eager
+DEVICE=cuda
+DEVICE_MAP=auto
+SEED=0
+DATASETS=wikitext2
+METHODS=SimCalKV
+RATIOS=0.2 0.4 0.6
+SIM_THR_GROUPLOGITKV_LIST=0.8
+SIM_THR_SIMCALKV_LIST=-1
+SIM_THR_KEEPKV_LIST=0.8
+
+========== wikitext2 | SimCalKV | ratio=0.2 | sim=-1 ==========
+[OK] qwen_wikitext2_SimCalKV_ratio0p2_sim_1
+========== wikitext2 | SimCalKV | ratio=0.4 | sim=-1 ==========
+[OK] qwen_wikitext2_SimCalKV_ratio0p4_sim_1
+========== wikitext2 | SimCalKV | ratio=0.6 | sim=-1 ==========
+[OK] qwen_wikitext2_SimCalKV_ratio0p6_sim_1
+
+Done.
+OUT_DIR=/root/SimCalKV/results/ppl_manual_test2
+MODEL_SLUG=Qwen_Qwen2.5-7B
+MODEL_OUT_DIR=/root/SimCalKV/results/ppl_manual_test2/Qwen_Qwen2.5-7B
+SUMMARY_FILE=/root/SimCalKV/results/ppl_manual_test2/Qwen_Qwen2.5-7B/ppl_summary_20260725_095807.jsonl
+
+Preview:

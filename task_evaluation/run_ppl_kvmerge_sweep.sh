@@ -23,15 +23,15 @@ PPL_SCRIPT="/root/SimCalKV/task_evaluation/evaluate_ppl_kvmerge.py"
 OUT_DIR="/root/SimCalKV/results/ppl_manual_test2"
 
 # 模型设置
-FAMILY="qwen"   # qwen | llama
-MODEL="Qwen/Qwen2.5-7B"
+# FAMILY="qwen"   # qwen | llama
+# MODEL="Qwen/Qwen2.5-7B"
 # MODEL="Qwen/Qwen2.5-3B"
 
 # LLaMA 示例：
-# FAMILY="llama"
+FAMILY="llama"
 # MODEL="meta-llama/Llama-3.2-1B"
 # MODEL="meta-llama/Llama-3.2-3B"
-# MODEL="meta-llama/Meta-Llama-3.1-8B"
+MODEL="meta-llama/Meta-Llama-3.1-8B"
 
 # PPL 设置
 MODEL_SEQLEN=8192
@@ -67,9 +67,9 @@ METHODS=(
 
 # 压缩率
 RATIOS=(
-  # "0.2"
+  "0.2"
   "0.4"  # 压缩40%，保留 60%
-  "0.6"
+  # "0.6"
   # "0.8"
 )
 
