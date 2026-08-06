@@ -38,7 +38,7 @@ MODEL_SEQLEN=8192
 CHUNK_SIZE=32
 MIN_KV_LEN=2
 COMPRESS_EVERY=1
-MAX_EVAL_SEQUENCES=0 # 0表示所有
+MAX_EVAL_SEQUENCES=2 # 时间受限：仅评测前2个序列
 
 # dtype 设置
 TORCH_DTYPE="bfloat16"  # auto | float16 | bfloat16 | float32
@@ -53,16 +53,17 @@ SEED=0
 # 数据集：evaluate_ppl_kvmerge.py 只支持 wikitext2 / c4
 DATASETS=(
   "wikitext2"
-  # "c4"
 )
 
 # 方法
 METHODS=(
-  # "none"
-  # "GroupLogitKV"
-  # "SimCalKV"
+  "none"
+  "GroupLogitKV"
+  "mymethod"
+  "SimCalKV"
   "KeepKV"
-  # "CaM"
+  "CaM"
+  "CentroidKV"
 )
 
 # 压缩率
@@ -79,6 +80,20 @@ RATIOS=(
 # SIM_THR_SIMCALKV_LIST=("-1" "0.0" "0.2" "0.4" "0.6" "0.8")
 # SIM_THR_KEEPKV_LIST=("-1" "0.0" "0.2" "0.4" "0.6" "0.8")
 SIM_THR_GROUPLOGITKV_LIST=("0.8")
+TAU_MYMETHOD_LIST=("0.7")
+# TAU_MYMETHOD_LIST=("0.6" "0.7" "0.8" "0.9")
+MYMETHOD_SELECTOR="keepkv"  # keepkv | grouplogitkv
+MYMETHOD_SINK_SIZE=4
+MYMETHOD_RECENT_WINDOW=128
+MYMETHOD_RECENCY_BETA=1.0
+MYMETHOD_DISTANCE_CHUNK_SIZE=256
+MYMETHOD_ATTENTION_CHUNK_SIZE=128
+MYMETHOD_SINK_CAN_ABSORB=1
+CENTROIDKV_SINK_BUDGET=16
+CENTROIDKV_LOCAL_BUDGET=64
+CENTROIDKV_CHUNK_SIZE=256
+CENTROIDKV_MERGE_RATIO=0.8
+CENTROIDKV_DECREASE_RATE=0.2
 SIM_THR_SIMCALKV_LIST=("-1")
 SIM_THR_KEEPKV_LIST=("0.8")
 
@@ -133,6 +148,19 @@ echo "DATASETS=${DATASETS[*]}" | tee -a "${RUN_LOG}"
 echo "METHODS=${METHODS[*]}" | tee -a "${RUN_LOG}"
 echo "RATIOS=${RATIOS[*]}" | tee -a "${RUN_LOG}"
 echo "SIM_THR_GROUPLOGITKV_LIST=${SIM_THR_GROUPLOGITKV_LIST[*]}" | tee -a "${RUN_LOG}"
+echo "TAU_MYMETHOD_LIST=${TAU_MYMETHOD_LIST[*]}" | tee -a "${RUN_LOG}"
+echo "MYMETHOD_SELECTOR=${MYMETHOD_SELECTOR}" | tee -a "${RUN_LOG}"
+echo "MYMETHOD_SINK_SIZE=${MYMETHOD_SINK_SIZE}" | tee -a "${RUN_LOG}"
+echo "MYMETHOD_RECENT_WINDOW=${MYMETHOD_RECENT_WINDOW}" | tee -a "${RUN_LOG}"
+echo "MYMETHOD_RECENCY_BETA=${MYMETHOD_RECENCY_BETA}" | tee -a "${RUN_LOG}"
+echo "MYMETHOD_DISTANCE_CHUNK_SIZE=${MYMETHOD_DISTANCE_CHUNK_SIZE}" | tee -a "${RUN_LOG}"
+echo "MYMETHOD_ATTENTION_CHUNK_SIZE=${MYMETHOD_ATTENTION_CHUNK_SIZE}" | tee -a "${RUN_LOG}"
+echo "MYMETHOD_SINK_CAN_ABSORB=${MYMETHOD_SINK_CAN_ABSORB}" | tee -a "${RUN_LOG}"
+echo "CENTROIDKV_SINK_BUDGET=${CENTROIDKV_SINK_BUDGET}" | tee -a "${RUN_LOG}"
+echo "CENTROIDKV_LOCAL_BUDGET=${CENTROIDKV_LOCAL_BUDGET}" | tee -a "${RUN_LOG}"
+echo "CENTROIDKV_CHUNK_SIZE=${CENTROIDKV_CHUNK_SIZE}" | tee -a "${RUN_LOG}"
+echo "CENTROIDKV_MERGE_RATIO=${CENTROIDKV_MERGE_RATIO}" | tee -a "${RUN_LOG}"
+echo "CENTROIDKV_DECREASE_RATE=${CENTROIDKV_DECREASE_RATE}" | tee -a "${RUN_LOG}"
 echo "SIM_THR_SIMCALKV_LIST=${SIM_THR_SIMCALKV_LIST[*]}" | tee -a "${RUN_LOG}"
 echo "SIM_THR_KEEPKV_LIST=${SIM_THR_KEEPKV_LIST[*]}" | tee -a "${RUN_LOG}"
 echo | tee -a "${RUN_LOG}"
@@ -149,6 +177,27 @@ run_one() {
   if [[ "${method}" == "GroupLogitKV" ]]; then
     sim_tag="${thr}"
     extra_args+=(--sim_thr_grouplogitkv "${thr}")
+  elif [[ "${method}" == "mymethod" ]]; then
+    sim_tag="selector${MYMETHOD_SELECTOR}_tau${thr}"
+    extra_args+=(
+      --tau_mymethod "${thr}"
+      --mymethod_selector "${MYMETHOD_SELECTOR}"
+      --mymethod_sink_size "${MYMETHOD_SINK_SIZE}"
+      --mymethod_recent_window "${MYMETHOD_RECENT_WINDOW}"
+      --mymethod_recency_beta "${MYMETHOD_RECENCY_BETA}"
+      --mymethod_distance_chunk_size "${MYMETHOD_DISTANCE_CHUNK_SIZE}"
+      --mymethod_attention_chunk_size "${MYMETHOD_ATTENTION_CHUNK_SIZE}"
+      --mymethod_sink_can_absorb "${MYMETHOD_SINK_CAN_ABSORB}"
+    )
+  elif [[ "${method}" == "CentroidKV" ]]; then
+    sim_tag="official"
+    extra_args+=(
+      --centroidkv_sink_budget "${CENTROIDKV_SINK_BUDGET}"
+      --centroidkv_local_budget "${CENTROIDKV_LOCAL_BUDGET}"
+      --centroidkv_chunk_size "${CENTROIDKV_CHUNK_SIZE}"
+      --centroidkv_merge_ratio "${CENTROIDKV_MERGE_RATIO}"
+      --centroidkv_decrease_rate "${CENTROIDKV_DECREASE_RATE}"
+    )
   elif [[ "${method}" == "SimCalKV" ]]; then
     sim_tag="${thr}"
     extra_args+=(--sim_thr_simcalkv "${thr}")
@@ -234,6 +283,10 @@ for dataset in "${DATASETS[@]}"; do
       if [[ "${method}" == "GroupLogitKV" ]]; then
         for thr in "${SIM_THR_GROUPLOGITKV_LIST[@]}"; do
           run_one "${dataset}" "${method}" "${ratio}" "${thr}"
+        done
+      elif [[ "${method}" == "mymethod" ]]; then
+        for tau in "${TAU_MYMETHOD_LIST[@]}"; do
+          run_one "${dataset}" "${method}" "${ratio}" "${tau}"
         done
       elif [[ "${method}" == "SimCalKV" ]]; then
         for thr in "${SIM_THR_SIMCALKV_LIST[@]}"; do

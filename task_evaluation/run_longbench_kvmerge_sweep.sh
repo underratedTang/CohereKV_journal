@@ -18,13 +18,17 @@ export CUDA_VISIBLE_DEVICES=0
 # 你的文件放在：/root/SimCalKV/task_evaluation/evaluate_longbench_kvmerge.py
 LONG_SCRIPT="/root/SimCalKV/task_evaluation/evaluate_longbench_kvmerge.py"
 
+
+
 # 手动指定输出目录
 # 如果不想覆盖旧结果，可以在末尾加时间戳
 # OUT_DIR="/root/SimCalKV/results/longbench_manual_$(date +%Y%m%d_%H%M%S)"
-OUT_DIR="/root/SimCalKV/results/longbench_manual_test"
+OUT_DIR="/root/SimCalKV/results/longbench_manual_test2"
 
 # 模型设置
 # FAMILY="qwen"   # qwen | llama
+# MODEL_NAME="Qwen2.5-3B-Instruct"                 # LongBench/config/model2path.json 中的 key
+# MODEL_PATH="Qwen/Qwen2.5-3B-Instruct"
 # MODEL_NAME="Qwen2.5-7B-Instruct"                 # LongBench/config/model2path.json 中的 key
 # MODEL_PATH="Qwen/Qwen2.5-7B-Instruct"
 
@@ -32,15 +36,17 @@ OUT_DIR="/root/SimCalKV/results/longbench_manual_test"
 FAMILY="llama"
 # MODEL_NAME="llama-3.2-1B-Instruct"                 # LongBench/config/model2path.json 中的 key
 # MODEL_PATH="meta-llama/Llama-3.2-1B-Instruct"
-MODEL_NAME="llama-3.1-8B-Instruct"
-MODEL_PATH="meta-llama/Meta-Llama-3.1-8B-Instruct"
+# MODEL_NAME="llama-3.1-8B-Instruct"
+# MODEL_PATH="meta-llama/Meta-Llama-3.1-8B-Instruct"
+MODEL_NAME="llama-3.2-3B-Instruct"
+MODEL_PATH="meta-llama/Llama-3.2-3B-Instruct"
 
 MODEL_SLUG="$(printf '%s' "${MODEL_PATH}" | tr '/:' '_')"
 
 # LongBench v1 数据集
 # 想少跑几个时，直接删短这个逗号分隔字符串即可。
-# DATASETS="narrativeqa,qasper,multifieldqa_en,passage_retrieval_en,2wikimqa,musique,gov_report,qmsum,multi_news,trec,triviaqa,samsum,passage_count,hotpotqa"
-DATASETS="narrativeqa"
+DATASETS="narrativeqa,qasper,multifieldqa_en,passage_retrieval_en,2wikimqa,musique,gov_report,qmsum,multi_news,trec,triviaqa,samsum,passage_count,hotpotqa"
+# DATASETS="narrativeqa"
 
 RUN_ALL=0     # 1: 使用 -a 跑全部 DATASETS；0: 使用 --datasets "$DATASETS"
 USE_E=0       # 1: 跑 LongBench-E
@@ -59,18 +65,20 @@ OVERWRITE=0
 # 方法
 METHODS=(
   "none"      # full-precision KV baseline, no compression
-  "SimCalKV"
   "GroupLogitKV"
+  "mymethod"
+  "SimCalKV"
   "KeepKV"
   "CaM"
+  "CentroidKV"
 )
 
 # 压缩率。method=None 时不 sweep RATIOS，只跑一次 ratio=0。
 RATIOS=(
-  # "0.2"
+  "0.2"
   "0.4"  # 压缩40%，保留 60%
-  # "0.6"
-  # "0.8"
+  "0.6"
+  "0.8"
 )
 
 # Per-method similarity-threshold sweeps. Only these three methods use sim_thr.
@@ -80,7 +88,21 @@ RATIOS=(
 # SIM_THR_SIMCALKV_LIST=("-1" "0.0" "0.2" "0.4" "0.6" "0.8")
 # SIM_THR_KEEPKV_LIST=("-1" "0.0" "0.2" "0.4" "0.6" "0.8")
 SIM_THR_GROUPLOGITKV_LIST=("0.8")
-SIM_THR_SIMCALKV_LIST=("-1")
+TAU_MYMETHOD_LIST=("0.7")
+# TAU_MYMETHOD_LIST=("0.6" "0.7" "0.8" "0.9")
+MYMETHOD_SELECTOR="keepkv"  # keepkv | grouplogitkv
+MYMETHOD_SINK_SIZE=4
+MYMETHOD_RECENT_WINDOW=128
+MYMETHOD_RECENCY_BETA=1.0
+MYMETHOD_DISTANCE_CHUNK_SIZE=256
+MYMETHOD_ATTENTION_CHUNK_SIZE=128
+MYMETHOD_SINK_CAN_ABSORB=1
+CENTROIDKV_SINK_BUDGET=16
+CENTROIDKV_LOCAL_BUDGET=64
+CENTROIDKV_CHUNK_SIZE=256
+CENTROIDKV_MERGE_RATIO=0.8
+CENTROIDKV_DECREASE_RATE=0.2
+SIM_THR_SIMCALKV_LIST=("0.0")
 SIM_THR_KEEPKV_LIST=("0.8")
 
 # =========================
@@ -131,6 +153,19 @@ echo "OVERWRITE=${OVERWRITE}" | tee -a "${RUN_LOG}"
 echo "METHODS=${METHODS[*]}" | tee -a "${RUN_LOG}"
 echo "RATIOS=${RATIOS[*]}" | tee -a "${RUN_LOG}"
 echo "SIM_THR_GROUPLOGITKV_LIST=${SIM_THR_GROUPLOGITKV_LIST[*]}" | tee -a "${RUN_LOG}"
+echo "TAU_MYMETHOD_LIST=${TAU_MYMETHOD_LIST[*]}" | tee -a "${RUN_LOG}"
+echo "MYMETHOD_SELECTOR=${MYMETHOD_SELECTOR}" | tee -a "${RUN_LOG}"
+echo "MYMETHOD_SINK_SIZE=${MYMETHOD_SINK_SIZE}" | tee -a "${RUN_LOG}"
+echo "MYMETHOD_RECENT_WINDOW=${MYMETHOD_RECENT_WINDOW}" | tee -a "${RUN_LOG}"
+echo "MYMETHOD_RECENCY_BETA=${MYMETHOD_RECENCY_BETA}" | tee -a "${RUN_LOG}"
+echo "MYMETHOD_DISTANCE_CHUNK_SIZE=${MYMETHOD_DISTANCE_CHUNK_SIZE}" | tee -a "${RUN_LOG}"
+echo "MYMETHOD_ATTENTION_CHUNK_SIZE=${MYMETHOD_ATTENTION_CHUNK_SIZE}" | tee -a "${RUN_LOG}"
+echo "MYMETHOD_SINK_CAN_ABSORB=${MYMETHOD_SINK_CAN_ABSORB}" | tee -a "${RUN_LOG}"
+echo "CENTROIDKV_SINK_BUDGET=${CENTROIDKV_SINK_BUDGET}" | tee -a "${RUN_LOG}"
+echo "CENTROIDKV_LOCAL_BUDGET=${CENTROIDKV_LOCAL_BUDGET}" | tee -a "${RUN_LOG}"
+echo "CENTROIDKV_CHUNK_SIZE=${CENTROIDKV_CHUNK_SIZE}" | tee -a "${RUN_LOG}"
+echo "CENTROIDKV_MERGE_RATIO=${CENTROIDKV_MERGE_RATIO}" | tee -a "${RUN_LOG}"
+echo "CENTROIDKV_DECREASE_RATE=${CENTROIDKV_DECREASE_RATE}" | tee -a "${RUN_LOG}"
 echo "SIM_THR_SIMCALKV_LIST=${SIM_THR_SIMCALKV_LIST[*]}" | tee -a "${RUN_LOG}"
 echo "SIM_THR_KEEPKV_LIST=${SIM_THR_KEEPKV_LIST[*]}" | tee -a "${RUN_LOG}"
 echo | tee -a "${RUN_LOG}"
@@ -146,6 +181,27 @@ run_one() {
   if [[ "${method}" == "GroupLogitKV" ]]; then
     sim_tag="${thr}"
     extra_args+=(--sim_thr_grouplogitkv "${thr}")
+  elif [[ "${method}" == "mymethod" ]]; then
+    sim_tag="selector${MYMETHOD_SELECTOR}_tau${thr}"
+    extra_args+=(
+      --tau_mymethod "${thr}"
+      --mymethod_selector "${MYMETHOD_SELECTOR}"
+      --mymethod_sink_size "${MYMETHOD_SINK_SIZE}"
+      --mymethod_recent_window "${MYMETHOD_RECENT_WINDOW}"
+      --mymethod_recency_beta "${MYMETHOD_RECENCY_BETA}"
+      --mymethod_distance_chunk_size "${MYMETHOD_DISTANCE_CHUNK_SIZE}"
+      --mymethod_attention_chunk_size "${MYMETHOD_ATTENTION_CHUNK_SIZE}"
+      --mymethod_sink_can_absorb "${MYMETHOD_SINK_CAN_ABSORB}"
+    )
+  elif [[ "${method}" == "CentroidKV" ]]; then
+    sim_tag="official"
+    extra_args+=(
+      --centroidkv_sink_budget "${CENTROIDKV_SINK_BUDGET}"
+      --centroidkv_local_budget "${CENTROIDKV_LOCAL_BUDGET}"
+      --centroidkv_chunk_size "${CENTROIDKV_CHUNK_SIZE}"
+      --centroidkv_merge_ratio "${CENTROIDKV_MERGE_RATIO}"
+      --centroidkv_decrease_rate "${CENTROIDKV_DECREASE_RATE}"
+    )
   elif [[ "${method}" == "SimCalKV" ]]; then
     sim_tag="${thr}"
     extra_args+=(--sim_thr_simcalkv "${thr}")
@@ -305,6 +361,10 @@ for method in "${METHODS[@]}"; do
     if [[ "${method}" == "GroupLogitKV" ]]; then
       for thr in "${SIM_THR_GROUPLOGITKV_LIST[@]}"; do
         run_one "${method}" "${ratio}" "${thr}"
+      done
+    elif [[ "${method}" == "mymethod" ]]; then
+      for tau in "${TAU_MYMETHOD_LIST[@]}"; do
+        run_one "${method}" "${ratio}" "${tau}"
       done
     elif [[ "${method}" == "SimCalKV" ]]; then
       for thr in "${SIM_THR_SIMCALKV_LIST[@]}"; do

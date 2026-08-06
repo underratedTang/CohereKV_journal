@@ -334,6 +334,8 @@ class KVCompressingDynamicCache(DynamicCache):
         sim_thr: float,
         method_sim_thrs: Optional[dict],
         keepkv_config: Optional[dict],
+        mymethod_config: Optional[dict],
+        centroidkv_config: Optional[dict],
         min_kv_len: int,
         compress_every: int,
         stats: dict,
@@ -350,6 +352,8 @@ class KVCompressingDynamicCache(DynamicCache):
         raw_keepkv_config = dict(keepkv_config or {})
         self._keepkv_runtime_only = bool(raw_keepkv_config.pop("diagnostic_runtime_only", False))
         self._keepkv_config = raw_keepkv_config
+        self._mymethod_config = dict(mymethod_config or {})
+        self._centroidkv_config = dict(centroidkv_config or {})
         self._min_kv_len = int(min_kv_len)
         self._compress_every = int(compress_every)
         self._stats = stats
@@ -468,6 +472,25 @@ class KVCompressingDynamicCache(DynamicCache):
         retained_ratio = 1.0 - float(self._compress_ratio)
         dynamic_target_kv_len = max(1, int(round(logical_seen * retained_ratio)))
 
+        if self._kv_method == "mymethod":
+            sink_size = int(self._mymethod_config.get("sink_size", 4))
+            if dynamic_target_kv_len < sink_size:
+                self._stats.setdefault("mymethod_deferred_sink_budget", 0)
+                self._stats["mymethod_deferred_sink_budget"] += 1
+                return
+
+        if self._kv_method == "CentroidKV":
+            sink_budget = int(self._centroidkv_config.get("sink_budget", 16))
+            local_budget = int(self._centroidkv_config.get("local_budget", 64))
+            # The official method never merges the protected regions. Clamp the
+            # dynamic target to that structural floor instead of spending merge
+            # iterations on an impossible smaller target.
+            protected_floor = min(before_len, sink_budget + local_budget)
+            if dynamic_target_kv_len < protected_floor:
+                self._stats.setdefault("centroidkv_budget_floor_applied", 0)
+                self._stats["centroidkv_budget_floor_applied"] += 1
+                dynamic_target_kv_len = protected_floor
+
         # CaM's unmodified official merge rule requires recent_size >= merge_size.
         # For very short prefixes the proportional budget can be smaller than this
         # structural minimum. In that case, defer CaM compression rather than
@@ -509,6 +532,8 @@ class KVCompressingDynamicCache(DynamicCache):
             dynamic_keepkv_config,
             self._task_eval_dir,
             target_kv_len=dynamic_target_kv_len,
+            mymethod_config=self._mymethod_config,
+            centroidkv_config=self._centroidkv_config,
         )
         _cuda_sync_for_model(self._ppl_model)
         dt = time.time() - t0
@@ -532,6 +557,14 @@ def _import_from_family(family: str, task_eval_dir: Path, module_name: str):
 def apply_runtime_patch_if_needed(family: str, task_eval_dir: Path, method: str) -> None:
     """Install the method-specific eager-attention runtime patch."""
     if method.lower() in {"none", "baseline", "no", "no_compress"}:
+        return
+    if method == "mymethod":
+        if family == "qwen":
+            mod = _import_from_family(family, task_eval_dir, "mymethod_runtime_patch_qwen")
+            mod.apply_mymethod_qwen_runtime_patch()
+        elif family == "llama":
+            mod = _import_from_family(family, task_eval_dir, "mymethod_runtime_patch_llama")
+            mod.apply_mymethod_runtime_patch()
         return
     if method == "KeepKV":
         if family == "qwen":
@@ -557,10 +590,20 @@ def apply_runtime_patch_if_needed(family: str, task_eval_dir: Path, method: str)
 def reset_method_state(model: nn.Module, family: str, task_eval_dir: Path, method: str) -> None:
     """Clear sequence-local runtime metadata between independent PPL samples."""
     try:
+        if method == "mymethod":
+            mod = _import_from_family(family, task_eval_dir, f"merge_mymethod_{family}")
+            if hasattr(mod, "reset_mymethod_state"):
+                mod.reset_mymethod_state(model)
+            return
         if method == "KeepKV":
             mod = _import_from_family(family, task_eval_dir, f"merge_keepkv_{family}")
             if hasattr(mod, "reset_keepkv_state"):
                 mod.reset_keepkv_state(model)
+            return
+        if method == "CentroidKV":
+            mod = _import_from_family(family, task_eval_dir, f"merge_centroidkv_{family}")
+            if hasattr(mod, "reset_centroidkv_state"):
+                mod.reset_centroidkv_state(model)
             return
 
         if method == "CaM":
@@ -606,7 +649,7 @@ def _effective_sim_thr(method: str, method_sim_thrs: Optional[dict] = None) -> O
 def apply_kv_method(
     method, family, model, past_key_values, attention, hidden_states,
     compress_ratio, method_sim_thrs=None, keepkv_config=None, task_eval_dir=None,
-    target_kv_len=None,
+    target_kv_len=None, mymethod_config=None, centroidkv_config=None,
 ):
     if family not in {"qwen", "llama"}:
         raise ValueError("--family must be qwen or llama")
@@ -626,6 +669,36 @@ def apply_kv_method(
             target_length=target_kv_len,
         )
 
+    if method == "mymethod":
+        cfg = dict(mymethod_config or {})
+        return _import_from_family(family, import_root, f"merge_mymethod_{family}").Repair(
+            model,
+            past_key_values,
+            attention,
+            hidden_states,
+            compress_ratio,
+            float(cfg.get("tau", 0.7)),
+            target_length=target_kv_len,
+            sink_size=int(cfg.get("sink_size", 4)),
+            recent_window=int(cfg.get("recent_window", 128)),
+            recency_beta=float(cfg.get("recency_beta", 1.0)),
+            distance_chunk_size=int(cfg.get("distance_chunk_size", 256)),
+            sink_can_absorb=bool(cfg.get("sink_can_absorb", True)),
+            selector=str(cfg.get("selector", "keepkv")),
+        )
+
+    if method == "CentroidKV":
+        cfg = dict(centroidkv_config or {})
+        return _import_from_family(family, import_root, f"merge_centroidkv_{family}").Repair(
+            model, past_key_values, attention, hidden_states, compress_ratio,
+            target_length=target_kv_len,
+            sink_budget=int(cfg.get("sink_budget", 16)),
+            local_budget=int(cfg.get("local_budget", 64)),
+            chunk_size=int(cfg.get("chunk_size", 256)),
+            merge_ratio=float(cfg.get("merge_ratio", 0.8)),
+            decrease_rate=float(cfg.get("decrease_rate", 0.2)),
+        )
+
     if method == "KeepKV":
         return _import_from_family(family, import_root, f"merge_keepkv_{family}").Repair_keepkv(
             model, past_key_values, attention, hidden_states, compress_ratio, eff_sim_thr,
@@ -642,7 +715,7 @@ def apply_kv_method(
 
 def make_cache_factory(
     model, method, family, task_eval_dir, ratio, method_sim_thrs,
-    keepkv_config, min_kv_len, compress_every, stats, model_seqlen
+    keepkv_config, mymethod_config, centroidkv_config, min_kv_len, compress_every, stats, model_seqlen
 ):
     def _factory():
         # Each GPTQ/AquaKV-style fixed-length sequence creates a fresh cache.
@@ -657,6 +730,8 @@ def make_cache_factory(
             sim_thr=-1.0,
             method_sim_thrs=method_sim_thrs,
             keepkv_config=keepkv_config,
+            mymethod_config=mymethod_config,
+            centroidkv_config=centroidkv_config,
             min_kv_len=min_kv_len,
             compress_every=compress_every,
             stats=stats,
@@ -709,17 +784,47 @@ def force_attn_hidden_and_compress(model: nn.Module):
         # their existing requirements.
         is_keepkv = getattr(cache, "_kv_method", None) == "KeepKV"
         is_cam = getattr(cache, "_kv_method", None) == "CaM"
-        kwargs["output_attentions"] = not is_keepkv
-        kwargs["output_hidden_states"] = not (is_keepkv or is_cam)
+        is_mymethod = getattr(cache, "_kv_method", None) == "mymethod"
+        is_centroidkv = getattr(cache, "_kv_method", None) == "CentroidKV"
+        if is_mymethod and hasattr(model, "model") and hasattr(model.model, "layers"):
+            for layer in model.model.layers:
+                attn_mod = layer.self_attn
+                attn_mod._kvmerge_capture_attention_scores = True
+                attn_mod._kvmerge_attention_score_reduce = "sum"
+                if hasattr(attn_mod, "_kvmerge_captured_attention_score"):
+                    delattr(attn_mod, "_kvmerge_captured_attention_score")
+                if hasattr(attn_mod, "_kvmerge_captured_score_log_scale"):
+                    delattr(attn_mod, "_kvmerge_captured_score_log_scale")
+        kwargs["output_attentions"] = not (is_keepkv or is_mymethod or is_centroidkv)
+        kwargs["output_hidden_states"] = not (is_keepkv or is_cam or is_mymethod or is_centroidkv)
         kwargs["return_dict"] = True
         kwargs["use_cache"] = True
 
         out = original_forward(*args, **kwargs)
 
+        captured_scores = None
+        if is_mymethod and hasattr(model, "model") and hasattr(model.model, "layers"):
+            captured_scores = tuple(
+                getattr(layer.self_attn, "_kvmerge_captured_attention_score", None)
+                for layer in model.model.layers
+            )
+            for layer in model.model.layers:
+                layer.self_attn._kvmerge_capture_attention_scores = False
         if seq_len is not None and hasattr(cache, "mark_forward_consumed"):
             cache.mark_forward_consumed(seq_len)
         if hasattr(cache, "maybe_compress"):
-            cache.maybe_compress(getattr(out, "attentions", None), getattr(out, "hidden_states", None))
+            cache.maybe_compress(
+                captured_scores if is_mymethod else getattr(out, "attentions", None),
+                getattr(out, "hidden_states", None),
+            )
+        if is_mymethod and hasattr(model, "model") and hasattr(model.model, "layers"):
+            # The tuple above owns the tensors for the duration of compression;
+            # remove module references immediately afterwards to lower peak-live state.
+            for layer in model.model.layers:
+                if hasattr(layer.self_attn, "_kvmerge_captured_attention_score"):
+                    delattr(layer.self_attn, "_kvmerge_captured_attention_score")
+                if hasattr(layer.self_attn, "_kvmerge_captured_score_log_scale"):
+                    delattr(layer.self_attn, "_kvmerge_captured_score_log_scale")
 
         return out
 
@@ -768,13 +873,52 @@ def stats_summary(stats: dict) -> dict:
     }
 
 
+def mymethod_diagnostics_summary(rows: list[dict]) -> dict:
+    if not rows:
+        return {
+            "mymethod_diagnostic_events": 0,
+            "mymethod_mean_accepted_entry_ratio": None,
+            "mymethod_mean_accepted_count_mass_ratio": None,
+            "mymethod_total_evicted_count_mass": 0.0,
+            "mymethod_total_accepted_count_mass": 0.0,
+            "mymethod_total_rejected_count_mass": 0.0,
+            "mymethod_max_candidates_per_group": 0,
+            "mymethod_max_post_diameter_over_delta": None,
+            "mymethod_max_post_radius_over_delta": None,
+        }
+    total_evicted = sum(float(row.get("evicted_count_mass", 0.0)) for row in rows)
+    total_accepted = sum(float(row.get("accepted_count_mass", 0.0)) for row in rows)
+    total_rejected = sum(float(row.get("rejected_count_mass", 0.0)) for row in rows)
+    return {
+        "mymethod_diagnostic_events": len(rows),
+        "mymethod_mean_accepted_entry_ratio": sum(
+            float(row.get("accepted_entry_ratio", 0.0)) for row in rows
+        ) / len(rows),
+        "mymethod_mean_accepted_count_mass_ratio": (
+            total_accepted / total_evicted if total_evicted > 0.0 else 0.0
+        ),
+        "mymethod_total_evicted_count_mass": total_evicted,
+        "mymethod_total_accepted_count_mass": total_accepted,
+        "mymethod_total_rejected_count_mass": total_rejected,
+        "mymethod_max_candidates_per_group": max(
+            int(row.get("max_candidates_per_group", 0)) for row in rows
+        ),
+        "mymethod_max_post_diameter_over_delta": max(
+            float(row.get("post_diameter_over_delta_max", 0.0)) for row in rows
+        ),
+        "mymethod_max_post_radius_over_delta": max(
+            float(row.get("post_radius_over_delta_max", 0.0)) for row in rows
+        ),
+    }
+
+
 def build_argparser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name", required=True)
     parser.add_argument("--task_eval_dir", default="task_evaluation")
     parser.add_argument("--family", choices=["qwen", "llama"], required=True)
     parser.add_argument("--datasets", nargs="+", default=["wikitext2", "c4"], choices=["wikitext2", "c4"])
-    parser.add_argument("--kv_method", default="none", choices=["none", "SimCalKV", "GroupLogitKV", "KeepKV", "CaM"])
+    parser.add_argument("--kv_method", default="none", choices=["none", "SimCalKV", "GroupLogitKV", "mymethod", "KeepKV", "CaM", "CentroidKV"])
     parser.add_argument(
         "--compress_ratio", type=float, default=0.0,
         help="Fraction of KV tokens to remove; e.g. 0.4 compresses 40% and retains 60%.",
@@ -782,6 +926,19 @@ def build_argparser():
     parser.add_argument("--cam_merge_size", type=int, default=16, help="Official CaM value-receiver window; default 16 for the PPL code path.")
     parser.add_argument("--cam_start_fraction", type=float, default=0.1, help="Fraction of the retained CaM budget assigned to protected start tokens.")
     parser.add_argument("--sim_thr_grouplogitkv", type=float, default=None, help="Similarity threshold for GroupLogitKV (default: 0.8); -1 disables threshold rejection.")
+    parser.add_argument("--tau_mymethod", type=float, default=0.7, help="mymethod normalized group-compactness threshold tau in (0,1).")
+    parser.add_argument("--mymethod_selector", choices=["keepkv", "grouplogitkv"], default="keepkv", help="Retained/evicted selector. grouplogitkv exactly reuses current post-softmax attention Bottom-K eviction and stores no score history.")
+    parser.add_argument("--mymethod_sink_size", type=int, default=4, help="Mandatory original-position sink entries for mymethod.")
+    parser.add_argument("--mymethod_recent_window", type=int, default=128, help="Shared recent-token protection and score-observation window W.")
+    parser.add_argument("--mymethod_recency_beta", type=float, default=1.0, help="Newest/oldest linear score-history weight ratio beta (>=1).")
+    parser.add_argument("--mymethod_distance_chunk_size", type=int, default=256, help="Evicted-entry chunk size for full-retained distance GEMM, feasibility, and reductions; <=0 processes all evicted entries at once.")
+    parser.add_argument("--mymethod_attention_chunk_size", type=int, default=128, help="Exact query-block size while capturing last-W base-score rows.")
+    parser.add_argument("--mymethod_sink_can_absorb", type=int, choices=[0, 1], default=1, help="1 lets sink entries act as certified anchors; 0 forbids sink absorption.")
+    parser.add_argument("--centroidkv_sink_budget", type=int, default=16, help="Official CentroidKV protected initial-token budget.")
+    parser.add_argument("--centroidkv_local_budget", type=int, default=64, help="Official CentroidKV protected recent-token budget.")
+    parser.add_argument("--centroidkv_chunk_size", type=int, default=256, help="Even chunk size for CentroidKV bipartite soft matching.")
+    parser.add_argument("--centroidkv_merge_ratio", type=float, default=0.8, help="Initial official CentroidKV per-step merge ratio.")
+    parser.add_argument("--centroidkv_decrease_rate", type=float, default=0.2, help="Official CentroidKV per-iteration merge-ratio decrease.")
     parser.add_argument(
         "--sim_thr_simcalkv", type=float, default=None,
         help="Similarity threshold for SimCalKV. Default: official value 0.0; -1 disables threshold rejection.",
@@ -847,11 +1004,33 @@ def build_argparser():
     parser.add_argument("--attn_implementation", default="eager", help="Use eager to ensure output_attentions works.")
     parser.add_argument("--output_jsonl", default=None)
     parser.add_argument("--output_json", default=None, help="Optional per-run JSON path. Useful when one command runs one dataset.")
+    parser.add_argument(
+        "--mymethod_diagnostics_jsonl",
+        default=None,
+        help=(
+            "Optional JSONL path for per-layer/per-compression mymethod coverage and "
+            "certificate diagnostics. Disabled by default to avoid GPU synchronization."
+        ),
+    )
     return parser
 
 
 def main():
     args = build_argparser().parse_args()
+    if args.kv_method == "mymethod" and not (0.0 < args.tau_mymethod < 1.0):
+        raise ValueError("--tau_mymethod must be in (0,1)")
+    if args.mymethod_sink_size < 0 or args.mymethod_recent_window < 0:
+        raise ValueError("mymethod sink/recent sizes must be non-negative")
+    if args.mymethod_recency_beta < 1.0:
+        raise ValueError("--mymethod_recency_beta must be >= 1")
+    if args.centroidkv_sink_budget < 0 or args.centroidkv_local_budget < 0:
+        raise ValueError("CentroidKV sink/local budgets must be non-negative")
+    if args.centroidkv_chunk_size < 2 or args.centroidkv_chunk_size % 2 != 0:
+        raise ValueError("--centroidkv_chunk_size must be an even integer >= 2")
+    if not 0.0 <= args.centroidkv_merge_ratio <= 1.0:
+        raise ValueError("--centroidkv_merge_ratio must be in [0,1]")
+    if args.centroidkv_decrease_rate < 0.0:
+        raise ValueError("--centroidkv_decrease_rate must be non-negative")
     set_seed(args.seed)
     global _EVAL_MAX_SEQUENCES
     _EVAL_MAX_SEQUENCES = max(0, int(args.max_eval_sequences))
@@ -887,6 +1066,15 @@ def main():
             "merge_size": int(args.cam_merge_size),
             "start_fraction": float(args.cam_start_fraction),
         }
+    if args.kv_method == "mymethod":
+        for module in model.modules():
+            if "attention" in module.__class__.__name__.lower() and hasattr(module, "forward"):
+                module._kvmerge_attention_chunk_size = int(args.mymethod_attention_chunk_size)
+                module._mymethod_selector = str(args.mymethod_selector)
+                module._mymethod_score_window = (
+                    int(args.mymethod_recent_window)
+                    if args.mymethod_selector == "keepkv" else 0
+                )
     if args.kv_method == "KeepKV":
         configured_attention_modules = 0
         for module in model.modules():
@@ -920,6 +1108,8 @@ def main():
         Path(args.output_jsonl).parent.mkdir(parents=True, exist_ok=True)
     if args.output_json:
         Path(args.output_json).parent.mkdir(parents=True, exist_ok=True)
+    if args.mymethod_diagnostics_jsonl:
+        Path(args.mymethod_diagnostics_jsonl).parent.mkdir(parents=True, exist_ok=True)
 
     method_sim_thrs = {
         "GroupLogitKV": args.sim_thr_grouplogitkv,
@@ -938,6 +1128,23 @@ def main():
             "--keepkv_score_epsilon is obsolete and is not part of official KeepKV. "
             "Use --keepkv_epsilon_times instead."
         )
+    mymethod_config = {
+        "selector": str(args.mymethod_selector),
+        "tau": float(args.tau_mymethod),
+        "sink_size": int(args.mymethod_sink_size),
+        "recent_window": int(args.mymethod_recent_window),
+        "recency_beta": float(args.mymethod_recency_beta),
+        "distance_chunk_size": int(args.mymethod_distance_chunk_size),
+        "sink_can_absorb": bool(args.mymethod_sink_can_absorb),
+    }
+    centroidkv_config = {
+        "sink_budget": int(args.centroidkv_sink_budget),
+        "local_budget": int(args.centroidkv_local_budget),
+        "chunk_size": int(args.centroidkv_chunk_size),
+        "merge_ratio": float(args.centroidkv_merge_ratio),
+        "decrease_rate": float(args.centroidkv_decrease_rate),
+    }
+
     keepkv_config = {
         "similarity_threshold": (
             args.sim_thr_keepkv
@@ -972,6 +1179,8 @@ def main():
                 ratio=args.compress_ratio,
                 method_sim_thrs=method_sim_thrs,
                 keepkv_config=keepkv_config,
+                mymethod_config=mymethod_config,
+                centroidkv_config=centroidkv_config,
                 min_kv_len=args.min_kv_len,
                 compress_every=args.compress_every,
                 stats=stats,
@@ -981,6 +1190,8 @@ def main():
             stats = {"num_compressions": 0, "total_compress_time_s": 0.0}
 
         reset_method_state(model, args.family, task_eval_dir, args.kv_method)
+        if args.kv_method == "mymethod" and args.mymethod_diagnostics_jsonl:
+            model._mymethod_diagnostics_rows = []
         # Follow the AquaKV/GPTQ-style PPL loop: process each fixed-length sequence
         # in chunks of size args.chunk_size. For compressed caches,
         # KVCompressingDynamicCache injects logical RoPE positions plus a 4D
@@ -999,6 +1210,19 @@ def main():
                 cache_factory=cache_factory,
             )
         elapsed = time.time() - t0
+        diagnostic_rows = list(getattr(model, "_mymethod_diagnostics_rows", []))
+        if args.kv_method == "mymethod" and args.mymethod_diagnostics_jsonl:
+            with open(args.mymethod_diagnostics_jsonl, "a", encoding="utf-8") as f:
+                for row in diagnostic_rows:
+                    enriched = {
+                        "model_name": args.model_name,
+                        "family": args.family,
+                        "dataset": dataset_name,
+                        "compress_ratio": float(args.compress_ratio),
+                        "tau": float(args.tau_mymethod),
+                        **row,
+                    }
+                    f.write(json.dumps(enriched, ensure_ascii=False) + "\n")
         reset_method_state(model, args.family, task_eval_dir, args.kv_method)
 
         result = {
@@ -1012,6 +1236,19 @@ def main():
             "cam_start_fraction": args.cam_start_fraction if args.kv_method == "CaM" else None,
             "sim_thr_effective": _effective_sim_thr(args.kv_method, method_sim_thrs),
             "sim_thr_grouplogitkv": args.sim_thr_grouplogitkv,
+            "tau_mymethod": args.tau_mymethod,
+            "mymethod_selector": args.mymethod_selector,
+            "mymethod_sink_size": args.mymethod_sink_size,
+            "mymethod_recent_window": args.mymethod_recent_window,
+            "mymethod_recency_beta": args.mymethod_recency_beta,
+            "mymethod_distance_chunk_size": args.mymethod_distance_chunk_size,
+            "mymethod_attention_chunk_size": args.mymethod_attention_chunk_size,
+            "mymethod_sink_can_absorb": bool(args.mymethod_sink_can_absorb),
+            "centroidkv_sink_budget": args.centroidkv_sink_budget if args.kv_method == "CentroidKV" else None,
+            "centroidkv_local_budget": args.centroidkv_local_budget if args.kv_method == "CentroidKV" else None,
+            "centroidkv_chunk_size": args.centroidkv_chunk_size if args.kv_method == "CentroidKV" else None,
+            "centroidkv_merge_ratio": args.centroidkv_merge_ratio if args.kv_method == "CentroidKV" else None,
+            "centroidkv_decrease_rate": args.centroidkv_decrease_rate if args.kv_method == "CentroidKV" else None,
             "sim_thr_simcalkv": args.sim_thr_simcalkv,
             "sim_thr_keepkv": args.sim_thr_keepkv,
             "keepkv_similarity_threshold": keepkv_config["similarity_threshold"],
@@ -1043,6 +1280,8 @@ def main():
             "num_eval_sequences": int(os.environ.get("KV_EVAL_ACTUAL_SEQUENCES", 0)),
         }
         result.update(stats_summary(stats))
+        if args.kv_method == "mymethod":
+            result.update(mymethod_diagnostics_summary(diagnostic_rows))
         print(json.dumps(result, ensure_ascii=False, indent=2))
         all_results.append(result)
 

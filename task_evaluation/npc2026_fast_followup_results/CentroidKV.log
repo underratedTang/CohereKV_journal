@@ -1,0 +1,67 @@
+Loading model: meta-llama/Llama-3.2-3B
+Transformers version: 4.46.3
+KV method: CentroidKV, ratio=0.4
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:01<00:01,  1.37s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:01<00:00,  1.15it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:01<00:00,  1.06it/s]
+Loading eval dataset: wikitext2
+Token indices sequence length is longer than the specified maximum sequence length for this model (289077 > 131072). Running this sequence through the model will result in indexing errors
+PPL evaluation windows: 2 (seqlen=8192, dataset_tokens=289077, limit=2)
+Evaluating perplexity:   0%|          | 0/2 [00:00<?, ?it/s]Evaluating perplexity:  50%|█████     | 1/2 [00:15<00:15, 15.49s/it]Evaluating perplexity: 100%|██████████| 2/2 [00:30<00:00, 15.20s/it]Evaluating perplexity: 100%|██████████| 2/2 [00:30<00:00, 15.24s/it]
+{
+  "model_name": "meta-llama/Llama-3.2-3B",
+  "family": "llama",
+  "dataset": "wikitext2",
+  "kv_method": "CentroidKV",
+  "compress_ratio": 0.4,
+  "cam_protocol": null,
+  "cam_merge_size": null,
+  "cam_start_fraction": null,
+  "sim_thr_effective": null,
+  "sim_thr_grouplogitkv": null,
+  "tau_mymethod": 0.7,
+  "mymethod_selector": "keepkv",
+  "mymethod_sink_size": 4,
+  "mymethod_recent_window": 128,
+  "mymethod_recency_beta": 1.0,
+  "mymethod_distance_chunk_size": 256,
+  "mymethod_attention_chunk_size": 128,
+  "mymethod_sink_can_absorb": true,
+  "centroidkv_sink_budget": 16,
+  "centroidkv_local_budget": 64,
+  "centroidkv_chunk_size": 256,
+  "centroidkv_merge_ratio": 0.8,
+  "centroidkv_decrease_rate": 0.2,
+  "sim_thr_simcalkv": null,
+  "sim_thr_keepkv": null,
+  "keepkv_similarity_threshold": 0.8,
+  "keepkv_prefill_similarity_threshold": 0.8,
+  "keepkv_epsilon_times": 1.0,
+  "keepkv_pyramid_recent_ratio": 0.2,
+  "keepkv_pyramid_budget": false,
+  "keepkv_pyramid_decay_strategy": "cosine",
+  "keepkv_pyramid_decay_ratio": 0.8,
+  "keepkv_distance_weight": 1.2,
+  "keepkv_sink_len": 4,
+  "keepkv_protect_sink": false,
+  "keepkv_assert_causal": false,
+  "keepkv_disable_vote_bias": false,
+  "keepkv_runtime_only": false,
+  "max_eval_sequences": 2,
+  "model_seqlen": 8192,
+  "chunk_size": 32,
+  "actual_step_size": 32,
+  "min_kv_len": 2,
+  "compress_every": 1,
+  "torch_dtype": "bf16",
+  "amp_dtype": "none",
+  "attn_implementation": "eager",
+  "seed": 0,
+  "ppl": 6.589799980394596,
+  "elapsed_s": 30.48137879371643,
+  "num_eval_tokens": 16382,
+  "num_eval_sequences": 2,
+  "num_compressions": 512,
+  "total_compress_time_s": 14.163458824157715,
+  "avg_compress_time_s": 0.027663005515933037,
+  "avg_compressed_kv_len": 2467.515625,
+  "avg_compressed_kv_mib": 269.884521484375
+}

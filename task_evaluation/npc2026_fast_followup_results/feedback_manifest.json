@@ -1,0 +1,164 @@
+{
+  "result_dir": "/root/SimCalKV/task_evaluation/npc2026_fast_followup_results",
+  "files": [
+    {
+      "path": "CaM.jsonl",
+      "bytes": 1701
+    },
+    {
+      "path": "CaM.log",
+      "bytes": 2857
+    },
+    {
+      "path": "CentroidKV.jsonl",
+      "bytes": 1671
+    },
+    {
+      "path": "CentroidKV.log",
+      "bytes": 2834
+    },
+    {
+      "path": "GroupLogitKV.jsonl",
+      "bytes": 1682
+    },
+    {
+      "path": "GroupLogitKV.log",
+      "bytes": 2847
+    },
+    {
+      "path": "KeepKV.jsonl",
+      "bytes": 1674
+    },
+    {
+      "path": "KeepKV.log",
+      "bytes": 2833
+    },
+    {
+      "path": "SimCalKV.jsonl",
+      "bytes": 1676
+    },
+    {
+      "path": "SimCalKV.log",
+      "bytes": 2837
+    },
+    {
+      "path": "mymethod_grouplogitkv_tau0.1.jsonl",
+      "bytes": 2144
+    },
+    {
+      "path": "mymethod_grouplogitkv_tau0.1.log",
+      "bytes": 3323
+    },
+    {
+      "path": "mymethod_grouplogitkv_tau0.1_diagnostics.jsonl",
+      "bytes": 12715272
+    },
+    {
+      "path": "mymethod_grouplogitkv_tau0.2.jsonl",
+      "bytes": 2147
+    },
+    {
+      "path": "mymethod_grouplogitkv_tau0.2.log",
+      "bytes": 3326
+    },
+    {
+      "path": "mymethod_grouplogitkv_tau0.2_diagnostics.jsonl",
+      "bytes": 12666840
+    },
+    {
+      "path": "mymethod_grouplogitkv_tau0.3.jsonl",
+      "bytes": 2145
+    },
+    {
+      "path": "mymethod_grouplogitkv_tau0.3.log",
+      "bytes": 3324
+    },
+    {
+      "path": "mymethod_grouplogitkv_tau0.3_diagnostics.jsonl",
+      "bytes": 12586517
+    },
+    {
+      "path": "mymethod_grouplogitkv_tau0.4.jsonl",
+      "bytes": 2149
+    },
+    {
+      "path": "mymethod_grouplogitkv_tau0.4.log",
+      "bytes": 3328
+    },
+    {
+      "path": "mymethod_grouplogitkv_tau0.4_diagnostics.jsonl",
+      "bytes": 12242391
+    },
+    {
+      "path": "mymethod_keepkv_tau0.1.jsonl",
+      "bytes": 2140
+    },
+    {
+      "path": "mymethod_keepkv_tau0.1.log",
+      "bytes": 3319
+    },
+    {
+      "path": "mymethod_keepkv_tau0.1_diagnostics.jsonl",
+      "bytes": 12615941
+    },
+    {
+      "path": "mymethod_keepkv_tau0.2.jsonl",
+      "bytes": 2138
+    },
+    {
+      "path": "mymethod_keepkv_tau0.2.log",
+      "bytes": 3317
+    },
+    {
+      "path": "mymethod_keepkv_tau0.2_diagnostics.jsonl",
+      "bytes": 12573949
+    },
+    {
+      "path": "mymethod_keepkv_tau0.3.jsonl",
+      "bytes": 2142
+    },
+    {
+      "path": "mymethod_keepkv_tau0.3.log",
+      "bytes": 3321
+    },
+    {
+      "path": "mymethod_keepkv_tau0.3_diagnostics.jsonl",
+      "bytes": 12500050
+    },
+    {
+      "path": "mymethod_keepkv_tau0.4.jsonl",
+      "bytes": 2142
+    },
+    {
+      "path": "mymethod_keepkv_tau0.4.log",
+      "bytes": 3321
+    },
+    {
+      "path": "mymethod_keepkv_tau0.4_diagnostics.jsonl",
+      "bytes": 12178356
+    },
+    {
+      "path": "none.jsonl",
+      "bytes": 1618
+    },
+    {
+      "path": "none.log",
+      "bytes": 2775
+    },
+    {
+      "path": "npc2026_fast_followup_summary.json",
+      "bytes": 174
+    },
+    {
+      "path": "npc2026_fast_followup_summary.md",
+      "bytes": 264
+    }
+  ],
+  "requested_feedback_priority": [
+    "grouping_diagnostics.json",
+    "compression_microbenchmark.json",
+    "mymethod_profile_table.txt",
+    "ppl_ablation_*.jsonl and *_diagnostics.jsonl",
+    "all main PPL/LongBench/system JSON outputs"
+  ]
+}

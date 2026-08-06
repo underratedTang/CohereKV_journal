@@ -145,6 +145,7 @@ def _merge_all_heads(
     ratio: float,
     sim_thr: float,
     target_length: int = None,
+    similarity_chunk_size: int = 256,
 ):
     """Vectorized equivalent of official LLaMA head-wise many-to-one merge.
 
@@ -186,11 +187,36 @@ def _merge_all_heads(
     kept_keys = _batched_gather(keys, keep_idx)
     kept_values = _batched_gather(values, keep_idx)
 
-    similarity = torch.bmm(
-        F.normalize(evicted_keys, dim=2),
-        F.normalize(kept_keys, dim=2).transpose(1, 2),
+    # Computing the full (H, E, K) cosine-similarity tensor can require
+    # tens of GiB on LongBench. Process evicted tokens in bounded blocks and
+    # retain only each token's maximum similarity and destination index. This
+    # is mathematically equivalent to the full bmm + max path, while reducing
+    # peak similarity memory from O(H*E*K) to O(H*chunk*K).
+    similarity_chunk_size = int(similarity_chunk_size)
+    if similarity_chunk_size <= 0:
+        raise ValueError(
+            "similarity_chunk_size must be a positive integer, "
+            f"got {similarity_chunk_size}"
+        )
+
+    normalized_kept_t = F.normalize(kept_keys, dim=2).transpose(1, 2)
+    max_similarity = torch.empty(
+        (num_heads, num_evict), device=keys.device, dtype=keys.dtype
     )
-    max_similarity, target = similarity.max(dim=2)
+    target = torch.empty(
+        (num_heads, num_evict), device=keys.device, dtype=torch.long
+    )
+    for start in range(0, num_evict, similarity_chunk_size):
+        end = min(start + similarity_chunk_size, num_evict)
+        similarity_chunk = torch.bmm(
+            F.normalize(evicted_keys[:, start:end, :], dim=2),
+            normalized_kept_t,
+        )
+        chunk_max, chunk_target = similarity_chunk.max(dim=2)
+        max_similarity[:, start:end] = chunk_max
+        target[:, start:end] = chunk_target
+        del similarity_chunk, chunk_max, chunk_target
+
     merge_mask = max_similarity > float(sim_thr)
 
     # Flatten (head, kept-token) into one scatter domain. Adding a per-head
@@ -304,6 +330,7 @@ def Repair(
     ratio: float,
     sim_thr: float = 0.0,
     target_length: int = None,
+    similarity_chunk_size: int = 256,
 ):
     """Compress every layer of a legacy tuple KV cache."""
     if sim_thr is None:
@@ -331,6 +358,7 @@ def Repair(
             ratio,
             sim_thr,
             target_length=target_length,
+            similarity_chunk_size=similarity_chunk_size,
         )
         output.append(
             (compressed_keys.unsqueeze(0), compressed_values.unsqueeze(0))

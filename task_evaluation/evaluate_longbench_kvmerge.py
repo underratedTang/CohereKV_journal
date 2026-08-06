@@ -55,7 +55,7 @@ MODELS = [
     "Qwen2.5-72B-Instruct",
 ]
 
-METHODS = ["GroupLogitKV", "SimCalKV", "KeepKV", "CaM", "None", "none"]
+METHODS = ["GroupLogitKV", "mymethod", "SimCalKV", "KeepKV", "CaM", "CentroidKV", "None", "none"]
 
 
 def parse_args(args=None):
@@ -67,6 +67,19 @@ def parse_args(args=None):
     p.add_argument("--kv_method", type=str, choices=METHODS, required=True)
     p.add_argument("--compress_ratio", type=float, default=0.4, help="Evicted fraction. 0.4 means evict about 40%, keep about 60% physical KV slots.")
     p.add_argument("--sim_thr_grouplogitkv", type=float, default=-1.0, help="Similarity threshold for GroupLogitKV; -1 disables threshold rejection.")
+    p.add_argument("--tau_mymethod", type=float, default=0.7, help="mymethod normalized group-compactness threshold tau in (0,1).")
+    p.add_argument("--mymethod_selector", choices=["keepkv", "grouplogitkv"], default="keepkv")
+    p.add_argument("--mymethod_sink_size", type=int, default=4)
+    p.add_argument("--mymethod_recent_window", type=int, default=128)
+    p.add_argument("--mymethod_recency_beta", type=float, default=1.0)
+    p.add_argument("--mymethod_distance_chunk_size", type=int, default=256)
+    p.add_argument("--mymethod_attention_chunk_size", type=int, default=128)
+    p.add_argument("--mymethod_sink_can_absorb", type=int, choices=[0, 1], default=1)
+    p.add_argument("--centroidkv_sink_budget", type=int, default=16)
+    p.add_argument("--centroidkv_local_budget", type=int, default=64)
+    p.add_argument("--centroidkv_chunk_size", type=int, default=256)
+    p.add_argument("--centroidkv_merge_ratio", type=float, default=0.8)
+    p.add_argument("--centroidkv_decrease_rate", type=float, default=0.2)
     p.add_argument("--sim_thr_simcalkv", type=float, default=-1.0, help="Similarity threshold for SimCalKV; -1 disables threshold rejection.")
     p.add_argument("--sim_thr_keepkv", type=float, default=-1.0, help="Similarity threshold for KeepKV; -1 disables threshold rejection.")
     p.add_argument("--out_path", type=str, default="./pred")
@@ -78,6 +91,7 @@ def parse_args(args=None):
     p.add_argument("--attn_implementation", type=str, default="eager", help="Use eager for KV-merge methods that need attention logits/weights.")
     p.add_argument("--prefill_chunk_size", type=int, default=128, help="Prompt forward chunk size for memory-efficient KeepKV one-shot prefill.")
     p.add_argument("--keepkv_similarity_chunk_size", type=int, default=256, help="Discard-token block size used by memory-bounded KeepKV cosine matching.")
+    p.add_argument("--simcalkv_similarity_chunk_size", type=int, default=256, help="Evicted-token block size used by memory-bounded SimCalKV cosine matching.")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--overwrite", action="store_true", help="Overwrite existing dataset jsonl files.")
     p.add_argument("--cleanup_interval", type=int, default=0, help="Run Python GC/CUDA cache cleanup every N samples; 0 disables forced cleanup (faster and usually lower fragmentation).")
@@ -120,13 +134,30 @@ def infer_arch(model_name, model_path):
     raise ValueError("Cannot infer --arch from model name/path. Pass --arch llama or --arch qwen.")
 
 
-def setup_kv_imports(task_eval_dir, arch, kv_method):
+def setup_kv_imports(
+    task_eval_dir,
+    arch,
+    kv_method,
+    simcalkv_similarity_chunk_size: int = 256,
+    mymethod_tau: float = 0.7,
+    mymethod_selector: str = "keepkv",
+    mymethod_sink_size: int = 4,
+    mymethod_recent_window: int = 128,
+    mymethod_recency_beta: float = 1.0,
+    mymethod_distance_chunk_size: int = 256,
+    mymethod_sink_can_absorb: bool = True,
+    centroidkv_sink_budget: int = 16,
+    centroidkv_local_budget: int = 64,
+    centroidkv_chunk_size: int = 256,
+    centroidkv_merge_ratio: float = 0.8,
+    centroidkv_decrease_rate: float = 0.2,
+):
     """Load the current KV-compression entry points and runtime patches.
 
     The method implementations live under ``models/<arch>`` and now expose
-    function-based entry points.  KeepKV also has its own decode-time runtime
-    patch, while the other compressed-cache methods share the GroupLogitKV
-    eager-attention patch.
+    function-based entry points. KeepKV and mymethod have dedicated decode-time
+    runtime patches; the remaining legacy compressed-cache methods retain the
+    existing GroupLogitKV-compatible eager-attention path.
     """
     kv_method = normalize_kv_method(kv_method)
     if kv_method == "None":
@@ -154,15 +185,24 @@ def setup_kv_imports(task_eval_dir, arch, kv_method):
             disable_grouplogitkv_eager,
             disable_grouplogitkv_sdpa,
         )
+        from merge_mymethod_llama import (
+            Repair as MyMethodRepair,
+            disable_mymethod_eager,
+            disable_mymethod_sdpa,
+        )
         from merge_keepkv_llama import (
             Repair_keepkv as KeepRepair, reset_keepkv_state,
             prepare_longbench_keepkv, set_longbench_keepkv_chunk, finalize_longbench_keepkv,
         )
         from merge_cam_llama import Repair as CaMRepair, reset_cam_state
+        from merge_centroidkv_llama import Repair as CentroidRepair, reset_centroidkv_state
 
         if kv_method == "KeepKV":
             from keepkv_runtime_patch_llama import apply_keepkv_runtime_patch
             apply_keepkv_runtime_patch()
+        elif kv_method == "mymethod":
+            from mymethod_runtime_patch_llama import apply_mymethod_runtime_patch
+            apply_mymethod_runtime_patch()
         else:
             from grouplogitkv_runtime_patch_llama import apply_grouplogitkv_runtime_patch
             apply_grouplogitkv_runtime_patch()
@@ -174,15 +214,24 @@ def setup_kv_imports(task_eval_dir, arch, kv_method):
             disable_grouplogitkv_eager,
             disable_grouplogitkv_sdpa,
         )
+        from merge_mymethod_qwen import (
+            Repair as MyMethodRepair,
+            disable_mymethod_eager,
+            disable_mymethod_sdpa,
+        )
         from merge_keepkv_qwen import (
             Repair_keepkv as KeepRepair, reset_keepkv_state,
             prepare_longbench_keepkv, set_longbench_keepkv_chunk, finalize_longbench_keepkv,
         )
         from merge_cam_qwen import Repair as CaMRepair, reset_cam_state
+        from merge_centroidkv_qwen import Repair as CentroidRepair, reset_centroidkv_state
 
         if kv_method == "KeepKV":
             from keepkv_runtime_patch_qwen import apply_keepkv_qwen_runtime_patch
             apply_keepkv_qwen_runtime_patch()
+        elif kv_method == "mymethod":
+            from mymethod_runtime_patch_qwen import apply_mymethod_qwen_runtime_patch
+            apply_mymethod_qwen_runtime_patch()
         else:
             from grouplogitkv_runtime_patch_qwen import apply_grouplogitkv_qwen_runtime_patch
             apply_grouplogitkv_qwen_runtime_patch()
@@ -195,6 +244,11 @@ def setup_kv_imports(task_eval_dir, arch, kv_method):
             reset_keepkv_state(model)
         elif kv_method == "CaM":
             reset_cam_state(model)
+        elif kv_method == "mymethod":
+            disable_mymethod_sdpa(model)
+            disable_mymethod_eager(model)
+        elif kv_method == "CentroidKV":
+            reset_centroidkv_state(model)
         else:
             disable_grouplogitkv_sdpa(model)
             disable_grouplogitkv_eager(model)
@@ -202,9 +256,41 @@ def setup_kv_imports(task_eval_dir, arch, kv_method):
     def apply(method, model, pkv, attn, hidden, ratio, sim_thr):
         legacy_pkv = _as_legacy_tuple(pkv)
         if method == "SimCalKV":
-            return SimCalRepair(model, legacy_pkv, attn, hidden, ratio, sim_thr)
+            return SimCalRepair(
+                model,
+                legacy_pkv,
+                attn,
+                hidden,
+                ratio,
+                sim_thr,
+                similarity_chunk_size=simcalkv_similarity_chunk_size,
+            )
         if method == "GroupLogitKV":
             return GroupRepair(model, legacy_pkv, attn, hidden, ratio, sim_thr)
+        if method == "mymethod":
+            return MyMethodRepair(
+                model,
+                legacy_pkv,
+                attn,
+                hidden,
+                ratio,
+                mymethod_tau,
+                sink_size=mymethod_sink_size,
+                recent_window=mymethod_recent_window,
+                recency_beta=mymethod_recency_beta,
+                distance_chunk_size=mymethod_distance_chunk_size,
+                sink_can_absorb=bool(mymethod_sink_can_absorb),
+                selector=str(mymethod_selector),
+            )
+        if method == "CentroidKV":
+            return CentroidRepair(
+                model, legacy_pkv, attn, hidden, ratio,
+                sink_budget=centroidkv_sink_budget,
+                local_budget=centroidkv_local_budget,
+                chunk_size=centroidkv_chunk_size,
+                merge_ratio=centroidkv_merge_ratio,
+                decrease_rate=centroidkv_decrease_rate,
+            )
         if method == "KeepKV":
             # A None threshold preserves KeepKVConfig's official separate
             # prefill/decode defaults; a numeric CLI value overrides both.
@@ -565,6 +651,8 @@ def get_selected_sim_thr(args):
         return -1.0
     if method == "GroupLogitKV":
         return float(args.sim_thr_grouplogitkv)
+    if method == "mymethod":
+        return float(args.tau_mymethod)
     if method == "SimCalKV":
         return float(args.sim_thr_simcalkv)
     if method == "KeepKV":
@@ -594,15 +682,17 @@ def _self_attention_modules(model):
 def _set_reduced_attention_capture(model, enabled: bool, reduce: str = "sum"):
     """Enable/disable per-layer reduced attention-score capture.
 
-    This avoids returning full HF attentions [B,H_q,Q,K].  The runtime attention
-    patch computes exactly the query-reduced token scores consumed by the merge
-    algorithms and stores one [B,H_kv,K] tensor per layer.
+    This avoids returning full HF attentions. For mymethod the runtime patch
+    stores only the last-W masked base-score rows [B,H_kv,Q_tail,K]; legacy
+    methods keep their existing reduced-score representation.
     """
     for attn in _self_attention_modules(model):
         setattr(attn, "_kvmerge_capture_attention_scores", bool(enabled))
         setattr(attn, "_kvmerge_attention_score_reduce", reduce)
         if hasattr(attn, "_kvmerge_captured_attention_score"):
             delattr(attn, "_kvmerge_captured_attention_score")
+        if hasattr(attn, "_kvmerge_captured_score_log_scale"):
+            delattr(attn, "_kvmerge_captured_score_log_scale")
 
 
 def _get_reduced_attention_scores(model):
@@ -619,11 +709,14 @@ def _clear_reduced_attention_scores(model):
     for attn in _self_attention_modules(model):
         if hasattr(attn, "_kvmerge_captured_attention_score"):
             delattr(attn, "_kvmerge_captured_attention_score")
+        if hasattr(attn, "_kvmerge_captured_score_log_scale"):
+            delattr(attn, "_kvmerge_captured_score_log_scale")
 
 
 def _attention_reduce_mode_for_method(method: str) -> str:
     method = normalize_kv_method(method)
-    # GroupLogitKV and SimCalKV use sum over query positions.
+    # GroupLogitKV and SimCalKV use sum over query positions. mymethod keeps
+    # its query axis and ignores this legacy reduction setting.
     # KeepKV and CaM use mean over query positions.  These are computed before
     # returning from the attention layer, instead of storing full attentions.
     return "mean" if method in ["KeepKV", "CaM"] else "sum"
@@ -633,7 +726,7 @@ def _need_attention_scores_for_method(method: str) -> bool:
     method = normalize_kv_method(method)
     # KeepKV captures its official masked exponential scores internally through
     # keepkv_runtime_patch_*; Repair_keepkv intentionally ignores this argument.
-    return method in {"GroupLogitKV", "SimCalKV", "CaM"}
+    return method in {"GroupLogitKV", "mymethod", "SimCalKV", "CaM"}
 
 
 def _need_hidden_states_for_method(method: str) -> bool:
@@ -708,6 +801,7 @@ def run_dataset(model, tokenizer, apply_kv, reset_kv, data, max_length, max_gen,
                 "compress_ratio": 0.0,
                 "sim_thr": "na",
                 "merge_time_sec": 0.0,
+                "centroidkv_config": None,
             }
             with open(out_file, "a", encoding="utf-8") as f:
                 json.dump(row, f, ensure_ascii=False)
@@ -806,6 +900,13 @@ def run_dataset(model, tokenizer, apply_kv, reset_kv, data, max_length, max_gen,
             "compress_ratio": args.compress_ratio,
             "sim_thr": get_selected_sim_thr(args),
             "merge_time_s": merge_time,
+            "centroidkv_config": ({
+                "sink_budget": args.centroidkv_sink_budget,
+                "local_budget": args.centroidkv_local_budget,
+                "chunk_size": args.centroidkv_chunk_size,
+                "merge_ratio": args.centroidkv_merge_ratio,
+                "decrease_rate": args.centroidkv_decrease_rate,
+            } if method == "CentroidKV" else None),
         }
         with open(out_file, "a", encoding="utf-8") as f:
             json.dump(row, f, ensure_ascii=False)
@@ -939,6 +1040,20 @@ def main():
     time_started = time.time()
     args = parse_args()
     args.kv_method = normalize_kv_method(args.kv_method)
+    if args.kv_method == "mymethod" and not (0.0 < args.tau_mymethod < 1.0):
+        raise ValueError("--tau_mymethod must be in (0,1)")
+    if args.mymethod_sink_size < 0 or args.mymethod_recent_window < 0:
+        raise ValueError("mymethod sink/recent sizes must be non-negative")
+    if args.mymethod_recency_beta < 1.0:
+        raise ValueError("--mymethod_recency_beta must be >= 1")
+    if args.centroidkv_sink_budget < 0 or args.centroidkv_local_budget < 0:
+        raise ValueError("CentroidKV sink/local budgets must be non-negative")
+    if args.centroidkv_chunk_size < 2 or args.centroidkv_chunk_size % 2 != 0:
+        raise ValueError("--centroidkv_chunk_size must be an even integer >= 2")
+    if not 0.0 <= args.centroidkv_merge_ratio <= 1.0:
+        raise ValueError("--centroidkv_merge_ratio must be in [0,1]")
+    if args.centroidkv_decrease_rate < 0.0:
+        raise ValueError("--centroidkv_decrease_rate must be non-negative")
     seed_everything(args.seed)
     if args.model is None:
         raise ValueError("--model is required")
@@ -973,7 +1088,24 @@ def main():
                 raise ValueError(f"dataset {ds} not supported by this LongBench v1 runner")
 
     method_norm = normalize_kv_method(args.kv_method)
-    apply_kv, reset_kv = setup_kv_imports(task_eval_dir, args.arch, method_norm)
+    apply_kv, reset_kv = setup_kv_imports(
+        task_eval_dir,
+        args.arch,
+        method_norm,
+        simcalkv_similarity_chunk_size=args.simcalkv_similarity_chunk_size,
+        mymethod_tau=args.tau_mymethod,
+        mymethod_selector=args.mymethod_selector,
+        mymethod_sink_size=args.mymethod_sink_size,
+        mymethod_recent_window=args.mymethod_recent_window,
+        mymethod_recency_beta=args.mymethod_recency_beta,
+        mymethod_distance_chunk_size=args.mymethod_distance_chunk_size,
+        mymethod_sink_can_absorb=bool(args.mymethod_sink_can_absorb),
+        centroidkv_sink_budget=args.centroidkv_sink_budget,
+        centroidkv_local_budget=args.centroidkv_local_budget,
+        centroidkv_chunk_size=args.centroidkv_chunk_size,
+        centroidkv_merge_ratio=args.centroidkv_merge_ratio,
+        centroidkv_decrease_rate=args.centroidkv_decrease_rate,
+    )
     torch_dtype = get_torch_dtype(args.dtype)
 
     # Full-KV baseline should not use eager attention on long contexts; eager
@@ -990,6 +1122,14 @@ def main():
     model, tokenizer = load_model_and_tokenizer(
         model_path, args.model, args.device, torch_dtype=torch_dtype, attn_implementation=effective_attn_impl
     )
+    if method_norm == "mymethod":
+        for attn_mod in _self_attention_modules(model):
+            attn_mod._kvmerge_attention_chunk_size = int(args.mymethod_attention_chunk_size)
+            attn_mod._mymethod_selector = str(args.mymethod_selector)
+            attn_mod._mymethod_score_window = (
+                int(args.mymethod_recent_window)
+                if args.mymethod_selector == "keepkv" else 0
+            )
     reset_kv(model)
 
     dataset2prompt = json.load(open(task_eval_dir / "LongBench/config/dataset2prompt.json", "r"))
