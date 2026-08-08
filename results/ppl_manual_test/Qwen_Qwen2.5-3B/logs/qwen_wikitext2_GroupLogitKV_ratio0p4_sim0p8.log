@@ -1,20 +1,38 @@
 Loading model: Qwen/Qwen2.5-3B
 Transformers version: 4.46.3
 KV method: GroupLogitKV, ratio=0.4
-Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:01<00:01,  1.07s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:01<00:00,  1.21it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:01<00:00,  1.16it/s]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  1.03it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:01<00:00,  1.34it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:01<00:00,  1.29it/s]
 Loading eval dataset: wikitext2
 Token indices sequence length is longer than the specified maximum sequence length for this model (299078 > 131072). Running this sequence through the model will result in indexing errors
-Evaluating perplexity:   0%|          | 0/36 [00:00<?, ?it/s]Evaluating perplexity:   3%|▎         | 1/36 [00:18<10:55, 18.72s/it]Evaluating perplexity:   6%|▌         | 2/36 [00:36<10:25, 18.39s/it]Evaluating perplexity:   8%|▊         | 3/36 [00:55<10:06, 18.39s/it]Evaluating perplexity:  11%|█         | 4/36 [01:13<09:48, 18.38s/it]Evaluating perplexity:  14%|█▍        | 5/36 [01:32<09:31, 18.44s/it]Evaluating perplexity:  17%|█▋        | 6/36 [01:50<09:13, 18.46s/it]Evaluating perplexity:  19%|█▉        | 7/36 [02:09<08:54, 18.44s/it]Evaluating perplexity:  22%|██▏       | 8/36 [02:27<08:36, 18.46s/it]Evaluating perplexity:  25%|██▌       | 9/36 [02:45<08:15, 18.34s/it]Evaluating perplexity:  28%|██▊       | 10/36 [03:03<07:55, 18.27s/it]Evaluating perplexity:  31%|███       | 11/36 [03:21<07:34, 18.20s/it]Evaluating perplexity:  33%|███▎      | 12/36 [03:39<07:15, 18.16s/it]Evaluating perplexity:  36%|███▌      | 13/36 [03:57<06:57, 18.13s/it]Evaluating perplexity:  39%|███▉      | 14/36 [04:16<06:38, 18.11s/it]Evaluating perplexity:  42%|████▏     | 15/36 [04:34<06:20, 18.10s/it]Evaluating perplexity:  44%|████▍     | 16/36 [04:52<06:02, 18.13s/it]Evaluating perplexity:  47%|████▋     | 17/36 [05:10<05:43, 18.10s/it]Evaluating perplexity:  50%|█████     | 18/36 [05:28<05:25, 18.08s/it]Evaluating perplexity:  53%|█████▎    | 19/36 [05:46<05:07, 18.08s/it]Evaluating perplexity:  56%|█████▌    | 20/36 [06:04<04:49, 18.11s/it]Evaluating perplexity:  58%|█████▊    | 21/36 [06:22<04:32, 18.18s/it]Evaluating perplexity:  61%|██████    | 22/36 [06:41<04:15, 18.22s/it]Evaluating perplexity:  64%|██████▍   | 23/36 [06:59<03:57, 18.29s/it]Evaluating perplexity:  67%|██████▋   | 24/36 [07:17<03:38, 18.21s/it]Evaluating perplexity:  69%|██████▉   | 25/36 [07:35<03:19, 18.17s/it]Evaluating perplexity:  72%|███████▏  | 26/36 [07:54<03:01, 18.19s/it]Evaluating perplexity:  75%|███████▌  | 27/36 [08:12<02:43, 18.22s/it]Evaluating perplexity:  78%|███████▊  | 28/36 [08:30<02:25, 18.20s/it]Evaluating perplexity:  81%|████████  | 29/36 [08:48<02:07, 18.18s/it]Evaluating perplexity:  83%|████████▎ | 30/36 [09:06<01:48, 18.15s/it]Evaluating perplexity:  86%|████████▌ | 31/36 [09:24<01:30, 18.17s/it]Evaluating perplexity:  89%|████████▉ | 32/36 [09:43<01:13, 18.27s/it]Evaluating perplexity:  92%|█████████▏| 33/36 [10:01<00:54, 18.22s/it]Evaluating perplexity:  94%|█████████▍| 34/36 [10:19<00:36, 18.17s/it]Evaluating perplexity:  97%|█████████▋| 35/36 [10:37<00:18, 18.14s/it]Evaluating perplexity: 100%|██████████| 36/36 [10:55<00:00, 18.15s/it]Evaluating perplexity: 100%|██████████| 36/36 [10:55<00:00, 18.22s/it]
+PPL evaluation windows: 36 (seqlen=8192, dataset_tokens=299078, limit=0)
+Evaluating perplexity:   0%|          | 0/36 [00:00<?, ?it/s]Evaluating perplexity:   3%|▎         | 1/36 [00:19<11:33, 19.82s/it]Evaluating perplexity:   6%|▌         | 2/36 [00:39<11:02, 19.48s/it]Evaluating perplexity:   8%|▊         | 3/36 [00:58<10:39, 19.37s/it]Evaluating perplexity:  11%|█         | 4/36 [01:17<10:18, 19.34s/it]Evaluating perplexity:  14%|█▍        | 5/36 [01:36<09:59, 19.33s/it]Evaluating perplexity:  17%|█▋        | 6/36 [01:56<09:40, 19.34s/it]Evaluating perplexity:  19%|█▉        | 7/36 [02:15<09:21, 19.35s/it]Evaluating perplexity:  22%|██▏       | 8/36 [02:34<09:01, 19.35s/it]Evaluating perplexity:  25%|██▌       | 9/36 [02:54<08:42, 19.34s/it]Evaluating perplexity:  28%|██▊       | 10/36 [03:13<08:21, 19.29s/it]Evaluating perplexity:  31%|███       | 11/36 [03:32<08:00, 19.23s/it]Evaluating perplexity:  33%|███▎      | 12/36 [03:51<07:40, 19.18s/it]Evaluating perplexity:  36%|███▌      | 13/36 [04:10<07:21, 19.19s/it]Evaluating perplexity:  39%|███▉      | 14/36 [04:30<07:01, 19.18s/it]Evaluating perplexity:  42%|████▏     | 15/36 [04:49<06:44, 19.25s/it]Evaluating perplexity:  44%|████▍     | 16/36 [05:08<06:24, 19.23s/it]Evaluating perplexity:  47%|████▋     | 17/36 [05:27<06:05, 19.21s/it]Evaluating perplexity:  50%|█████     | 18/36 [05:46<05:45, 19.20s/it]Evaluating perplexity:  53%|█████▎    | 19/36 [06:06<05:26, 19.22s/it]Evaluating perplexity:  56%|█████▌    | 20/36 [06:25<05:07, 19.19s/it]Evaluating perplexity:  58%|█████▊    | 21/36 [06:44<04:47, 19.19s/it]Evaluating perplexity:  61%|██████    | 22/36 [07:04<04:30, 19.29s/it]Evaluating perplexity:  64%|██████▍   | 23/36 [07:23<04:10, 19.27s/it]Evaluating perplexity:  67%|██████▋   | 24/36 [07:42<03:51, 19.26s/it]Evaluating perplexity:  69%|██████▉   | 25/36 [08:02<03:34, 19.46s/it]Evaluating perplexity:  72%|███████▏  | 26/36 [08:21<03:14, 19.42s/it]Evaluating perplexity:  75%|███████▌  | 27/36 [08:40<02:53, 19.31s/it]Evaluating perplexity:  78%|███████▊  | 28/36 [09:00<02:34, 19.28s/it]Evaluating perplexity:  81%|████████  | 29/36 [09:19<02:14, 19.27s/it]Evaluating perplexity:  83%|████████▎ | 30/36 [09:38<01:55, 19.23s/it]Evaluating perplexity:  86%|████████▌ | 31/36 [09:57<01:36, 19.20s/it]Evaluating perplexity:  89%|████████▉ | 32/36 [10:16<01:16, 19.19s/it]Evaluating perplexity:  92%|█████████▏| 33/36 [10:35<00:57, 19.18s/it]Evaluating perplexity:  94%|█████████▍| 34/36 [10:55<00:38, 19.18s/it]Evaluating perplexity:  97%|█████████▋| 35/36 [11:14<00:19, 19.17s/it]Evaluating perplexity: 100%|██████████| 36/36 [11:33<00:00, 19.17s/it]Evaluating perplexity: 100%|██████████| 36/36 [11:33<00:00, 19.26s/it]
 {
   "model_name": "Qwen/Qwen2.5-3B",
   "family": "qwen",
   "dataset": "wikitext2",
   "kv_method": "GroupLogitKV",
   "compress_ratio": 0.4,
+  "cam_protocol": null,
+  "cam_merge_size": null,
+  "cam_start_fraction": null,
   "sim_thr_effective": 0.8,
   "sim_thr_grouplogitkv": 0.8,
   "sim_thr_simcalkv": null,
   "sim_thr_keepkv": null,
+  "keepkv_similarity_threshold": 0.8,
+  "keepkv_prefill_similarity_threshold": 0.8,
+  "keepkv_epsilon_times": 1.0,
+  "keepkv_pyramid_recent_ratio": 0.2,
+  "keepkv_pyramid_budget": false,
+  "keepkv_pyramid_decay_strategy": "cosine",
+  "keepkv_pyramid_decay_ratio": 0.8,
+  "keepkv_distance_weight": 1.2,
+  "keepkv_sink_len": 4,
+  "keepkv_protect_sink": false,
+  "keepkv_assert_causal": false,
+  "keepkv_disable_vote_bias": false,
+  "keepkv_runtime_only": false,
+  "max_eval_sequences": 0,
   "model_seqlen": 8192,
   "chunk_size": 32,
   "actual_step_size": 32,
@@ -24,12 +42,14 @@ Token indices sequence length is longer than the specified maximum sequence leng
   "amp_dtype": "none",
   "attn_implementation": "eager",
   "seed": 0,
-  "ppl": 11.286542774444474,
-  "elapsed_s": 655.8506946563721,
-  "num_eval_tokens": 299078,
+  "ppl": 7.255353883867184,
+  "elapsed_s": 693.3909344673157,
+  "num_eval_tokens": 294876,
+  "num_eval_sequences": 36,
   "num_compressions": 9216,
-  "total_compress_time_s": 253.14281153678894,
-  "avg_compress_time_s": 0.027467752987932827,
-  "avg_compressed_kv_len": 47.7578125,
-  "avg_compressed_kv_mib": 1.678985595703125
+  "total_compress_time_s": 284.89742827415466,
+  "avg_compress_time_s": 0.030913349422108796,
+  "avg_compressed_kv_len": 2467.19921875,
+  "avg_compressed_kv_mib": 86.73747253417969
 }
+[W723 05:10:34.484333892 AllocatorConfig.cpp:28] Warning: PYTORCH_CUDA_ALLOC_CONF is deprecated, use PYTORCH_ALLOC_CONF instead (function operator())

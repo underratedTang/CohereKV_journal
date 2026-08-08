@@ -1,21 +1,37 @@
-'(MaxRetryError("HTTPSConnectionPool(host='hf-mirror.com', port=443): Max retries exceeded with url: /meta-llama/Llama-3.2-1B/resolve/main/config.json (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1017)')))"), '(Request ID: 6cdf6a31-1ea4-4e5c-ae65-dfd2e22c3060)')' thrown while requesting HEAD https://hf-mirror.com/meta-llama/Llama-3.2-1B/resolve/main/config.json
-Retrying in 1s [Retry 1/5].
 Loading model: meta-llama/Llama-3.2-1B
 Transformers version: 4.46.3
 KV method: none, ratio=0.0
 Loading eval dataset: wikitext2
 Token indices sequence length is longer than the specified maximum sequence length for this model (289077 > 131072). Running this sequence through the model will result in indexing errors
-Evaluating perplexity:   0%|          | 0/35 [00:00<?, ?it/s]Evaluating perplexity:   3%|▎         | 1/35 [00:04<02:40,  4.73s/it]Evaluating perplexity:   6%|▌         | 2/35 [00:09<02:30,  4.57s/it]Evaluating perplexity:   9%|▊         | 3/35 [00:13<02:24,  4.52s/it]Evaluating perplexity:  11%|█▏        | 4/35 [00:18<02:19,  4.49s/it]Evaluating perplexity:  14%|█▍        | 5/35 [00:22<02:14,  4.48s/it]Evaluating perplexity:  17%|█▋        | 6/35 [00:26<02:08,  4.44s/it]Evaluating perplexity:  20%|██        | 7/35 [00:31<02:04,  4.45s/it]Evaluating perplexity:  23%|██▎       | 8/35 [00:35<02:00,  4.47s/it]Evaluating perplexity:  26%|██▌       | 9/35 [00:40<01:56,  4.48s/it]Evaluating perplexity:  29%|██▊       | 10/35 [00:44<01:51,  4.47s/it]Evaluating perplexity:  31%|███▏      | 11/35 [00:49<01:46,  4.42s/it]Evaluating perplexity:  34%|███▍      | 12/35 [00:53<01:41,  4.43s/it]Evaluating perplexity:  37%|███▋      | 13/35 [00:58<01:37,  4.43s/it]Evaluating perplexity:  40%|████      | 14/35 [01:02<01:33,  4.43s/it]Evaluating perplexity:  43%|████▎     | 15/35 [01:06<01:28,  4.43s/it]Evaluating perplexity:  46%|████▌     | 16/35 [01:11<01:24,  4.44s/it]Evaluating perplexity:  49%|████▊     | 17/35 [01:15<01:19,  4.44s/it]Evaluating perplexity:  51%|█████▏    | 18/35 [01:20<01:15,  4.45s/it]Evaluating perplexity:  54%|█████▍    | 19/35 [01:24<01:11,  4.46s/it]Evaluating perplexity:  57%|█████▋    | 20/35 [01:29<01:06,  4.46s/it]Evaluating perplexity:  60%|██████    | 21/35 [01:33<01:02,  4.46s/it]Evaluating perplexity:  63%|██████▎   | 22/35 [01:38<00:57,  4.46s/it]Evaluating perplexity:  66%|██████▌   | 23/35 [01:42<00:53,  4.46s/it]Evaluating perplexity:  69%|██████▊   | 24/35 [01:47<00:48,  4.45s/it]Evaluating perplexity:  71%|███████▏  | 25/35 [01:51<00:44,  4.42s/it]Evaluating perplexity:  74%|███████▍  | 26/35 [01:55<00:39,  4.42s/it]Evaluating perplexity:  77%|███████▋  | 27/35 [02:00<00:35,  4.39s/it]Evaluating perplexity:  80%|████████  | 28/35 [02:04<00:30,  4.37s/it]Evaluating perplexity:  83%|████████▎ | 29/35 [02:08<00:26,  4.36s/it]Evaluating perplexity:  86%|████████▌ | 30/35 [02:13<00:21,  4.34s/it]Evaluating perplexity:  89%|████████▊ | 31/35 [02:17<00:17,  4.34s/it]Evaluating perplexity:  91%|█████████▏| 32/35 [02:21<00:12,  4.33s/it]Evaluating perplexity:  94%|█████████▍| 33/35 [02:25<00:08,  4.32s/it]Evaluating perplexity:  97%|█████████▋| 34/35 [02:30<00:04,  4.30s/it]Evaluating perplexity: 100%|██████████| 35/35 [02:34<00:00,  4.29s/it]Evaluating perplexity: 100%|██████████| 35/35 [02:34<00:00,  4.41s/it]
+PPL evaluation windows: 35 (seqlen=8192, dataset_tokens=289077, limit=0)
+Evaluating perplexity:   0%|          | 0/35 [00:00<?, ?it/s]Evaluating perplexity:   3%|▎         | 1/35 [00:04<02:39,  4.71s/it]Evaluating perplexity:   6%|▌         | 2/35 [00:09<02:30,  4.56s/it]Evaluating perplexity:   9%|▊         | 3/35 [00:13<02:24,  4.52s/it]Evaluating perplexity:  11%|█▏        | 4/35 [00:18<02:19,  4.51s/it]Evaluating perplexity:  14%|█▍        | 5/35 [00:22<02:15,  4.51s/it]Evaluating perplexity:  17%|█▋        | 6/35 [00:27<02:10,  4.50s/it]Evaluating perplexity:  20%|██        | 7/35 [00:31<02:06,  4.50s/it]Evaluating perplexity:  23%|██▎       | 8/35 [00:36<02:01,  4.49s/it]Evaluating perplexity:  26%|██▌       | 9/35 [00:40<01:56,  4.48s/it]Evaluating perplexity:  29%|██▊       | 10/35 [00:44<01:51,  4.46s/it]Evaluating perplexity:  31%|███▏      | 11/35 [00:49<01:47,  4.47s/it]Evaluating perplexity:  34%|███▍      | 12/35 [00:53<01:42,  4.46s/it]Evaluating perplexity:  37%|███▋      | 13/35 [00:58<01:38,  4.47s/it]Evaluating perplexity:  40%|████      | 14/35 [01:02<01:33,  4.47s/it]Evaluating perplexity:  43%|████▎     | 15/35 [01:07<01:29,  4.47s/it]Evaluating perplexity:  46%|████▌     | 16/35 [01:11<01:24,  4.47s/it]Evaluating perplexity:  49%|████▊     | 17/35 [01:16<01:20,  4.47s/it]Evaluating perplexity:  51%|█████▏    | 18/35 [01:20<01:16,  4.48s/it]Evaluating perplexity:  54%|█████▍    | 19/35 [01:25<01:11,  4.47s/it]Evaluating perplexity:  57%|█████▋    | 20/35 [01:29<01:07,  4.47s/it]Evaluating perplexity:  60%|██████    | 21/35 [01:34<01:01,  4.43s/it]Evaluating perplexity:  63%|██████▎   | 22/35 [01:38<00:57,  4.42s/it]Evaluating perplexity:  66%|██████▌   | 23/35 [01:42<00:53,  4.43s/it]Evaluating perplexity:  69%|██████▊   | 24/35 [01:47<00:48,  4.39s/it]Evaluating perplexity:  71%|███████▏  | 25/35 [01:51<00:43,  4.38s/it]Evaluating perplexity:  74%|███████▍  | 26/35 [01:55<00:39,  4.37s/it]Evaluating perplexity:  77%|███████▋  | 27/35 [02:00<00:35,  4.39s/it]Evaluating perplexity:  80%|████████  | 28/35 [02:04<00:30,  4.38s/it]Evaluating perplexity:  83%|████████▎ | 29/35 [02:09<00:26,  4.37s/it]Evaluating perplexity:  86%|████████▌ | 30/35 [02:13<00:22,  4.43s/it]Evaluating perplexity:  89%|████████▊ | 31/35 [02:18<00:17,  4.47s/it]Evaluating perplexity:  91%|█████████▏| 32/35 [02:22<00:13,  4.50s/it]Evaluating perplexity:  94%|█████████▍| 33/35 [02:27<00:09,  4.52s/it]Evaluating perplexity:  97%|█████████▋| 34/35 [02:31<00:04,  4.53s/it]Evaluating perplexity: 100%|██████████| 35/35 [02:36<00:00,  4.46s/it]Evaluating perplexity: 100%|██████████| 35/35 [02:36<00:00,  4.46s/it]
 {
   "model_name": "meta-llama/Llama-3.2-1B",
   "family": "llama",
   "dataset": "wikitext2",
   "kv_method": "none",
   "compress_ratio": 0.0,
+  "cam_protocol": null,
+  "cam_merge_size": null,
+  "cam_start_fraction": null,
   "sim_thr_effective": null,
   "sim_thr_grouplogitkv": null,
   "sim_thr_simcalkv": null,
   "sim_thr_keepkv": null,
+  "keepkv_similarity_threshold": 0.8,
+  "keepkv_prefill_similarity_threshold": 0.8,
+  "keepkv_epsilon_times": 1.0,
+  "keepkv_pyramid_recent_ratio": 0.2,
+  "keepkv_pyramid_budget": false,
+  "keepkv_pyramid_decay_strategy": "cosine",
+  "keepkv_pyramid_decay_ratio": 0.8,
+  "keepkv_distance_weight": 1.2,
+  "keepkv_sink_len": 4,
+  "keepkv_protect_sink": false,
+  "keepkv_assert_causal": false,
+  "keepkv_disable_vote_bias": false,
+  "keepkv_runtime_only": false,
+  "max_eval_sequences": 0,
   "model_seqlen": 8192,
   "chunk_size": 32,
   "actual_step_size": 32,
@@ -25,9 +41,10 @@ Token indices sequence length is longer than the specified maximum sequence leng
   "amp_dtype": "none",
   "attn_implementation": "eager",
   "seed": 0,
-  "ppl": 8.663785794047149,
-  "elapsed_s": 154.52973103523254,
-  "num_eval_tokens": 289077,
+  "ppl": 8.64922685651513,
+  "elapsed_s": 156.14220428466797,
+  "num_eval_tokens": 286685,
+  "num_eval_sequences": 35,
   "num_compressions": 0,
   "total_compress_time_s": 0.0,
   "avg_compress_time_s": 0.0,

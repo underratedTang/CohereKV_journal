@@ -1,0 +1,46 @@
+Loading model: meta-llama/Meta-Llama-3.1-8B
+Transformers version: 4.46.3
+KV method: mymethod, ratio=0.2
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:03,  1.19s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.18s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:03<00:01,  1.19s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.13it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.00it/s]
+Token indices sequence length is longer than the specified maximum sequence length for this model (289077 > 131072). Running this sequence through the model will result in indexing errors
+Loading eval dataset: wikitext2
+PPL evaluation windows: 35 (seqlen=8192, dataset_tokens=289077, limit=0)
+Evaluating perplexity:   0%|          | 0/35 [00:00<?, ?it/s]Evaluating perplexity:   0%|          | 0/35 [00:29<?, ?it/s]
+Traceback (most recent call last):
+  File "/home/tlxr/SimCalKV/task_evaluation/evaluate_ppl_kvmerge.py", line 1334, in <module>
+    main()
+  File "/home/tlxr/SimCalKV/task_evaluation/evaluate_ppl_kvmerge.py", line 1232, in main
+    ppl = evaluate_perplexity(
+  File "/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 120, in decorate_context
+    return func(*args, **kwargs)
+  File "/home/tlxr/SimCalKV/task_evaluation/evaluate_ppl_kvmerge.py", line 101, in evaluate_perplexity
+    out = model(
+  File "/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1775, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1786, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/tlxr/SimCalKV/task_evaluation/evaluate_ppl_kvmerge.py", line 806, in wrapped_forward
+    out = original_forward(*args, **kwargs)
+  File "/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/transformers/models/llama/modeling_llama.py", line 1190, in forward
+    outputs = self.model(
+  File "/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1775, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1786, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/transformers/models/llama/modeling_llama.py", line 945, in forward
+    layer_outputs = decoder_layer(
+  File "/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1775, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1786, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/transformers/models/llama/modeling_llama.py", line 676, in forward
+    hidden_states, self_attn_weights, present_key_value = self.self_attn(
+  File "/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1775, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1786, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/tlxr/SimCalKV/task_evaluation/models/llama/mymethod_runtime_patch_llama.py", line 475, in _mymethod_llama_attention_forward
+    score_rows, log_scale = scaled_base_score_rows(
+  File "/home/tlxr/SimCalKV/task_evaluation/models/common/mymethod_score_capture.py", line 100, in scaled_base_score_rows
+    if not bool(torch.isfinite(max_logit)):
+KeyboardInterrupt

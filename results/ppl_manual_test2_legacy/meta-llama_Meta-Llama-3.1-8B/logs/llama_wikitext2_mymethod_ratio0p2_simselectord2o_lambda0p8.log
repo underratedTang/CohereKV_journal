@@ -1,0 +1,89 @@
+Loading model: meta-llama/Meta-Llama-3.1-8B
+Transformers version: 4.46.3
+KV method: mymethod, ratio=0.2
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:03,  1.19s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.19s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:03<00:01,  1.23s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.12it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.01s/it]
+Token indices sequence length is longer than the specified maximum sequence length for this model (289077 > 131072). Running this sequence through the model will result in indexing errors
+Loading eval dataset: wikitext2
+PPL evaluation windows: 35 (seqlen=8192, dataset_tokens=289077, limit=0)
+Evaluating perplexity:   0%|          | 0/35 [00:00<?, ?it/s]Evaluating perplexity:   3%|▎         | 1/35 [00:28<16:07, 28.46s/it]Evaluating perplexity:   6%|▌         | 2/35 [00:56<15:33, 28.29s/it]Evaluating perplexity:   9%|▊         | 3/35 [01:25<15:17, 28.68s/it]Evaluating perplexity:  11%|█▏        | 4/35 [01:53<14:42, 28.46s/it]Evaluating perplexity:  14%|█▍        | 5/35 [02:21<14:02, 28.10s/it]Evaluating perplexity:  17%|█▋        | 6/35 [02:48<13:25, 27.76s/it]Evaluating perplexity:  20%|██        | 7/35 [03:15<12:52, 27.57s/it]Evaluating perplexity:  23%|██▎       | 8/35 [03:43<12:27, 27.69s/it]Evaluating perplexity:  26%|██▌       | 9/35 [04:11<12:00, 27.72s/it]Evaluating perplexity:  29%|██▊       | 10/35 [04:38<11:29, 27.60s/it]Evaluating perplexity:  31%|███▏      | 11/35 [05:05<10:58, 27.43s/it]Evaluating perplexity:  34%|███▍      | 12/35 [05:32<10:28, 27.33s/it]Evaluating perplexity:  37%|███▋      | 13/35 [06:00<10:02, 27.39s/it]Evaluating perplexity:  40%|████      | 14/35 [06:27<09:35, 27.42s/it]Evaluating perplexity:  43%|████▎     | 15/35 [06:54<09:06, 27.31s/it]Evaluating perplexity:  46%|████▌     | 16/35 [07:22<08:37, 27.26s/it]Evaluating perplexity:  49%|████▊     | 17/35 [07:49<08:09, 27.19s/it]Evaluating perplexity:  51%|█████▏    | 18/35 [08:16<07:42, 27.19s/it]Evaluating perplexity:  54%|█████▍    | 19/35 [08:43<07:15, 27.20s/it]Evaluating perplexity:  57%|█████▋    | 20/35 [09:10<06:47, 27.16s/it]Evaluating perplexity:  60%|██████    | 21/35 [09:37<06:20, 27.15s/it]Evaluating perplexity:  63%|██████▎   | 22/35 [10:04<05:52, 27.13s/it]Evaluating perplexity:  66%|██████▌   | 23/35 [10:31<05:25, 27.14s/it]Evaluating perplexity:  69%|██████▊   | 24/35 [10:59<04:58, 27.14s/it]Evaluating perplexity:  71%|███████▏  | 25/35 [11:26<04:31, 27.13s/it]Evaluating perplexity:  74%|███████▍  | 26/35 [11:53<04:04, 27.11s/it]Evaluating perplexity:  77%|███████▋  | 27/35 [12:20<03:36, 27.12s/it]Evaluating perplexity:  80%|████████  | 28/35 [12:47<03:09, 27.09s/it]Evaluating perplexity:  83%|████████▎ | 29/35 [13:14<02:42, 27.10s/it]Evaluating perplexity:  86%|████████▌ | 30/35 [13:41<02:15, 27.12s/it]Evaluating perplexity:  89%|████████▊ | 31/35 [14:08<01:48, 27.13s/it]Evaluating perplexity:  91%|█████████▏| 32/35 [14:35<01:21, 27.13s/it]Evaluating perplexity:  94%|█████████▍| 33/35 [15:03<00:54, 27.11s/it]Evaluating perplexity:  97%|█████████▋| 34/35 [15:30<00:27, 27.10s/it]Evaluating perplexity: 100%|██████████| 35/35 [15:57<00:00, 27.12s/it]Evaluating perplexity: 100%|██████████| 35/35 [15:57<00:00, 27.35s/it]
+{
+  "model_name": "meta-llama/Meta-Llama-3.1-8B",
+  "family": "llama",
+  "dataset": "wikitext2",
+  "kv_method": "mymethod",
+  "compress_ratio": 0.2,
+  "cam_protocol": null,
+  "cam_merge_size": null,
+  "cam_start_fraction": null,
+  "sim_thr_effective": null,
+  "sim_thr_grouplogitkv": null,
+  "lambda_mymethod": 0.8,
+  "mymethod_group_mode": "full",
+  "mymethod_selector": "d2o",
+  "mymethod_graph_backend": "cuda",
+  "mymethod_route_backend": "torch",
+  "mymethod_keepkv_sink_size": 4,
+  "mymethod_keepkv_recent_protect_size": 128,
+  "mymethod_keepkv_score_window": 128,
+  "mymethod_keepkv_recency_beta": 1.0,
+  "mymethod_keepkv_sink_can_absorb": true,
+  "mymethod_d2o_sink_size": 4,
+  "mymethod_d2o_recent_size": 128,
+  "mymethod_d2o_sink_can_absorb": true,
+  "mymethod_d2o_use_log_count": true,
+  "mymethod_distance_chunk_size": 256,
+  "mymethod_attention_chunk_size": 128,
+  "centroidkv_sink_budget": null,
+  "centroidkv_local_budget": null,
+  "centroidkv_chunk_size": null,
+  "centroidkv_merge_ratio": null,
+  "centroidkv_decrease_rate": null,
+  "sim_thr_simcalkv": null,
+  "sim_thr_keepkv": null,
+  "keepkv_similarity_threshold": 0.8,
+  "keepkv_prefill_similarity_threshold": 0.8,
+  "keepkv_epsilon_times": 1.0,
+  "keepkv_pyramid_recent_ratio": 0.2,
+  "keepkv_pyramid_budget": false,
+  "keepkv_pyramid_decay_strategy": "cosine",
+  "keepkv_pyramid_decay_ratio": 0.8,
+  "keepkv_distance_weight": 1.2,
+  "keepkv_sink_len": 4,
+  "keepkv_protect_sink": false,
+  "keepkv_assert_causal": false,
+  "keepkv_disable_vote_bias": false,
+  "keepkv_runtime_only": false,
+  "max_eval_sequences": 0,
+  "model_seqlen": 8192,
+  "chunk_size": 32,
+  "actual_step_size": 32,
+  "min_kv_len": 2,
+  "compress_every": 1,
+  "torch_dtype": "bfloat16",
+  "amp_dtype": "none",
+  "attn_implementation": "eager",
+  "seed": 0,
+  "ppl": 5.631030489053348,
+  "elapsed_s": 957.2840757369995,
+  "num_eval_tokens": 286685,
+  "num_eval_sequences": 35,
+  "num_compressions": 8785,
+  "total_compress_time_s": 611.4325850009918,
+  "avg_compress_time_s": 0.06959961126932178,
+  "avg_compressed_kv_len": 3353.601593625498,
+  "avg_compressed_kv_mib": 419.20019920318725,
+  "mymethod_diagnostic_events": 0,
+  "mymethod_mean_accepted_entry_ratio": null,
+  "mymethod_mean_accepted_count_mass_ratio": null,
+  "mymethod_total_evicted_count_mass": 0.0,
+  "mymethod_total_accepted_count_mass": 0.0,
+  "mymethod_total_rejected_count_mass": 0.0,
+  "mymethod_mean_route_compatible_ratio": null,
+  "mymethod_mean_mis_accept_given_routed_ratio": null,
+  "mymethod_max_candidate_pool_size": 0,
+  "mymethod_max_selected_candidates_per_group": 0,
+  "mymethod_total_conflict_edges": 0,
+  "mymethod_max_mis_rounds": 0,
+  "mymethod_max_post_diameter_over_delta": null,
+  "mymethod_max_post_radius_over_delta": null
+}

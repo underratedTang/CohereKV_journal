@@ -1,0 +1,35 @@
+Loading model: Qwen/Qwen2.5-7B
+Transformers version: 4.46.3
+KV method: GroupLogitKV, ratio=0.8
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:02,  1.02it/s]Loading checkpoint shards:  50%|█████     | 2/4 [00:01<00:01,  1.02it/s]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:02<00:00,  1.03it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.05it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.04it/s]
+Loading eval dataset: wikitext2
+Token indices sequence length is longer than the specified maximum sequence length for this model (299078 > 131072). Running this sequence through the model will result in indexing errors
+Evaluating perplexity:   0%|          | 0/36 [00:00<?, ?it/s]Evaluating perplexity:   3%|▎         | 1/36 [00:15<09:09, 15.71s/it]Evaluating perplexity:   6%|▌         | 2/36 [00:30<08:43, 15.40s/it]Evaluating perplexity:   8%|▊         | 3/36 [00:46<08:24, 15.29s/it]Evaluating perplexity:  11%|█         | 4/36 [01:01<08:08, 15.26s/it]Evaluating perplexity:  14%|█▍        | 5/36 [01:16<07:51, 15.21s/it]Evaluating perplexity:  17%|█▋        | 6/36 [01:31<07:36, 15.22s/it]Evaluating perplexity:  19%|█▉        | 7/36 [01:46<07:21, 15.23s/it]Evaluating perplexity:  22%|██▏       | 8/36 [02:01<07:02, 15.07s/it]Evaluating perplexity:  25%|██▌       | 9/36 [02:16<06:47, 15.11s/it]Evaluating perplexity:  28%|██▊       | 10/36 [02:32<06:33, 15.14s/it]Evaluating perplexity:  31%|███       | 11/36 [02:47<06:18, 15.15s/it]Evaluating perplexity:  33%|███▎      | 12/36 [03:02<06:01, 15.06s/it]Evaluating perplexity:  36%|███▌      | 13/36 [03:16<05:43, 14.92s/it]Evaluating perplexity:  39%|███▉      | 14/36 [03:31<05:26, 14.82s/it]Evaluating perplexity:  42%|████▏     | 15/36 [03:45<05:08, 14.71s/it]Evaluating perplexity:  44%|████▍     | 16/36 [04:00<04:52, 14.61s/it]Evaluating perplexity:  47%|████▋     | 17/36 [04:14<04:35, 14.53s/it]Evaluating perplexity:  50%|█████     | 18/36 [04:28<04:20, 14.48s/it]Evaluating perplexity:  53%|█████▎    | 19/36 [04:43<04:05, 14.44s/it]Evaluating perplexity:  56%|█████▌    | 20/36 [04:57<03:50, 14.43s/it]Evaluating perplexity:  58%|█████▊    | 21/36 [05:11<03:36, 14.42s/it]Evaluating perplexity:  61%|██████    | 22/36 [05:26<03:21, 14.42s/it]Evaluating perplexity:  64%|██████▍   | 23/36 [05:40<03:08, 14.48s/it]Evaluating perplexity:  67%|██████▋   | 24/36 [05:55<02:53, 14.49s/it]Evaluating perplexity:  69%|██████▉   | 25/36 [06:10<02:39, 14.53s/it]Evaluating perplexity:  72%|███████▏  | 26/36 [06:24<02:25, 14.60s/it]Evaluating perplexity:  75%|███████▌  | 27/36 [06:39<02:11, 14.59s/it]Evaluating perplexity:  78%|███████▊  | 28/36 [06:53<01:56, 14.58s/it]Evaluating perplexity:  81%|████████  | 29/36 [07:09<01:43, 14.77s/it]Evaluating perplexity:  83%|████████▎ | 30/36 [07:23<01:27, 14.64s/it]Evaluating perplexity:  86%|████████▌ | 31/36 [07:37<01:12, 14.55s/it]Evaluating perplexity:  89%|████████▉ | 32/36 [07:52<00:57, 14.49s/it]Evaluating perplexity:  92%|█████████▏| 33/36 [08:06<00:43, 14.44s/it]Evaluating perplexity:  94%|█████████▍| 34/36 [08:21<00:29, 14.50s/it]Evaluating perplexity:  97%|█████████▋| 35/36 [08:35<00:14, 14.42s/it]Evaluating perplexity: 100%|██████████| 36/36 [08:49<00:00, 14.40s/it]Evaluating perplexity: 100%|██████████| 36/36 [08:49<00:00, 14.71s/it]
+{
+  "model_name": "Qwen/Qwen2.5-7B",
+  "family": "qwen",
+  "dataset": "wikitext2",
+  "kv_method": "GroupLogitKV",
+  "compress_ratio": 0.8,
+  "sim_thr_effective": 0.8,
+  "sim_thr_grouplogitkv": 0.8,
+  "sim_thr_simcalkv": null,
+  "sim_thr_keepkv": null,
+  "model_seqlen": 8192,
+  "chunk_size": 32,
+  "actual_step_size": 32,
+  "min_kv_len": 2,
+  "compress_every": 1,
+  "torch_dtype": "bfloat16",
+  "amp_dtype": "none",
+  "attn_implementation": "eager",
+  "seed": 0,
+  "ppl": 19.182397383219715,
+  "elapsed_s": 529.7379004955292,
+  "num_eval_tokens": 299078,
+  "num_compressions": 9216,
+  "total_compress_time_s": 200.35867285728455,
+  "avg_compress_time_s": 0.021740307384687994,
+  "avg_compressed_kv_len": 7.99609375,
+  "avg_compressed_kv_mib": 0.437286376953125
+}

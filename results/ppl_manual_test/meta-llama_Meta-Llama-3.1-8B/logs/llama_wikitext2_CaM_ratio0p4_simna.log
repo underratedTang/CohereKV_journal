@@ -1,20 +1,38 @@
 Loading model: meta-llama/Meta-Llama-3.1-8B
 Transformers version: 4.46.3
 KV method: CaM, ratio=0.4
-Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:03,  1.08s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.17s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:03<00:01,  1.14s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.23it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.07it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:04,  1.54s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:03<00:03,  1.54s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:04<00:01,  1.58s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:05<00:00,  1.12s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:05<00:00,  1.28s/it]
 Loading eval dataset: wikitext2
 Token indices sequence length is longer than the specified maximum sequence length for this model (289077 > 131072). Running this sequence through the model will result in indexing errors
-Evaluating perplexity:   0%|          | 0/35 [00:00<?, ?it/s]Evaluating perplexity:   3%|▎         | 1/35 [00:49<27:49, 49.10s/it]Evaluating perplexity:   6%|▌         | 2/35 [01:37<26:44, 48.61s/it]Evaluating perplexity:   9%|▊         | 3/35 [02:25<25:51, 48.48s/it]Evaluating perplexity:  11%|█▏        | 4/35 [03:14<25:01, 48.43s/it]Evaluating perplexity:  14%|█▍        | 5/35 [04:02<24:11, 48.38s/it]Evaluating perplexity:  17%|█▋        | 6/35 [04:50<23:21, 48.32s/it]Evaluating perplexity:  20%|██        | 7/35 [05:38<22:33, 48.32s/it]Evaluating perplexity:  23%|██▎       | 8/35 [06:26<21:42, 48.25s/it]Evaluating perplexity:  26%|██▌       | 9/35 [07:14<20:51, 48.12s/it]Evaluating perplexity:  29%|██▊       | 10/35 [08:02<20:01, 48.06s/it]Evaluating perplexity:  31%|███▏      | 11/35 [08:50<19:12, 48.01s/it]Evaluating perplexity:  34%|███▍      | 12/35 [09:39<18:31, 48.31s/it]Evaluating perplexity:  37%|███▋      | 13/35 [10:28<17:44, 48.37s/it]Evaluating perplexity:  40%|████      | 14/35 [11:16<16:54, 48.31s/it]Evaluating perplexity:  43%|████▎     | 15/35 [12:04<16:06, 48.31s/it]Evaluating perplexity:  46%|████▌     | 16/35 [12:53<15:18, 48.35s/it]Evaluating perplexity:  49%|████▊     | 17/35 [13:41<14:30, 48.35s/it]Evaluating perplexity:  51%|█████▏    | 18/35 [14:30<13:43, 48.45s/it]Evaluating perplexity:  54%|█████▍    | 19/35 [15:18<12:57, 48.59s/it]Evaluating perplexity:  57%|█████▋    | 20/35 [16:07<12:08, 48.59s/it]Evaluating perplexity:  60%|██████    | 21/35 [16:56<11:19, 48.57s/it]Evaluating perplexity:  63%|██████▎   | 22/35 [17:45<10:33, 48.74s/it]Evaluating perplexity:  66%|██████▌   | 23/35 [18:33<09:43, 48.61s/it]Evaluating perplexity:  69%|██████▊   | 24/35 [19:21<08:54, 48.55s/it]Evaluating perplexity:  71%|███████▏  | 25/35 [20:10<08:04, 48.49s/it]Evaluating perplexity:  74%|███████▍  | 26/35 [20:59<07:17, 48.56s/it]Evaluating perplexity:  77%|███████▋  | 27/35 [21:47<06:27, 48.41s/it]Evaluating perplexity:  80%|████████  | 28/35 [22:35<05:38, 48.31s/it]Evaluating perplexity:  83%|████████▎ | 29/35 [23:25<04:52, 48.80s/it]Evaluating perplexity:  86%|████████▌ | 30/35 [24:15<04:05, 49.13s/it]Evaluating perplexity:  89%|████████▊ | 31/35 [25:03<03:16, 49.04s/it]Evaluating perplexity:  91%|█████████▏| 32/35 [25:51<02:26, 48.77s/it]Evaluating perplexity:  94%|█████████▍| 33/35 [26:39<01:37, 48.53s/it]Evaluating perplexity:  97%|█████████▋| 34/35 [27:28<00:48, 48.39s/it]Evaluating perplexity: 100%|██████████| 35/35 [28:16<00:00, 48.33s/it]Evaluating perplexity: 100%|██████████| 35/35 [28:16<00:00, 48.46s/it]
+PPL evaluation windows: 35 (seqlen=8192, dataset_tokens=289077, limit=0)
+Evaluating perplexity:   0%|          | 0/35 [00:00<?, ?it/s]Evaluating perplexity:   3%|▎         | 1/35 [00:37<21:26, 37.85s/it]Evaluating perplexity:   6%|▌         | 2/35 [01:15<20:40, 37.58s/it]Evaluating perplexity:   9%|▊         | 3/35 [01:52<19:57, 37.43s/it]Evaluating perplexity:  11%|█▏        | 4/35 [02:29<19:20, 37.45s/it]Evaluating perplexity:  14%|█▍        | 5/35 [03:07<18:40, 37.37s/it]Evaluating perplexity:  17%|█▋        | 6/35 [03:44<18:03, 37.36s/it]Evaluating perplexity:  20%|██        | 7/35 [04:21<17:24, 37.30s/it]Evaluating perplexity:  23%|██▎       | 8/35 [04:58<16:46, 37.28s/it]Evaluating perplexity:  26%|██▌       | 9/35 [05:36<16:07, 37.22s/it]Evaluating perplexity:  29%|██▊       | 10/35 [06:13<15:30, 37.21s/it]Evaluating perplexity:  31%|███▏      | 11/35 [06:50<14:52, 37.20s/it]Evaluating perplexity:  34%|███▍      | 12/35 [07:27<14:15, 37.19s/it]Evaluating perplexity:  37%|███▋      | 13/35 [08:04<13:39, 37.25s/it]Evaluating perplexity:  40%|████      | 14/35 [08:42<13:02, 37.26s/it]Evaluating perplexity:  43%|████▎     | 15/35 [09:19<12:24, 37.23s/it]Evaluating perplexity:  46%|████▌     | 16/35 [09:56<11:47, 37.25s/it]Evaluating perplexity:  49%|████▊     | 17/35 [10:33<11:10, 37.27s/it]Evaluating perplexity:  51%|█████▏    | 18/35 [11:11<10:33, 37.25s/it]Evaluating perplexity:  54%|█████▍    | 19/35 [11:48<09:56, 37.26s/it]Evaluating perplexity:  57%|█████▋    | 20/35 [12:25<09:18, 37.25s/it]Evaluating perplexity:  60%|██████    | 21/35 [13:02<08:41, 37.24s/it]Evaluating perplexity:  63%|██████▎   | 22/35 [13:40<08:03, 37.23s/it]Evaluating perplexity:  66%|██████▌   | 23/35 [14:17<07:26, 37.21s/it]Evaluating perplexity:  69%|██████▊   | 24/35 [14:54<06:49, 37.27s/it]Evaluating perplexity:  71%|███████▏  | 25/35 [15:31<06:12, 37.26s/it]Evaluating perplexity:  74%|███████▍  | 26/35 [16:09<05:35, 37.25s/it]Evaluating perplexity:  77%|███████▋  | 27/35 [16:46<04:57, 37.22s/it]Evaluating perplexity:  80%|████████  | 28/35 [17:23<04:20, 37.24s/it]Evaluating perplexity:  83%|████████▎ | 29/35 [18:00<03:43, 37.25s/it]Evaluating perplexity:  86%|████████▌ | 30/35 [18:38<03:06, 37.23s/it]Evaluating perplexity:  89%|████████▊ | 31/35 [19:15<02:28, 37.22s/it]Evaluating perplexity:  91%|█████████▏| 32/35 [19:52<01:51, 37.20s/it]Evaluating perplexity:  94%|█████████▍| 33/35 [20:29<01:14, 37.20s/it]Evaluating perplexity:  97%|█████████▋| 34/35 [21:06<00:37, 37.20s/it]Evaluating perplexity: 100%|██████████| 35/35 [21:44<00:00, 37.21s/it]Evaluating perplexity: 100%|██████████| 35/35 [21:44<00:00, 37.26s/it]
 {
   "model_name": "meta-llama/Meta-Llama-3.1-8B",
   "family": "llama",
   "dataset": "wikitext2",
   "kv_method": "CaM",
   "compress_ratio": 0.4,
+  "cam_protocol": "query_ordered_chunk_approximation",
+  "cam_merge_size": 16,
+  "cam_start_fraction": 0.1,
   "sim_thr_effective": null,
   "sim_thr_grouplogitkv": null,
   "sim_thr_simcalkv": null,
   "sim_thr_keepkv": null,
+  "keepkv_similarity_threshold": 0.8,
+  "keepkv_prefill_similarity_threshold": 0.8,
+  "keepkv_epsilon_times": 1.0,
+  "keepkv_pyramid_recent_ratio": 0.2,
+  "keepkv_pyramid_budget": false,
+  "keepkv_pyramid_decay_strategy": "cosine",
+  "keepkv_pyramid_decay_ratio": 0.8,
+  "keepkv_distance_weight": 1.2,
+  "keepkv_sink_len": 4,
+  "keepkv_protect_sink": false,
+  "keepkv_assert_causal": false,
+  "keepkv_disable_vote_bias": false,
+  "keepkv_runtime_only": false,
+  "max_eval_sequences": 0,
   "model_seqlen": 8192,
   "chunk_size": 32,
   "actual_step_size": 32,
@@ -24,12 +42,14 @@ Token indices sequence length is longer than the specified maximum sequence leng
   "amp_dtype": "none",
   "attn_implementation": "eager",
   "seed": 0,
-  "ppl": 11.444393964331121,
-  "elapsed_s": 1696.1967833042145,
-  "num_eval_tokens": 289077,
+  "ppl": 5.956264733431415,
+  "elapsed_s": 1304.0557057857513,
+  "num_eval_tokens": 286685,
+  "num_eval_sequences": 35,
   "num_compressions": 8960,
-  "total_compress_time_s": 1376.7397191524506,
-  "avg_compress_time_s": 0.15365398651255027,
-  "avg_compressed_kv_len": 47.7578125,
-  "avg_compressed_kv_mib": 5.9697265625
+  "total_compress_time_s": 996.1303219795227,
+  "avg_compress_time_s": 0.1111752591495003,
+  "avg_compressed_kv_len": 2467.19921875,
+  "avg_compressed_kv_mib": 308.39990234375
 }
+[W719 09:18:54.498811507 AllocatorConfig.cpp:28] Warning: PYTORCH_CUDA_ALLOC_CONF is deprecated, use PYTORCH_ALLOC_CONF instead (function operator())

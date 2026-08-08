@@ -1,0 +1,44 @@
+MYMETHOD SELECTOR UPDATE VALIDATION
+Date: 2026-08-08
+
+Scope
+- Selector logic only; no Graph-MIS/CUDA kernel changes.
+- KeepKV/D2O only decide retained/evicted membership.
+- All retained entries, including sink/recent, are legal mymethod anchors.
+- No SINK_CAN_ABSORB selector option remains.
+
+KeepKV-style selector
+- Sliding last-W query base-score history; not request-level cumulative attention.
+- SCORE_WINDOW and RECENT_PROTECT_SIZE are independent in both CLI and core logic.
+- Compression does not clear history.
+- Accepted mymethod membership updates P by C-weighted represented-member averaging.
+- KEEPKV_USE_LOG_COUNT=0 is the default; =1 ranks by C times the sliding-window
+  base-score statistic while keeping P itself count-decoupled.
+
+D2O-style selector
+- Post-softmax attention per physical KV head, GQA-group averaged.
+- D2O_USE_LOG_COUNT=1 uses actual +log(C)-calibrated mymethod attention; =0 is an ablation.
+- D2O_SCORE_RESET_INTERVAL=0: request cumulative; 1: reset after every compression;
+  N: reset after every N compression rounds.
+- Sink and recent protection are independently configurable.
+- When no reset is due, retained anchors inherit only their own D2O historical score;
+  evicted-source history is not transferred.
+- D2O cosine routing, EMA merge threshold, weighted merge, and layer allocation are absent.
+
+Attention equivalence
+- attention now accumulates actual post-softmax importance since the previous compression.
+- d2o(sink=0,recent=0,use_log_count=1,score_reset_interval=1) uses the same global
+  retained/evicted partition as attention under the same observation boundary.
+
+Validation
+- python -m unittest discover -s tests -p 'test*.py' -v: Ran 36 tests, OK.
+- python -m compileall -q .: PASS.
+- bash -n on every top-level .sh: PASS.
+- No ${VAR:-default} shell patterns: PASS.
+- No sink_can_absorb/SINK_CAN_ABSORB Python or shell configuration remains: PASS.
+- KeepKV SCORE_WINDOW and RECENT_PROTECT_SIZE are independent in the core: PASS.
+- LLaMA/Qwen wrappers share the same D2O reset/KeepKV log-count semantics: PASS.
+
+Engineering freeze
+- Formal backend remains route=torch, graph=cuda in the main run scripts.
+- mymethod_cuda_src is unchanged; no CUDA rebuild is required.

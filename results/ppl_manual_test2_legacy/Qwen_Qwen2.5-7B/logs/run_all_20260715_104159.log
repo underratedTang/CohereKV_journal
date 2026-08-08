@@ -1,0 +1,43 @@
+PPL_SCRIPT=/root/SimCalKV/task_evaluation/evaluate_ppl_kvmerge.py
+TASK_EVAL_DIR=/root/SimCalKV/task_evaluation
+OUT_DIR=/root/SimCalKV/results/ppl_manual_20260715_104159
+MODEL_SLUG=Qwen_Qwen2.5-7B
+MODEL_OUT_DIR=/root/SimCalKV/results/ppl_manual_20260715_104159/Qwen_Qwen2.5-7B
+SUMMARY_FILE=/root/SimCalKV/results/ppl_manual_20260715_104159/Qwen_Qwen2.5-7B/ppl_summary_20260715_104159.jsonl
+FAMILY=qwen
+MODEL=Qwen/Qwen2.5-7B
+MODEL_SEQLEN=8192
+CHUNK_SIZE=32
+MIN_KV_LEN=2
+COMPRESS_EVERY=1
+TORCH_DTYPE=bfloat16
+AMP_DTYPE=none
+ATTN_IMPL=eager
+DEVICE=cuda
+DEVICE_MAP=auto
+SEED=0
+DATASETS=wikitext2
+METHODS=none GroupLogitKV KeepKV CaM SimCalKV
+RATIOS=0.8
+SIM_THR_GROUPLOGITKV_LIST=0.8
+SIM_THR_SIMCALKV_LIST=0.0
+SIM_THR_KEEPKV_LIST=0.8
+
+========== wikitext2 | none | ratio=0 | sim=na ==========
+[OK] qwen_wikitext2_none_ratio0_simna
+========== wikitext2 | GroupLogitKV | ratio=0.8 | sim=0.8 ==========
+[OK] qwen_wikitext2_GroupLogitKV_ratio0p8_sim0p8
+========== wikitext2 | KeepKV | ratio=0.8 | sim=0.8 ==========
+[OK] qwen_wikitext2_KeepKV_ratio0p8_sim0p8
+========== wikitext2 | CaM | ratio=0.8 | sim=na ==========
+[OK] qwen_wikitext2_CaM_ratio0p8_simna
+========== wikitext2 | SimCalKV | ratio=0.8 | sim=0.0 ==========
+[OK] qwen_wikitext2_SimCalKV_ratio0p8_sim0p0
+
+Done.
+OUT_DIR=/root/SimCalKV/results/ppl_manual_20260715_104159
+MODEL_SLUG=Qwen_Qwen2.5-7B
+MODEL_OUT_DIR=/root/SimCalKV/results/ppl_manual_20260715_104159/Qwen_Qwen2.5-7B
+SUMMARY_FILE=/root/SimCalKV/results/ppl_manual_20260715_104159/Qwen_Qwen2.5-7B/ppl_summary_20260715_104159.jsonl
+
+Preview:

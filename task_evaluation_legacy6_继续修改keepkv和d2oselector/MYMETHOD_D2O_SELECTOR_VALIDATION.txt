@@ -1,0 +1,39 @@
+MYMETHOD D2O-STYLE SELECTOR PACKAGE VALIDATION
+Date: 2026-08-08
+
+Scope
+- Added selector="d2o" only for retained/evicted partitioning.
+- Kept all post-partition operations in mymethod: compatible routing, Gamma certificate,
+  conflict graph, parallel maximal independent set, count-weighted K/V merge, C/R/D
+  propagation, and +log(C) decode calibration.
+- No CUDA kernel changes.
+
+D2O-style selector semantics
+- Request-level persistent cumulative post-softmax attention per physical KV head.
+- GQA query heads sharing a KV head are averaged before query-row accumulation.
+- D2O_USE_LOG_COUNT=1 accumulates the actual +log(C)-calibrated attention used by mymethod.
+- Sink size and recent size are independently configurable D2O-only parameters.
+- Sink entries consume the heavy-hitter budget; recent entries are protected separately.
+- Sink/recent retained entries may absorb candidates only through mymethod certification.
+- After compression, cumulative importance is gathered to retained anchors only; evicted
+  source history is not transferred to destinations.
+- D2O cosine routing, EMA similarity threshold, weighted merging, and layer allocation are absent.
+
+Selector namespaces
+- attention: no sink/recent/history parameters.
+- keepkv: KEEP_KV-specific sink, recent-protect, score-window, beta, absorb controls.
+- d2o: D2O-specific sink, recent, absorb, log-count controls.
+- No legacy shared MYMETHOD_SINK_SIZE / MYMETHOD_RECENT_WINDOW / MYMETHOD_RECENCY_BETA /
+  MYMETHOD_SINK_CAN_ABSORB shell or CLI parameters remain.
+
+Validation
+- python -m unittest discover -s tests -p 'test*.py' -v: Ran 29 tests, OK.
+- python -m compileall -q .: PASS.
+- bash -n on every top-level .sh: PASS.
+- No ${VAR:-default} shell configuration patterns: PASS.
+- mymethod files contain no grouplogitkv dependency: PASS.
+- mymethod core/runtime contain no D2O cosine/EMA/weighted-merge/layer-allocation implementation: PASS.
+
+Engineering freeze
+- Formal backend remains route=torch, graph=cuda in the main run scripts.
+- mymethod_cuda_src is unchanged; do not rebuild/reinstall CUDA solely for this selector update.

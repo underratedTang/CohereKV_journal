@@ -1,0 +1,7 @@
+Metadata-Version: 2.4
+Name: mymethod_cuda
+Version: 0.2.0
+Summary: Independent CUDA kernels for mymethod Graph-MIS KV-cache compression
+Requires-Python: >=3.9
+Dynamic: requires-python
+Dynamic: summary

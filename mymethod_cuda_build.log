@@ -1,0 +1,84 @@
+Using pip 26.1.2 from /home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/pip (python 3.10)
+Processing ./.
+  Preparing metadata (pyproject.toml): started
+  Running command Preparing metadata (pyproject.toml)
+  running dist_info
+  creating /tmp/pip-modern-metadata-y_eccka2/mymethod_cuda.egg-info
+  writing /tmp/pip-modern-metadata-y_eccka2/mymethod_cuda.egg-info/PKG-INFO
+  writing dependency_links to /tmp/pip-modern-metadata-y_eccka2/mymethod_cuda.egg-info/dependency_links.txt
+  writing top-level names to /tmp/pip-modern-metadata-y_eccka2/mymethod_cuda.egg-info/top_level.txt
+  writing manifest file '/tmp/pip-modern-metadata-y_eccka2/mymethod_cuda.egg-info/SOURCES.txt'
+  W0807 17:45:07.589000 1416528 site-packages/torch/utils/cpp_extension.py:630] Attempted to use ninja as the BuildExtension backend but we could not find ninja.. Falling back to using the slow distutils backend.
+  reading manifest file '/tmp/pip-modern-metadata-y_eccka2/mymethod_cuda.egg-info/SOURCES.txt'
+  writing manifest file '/tmp/pip-modern-metadata-y_eccka2/mymethod_cuda.egg-info/SOURCES.txt'
+  creating '/tmp/pip-modern-metadata-y_eccka2/mymethod_cuda-0.2.0.dist-info'
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: mymethod_cuda
+  Building wheel for mymethod_cuda (pyproject.toml): started
+  Running command Building wheel for mymethod_cuda (pyproject.toml)
+  running bdist_wheel
+  W0807 17:45:09.450000 1416605 site-packages/torch/utils/cpp_extension.py:630] Attempted to use ninja as the BuildExtension backend but we could not find ninja.. Falling back to using the slow distutils backend.
+  running build
+  running build_py
+  creating build/lib.linux-x86_64-cpython-310/mymethod_cuda
+  copying mymethod_cuda/__init__.py -> build/lib.linux-x86_64-cpython-310/mymethod_cuda
+  copying mymethod_cuda/ops.py -> build/lib.linux-x86_64-cpython-310/mymethod_cuda
+  running build_ext
+  W0807 17:45:09.461000 1416605 site-packages/torch/utils/cpp_extension.py:521] The detected CUDA version (12.1) has a minor version mismatch with the version that was used to compile PyTorch (12.8). Most likely this shouldn't be a problem.
+  W0807 17:45:09.462000 1416605 site-packages/torch/utils/cpp_extension.py:531] There are no g++ version bounds defined for CUDA version 12.1
+  building 'mymethod_cuda_ext' extension
+  creating build/temp.linux-x86_64-cpython-310/csrc
+  /usr/local/cuda/bin/nvcc -I/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/include -I/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/include/torch/csrc/api/include -I/usr/local/cuda/include -I/home/tlxr/miniconda3/envs/simcalkv/include/python3.10 -c csrc/compatible_route_cuda.cu -o build/temp.linux-x86_64-cpython-310/csrc/compatible_route_cuda.o -D__CUDA_NO_HALF_OPERATORS__ -D__CUDA_NO_HALF_CONVERSIONS__ -D__CUDA_NO_BFLOAT16_CONVERSIONS__ -D__CUDA_NO_HALF2_OPERATORS__ --expt-relaxed-constexpr --compiler-options '-fPIC' -O3 -lineinfo -U__CUDA_NO_HALF_OPERATORS__ -U__CUDA_NO_HALF_CONVERSIONS__ -U__CUDA_NO_BFLOAT16_CONVERSIONS__ -U__CUDA_NO_HALF2_OPERATORS__ -DTORCH_API_INCLUDE_EXTENSION_H -DTORCH_EXTENSION_NAME=mymethod_cuda_ext -gencode=arch=compute_89,code=compute_89 -gencode=arch=compute_89,code=sm_89 -std=c++17
+  /usr/local/cuda/bin/nvcc -I/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/include -I/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/include/torch/csrc/api/include -I/usr/local/cuda/include -I/home/tlxr/miniconda3/envs/simcalkv/include/python3.10 -c csrc/count_calibrated_qk_cuda.cu -o build/temp.linux-x86_64-cpython-310/csrc/count_calibrated_qk_cuda.o -D__CUDA_NO_HALF_OPERATORS__ -D__CUDA_NO_HALF_CONVERSIONS__ -D__CUDA_NO_BFLOAT16_CONVERSIONS__ -D__CUDA_NO_HALF2_OPERATORS__ --expt-relaxed-constexpr --compiler-options '-fPIC' -O3 -lineinfo -U__CUDA_NO_HALF_OPERATORS__ -U__CUDA_NO_HALF_CONVERSIONS__ -U__CUDA_NO_BFLOAT16_CONVERSIONS__ -U__CUDA_NO_HALF2_OPERATORS__ -DTORCH_API_INCLUDE_EXTENSION_H -DTORCH_EXTENSION_NAME=mymethod_cuda_ext -gencode=arch=compute_89,code=compute_89 -gencode=arch=compute_89,code=sm_89 -std=c++17
+  /usr/local/cuda/bin/nvcc -I/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/include -I/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/include/torch/csrc/api/include -I/usr/local/cuda/include -I/home/tlxr/miniconda3/envs/simcalkv/include/python3.10 -c csrc/graph_mis_cuda.cu -o build/temp.linux-x86_64-cpython-310/csrc/graph_mis_cuda.o -D__CUDA_NO_HALF_OPERATORS__ -D__CUDA_NO_HALF_CONVERSIONS__ -D__CUDA_NO_BFLOAT16_CONVERSIONS__ -D__CUDA_NO_HALF2_OPERATORS__ --expt-relaxed-constexpr --compiler-options '-fPIC' -O3 -lineinfo -U__CUDA_NO_HALF_OPERATORS__ -U__CUDA_NO_HALF_CONVERSIONS__ -U__CUDA_NO_BFLOAT16_CONVERSIONS__ -U__CUDA_NO_HALF2_OPERATORS__ -DTORCH_API_INCLUDE_EXTENSION_H -DTORCH_EXTENSION_NAME=mymethod_cuda_ext -gencode=arch=compute_89,code=compute_89 -gencode=arch=compute_89,code=sm_89 -std=c++17
+  csrc/graph_mis_cuda.cu(482): warning #177-D: variable "X" was declared but never referenced
+        const int X = static_cast<int>(X64), N = static_cast<int>(N64), D = static_cast<int>(D64);
+                  ^
+
+  Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+  g++ -pthread -B /home/tlxr/miniconda3/envs/simcalkv/compiler_compat -Wno-unused-result -Wsign-compare -DNDEBUG -fwrapv -O2 -Wall -fPIC -O2 -isystem /home/tlxr/miniconda3/envs/simcalkv/include -fPIC -O2 -isystem /home/tlxr/miniconda3/envs/simcalkv/include -fPIC -I/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/include -I/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/include/torch/csrc/api/include -I/usr/local/cuda/include -I/home/tlxr/miniconda3/envs/simcalkv/include/python3.10 -c csrc/pybind.cpp -o build/temp.linux-x86_64-cpython-310/csrc/pybind.o -O3 -DTORCH_API_INCLUDE_EXTENSION_H -DTORCH_EXTENSION_NAME=mymethod_cuda_ext -std=c++17
+  g++ -pthread -B /home/tlxr/miniconda3/envs/simcalkv/compiler_compat -Wno-unused-result -Wsign-compare -DNDEBUG -fwrapv -O2 -Wall -fPIC -O2 -isystem /home/tlxr/miniconda3/envs/simcalkv/include -fPIC -O2 -isystem /home/tlxr/miniconda3/envs/simcalkv/include -shared build/temp.linux-x86_64-cpython-310/csrc/compatible_route_cuda.o build/temp.linux-x86_64-cpython-310/csrc/count_calibrated_qk_cuda.o build/temp.linux-x86_64-cpython-310/csrc/graph_mis_cuda.o build/temp.linux-x86_64-cpython-310/csrc/pybind.o -L/home/tlxr/miniconda3/envs/simcalkv/lib/python3.10/site-packages/torch/lib -L/usr/local/cuda/lib64 -lc10 -ltorch -ltorch_cpu -ltorch_python -lcudart -lc10_cuda -ltorch_cuda -o build/lib.linux-x86_64-cpython-310/mymethod_cuda_ext.cpython-310-x86_64-linux-gnu.so
+  installing to build/bdist.linux-x86_64/wheel
+  running install
+  running install_lib
+  creating build/bdist.linux-x86_64/wheel
+  copying build/lib.linux-x86_64-cpython-310/mymethod_cuda_ext.cpython-310-x86_64-linux-gnu.so -> build/bdist.linux-x86_64/wheel/.
+  creating build/bdist.linux-x86_64/wheel/mymethod_cuda
+  copying build/lib.linux-x86_64-cpython-310/mymethod_cuda/__init__.py -> build/bdist.linux-x86_64/wheel/./mymethod_cuda
+  copying build/lib.linux-x86_64-cpython-310/mymethod_cuda/ops.py -> build/bdist.linux-x86_64/wheel/./mymethod_cuda
+  running install_egg_info
+  running egg_info
+  creating mymethod_cuda.egg-info
+  writing mymethod_cuda.egg-info/PKG-INFO
+  writing dependency_links to mymethod_cuda.egg-info/dependency_links.txt
+  writing top-level names to mymethod_cuda.egg-info/top_level.txt
+  writing manifest file 'mymethod_cuda.egg-info/SOURCES.txt'
+  reading manifest file 'mymethod_cuda.egg-info/SOURCES.txt'
+  writing manifest file 'mymethod_cuda.egg-info/SOURCES.txt'
+  Copying mymethod_cuda.egg-info to build/bdist.linux-x86_64/wheel/./mymethod_cuda-0.2.0-py3.10.egg-info
+  running install_scripts
+  creating build/bdist.linux-x86_64/wheel/mymethod_cuda-0.2.0.dist-info/WHEEL
+  creating '/tmp/pip-ephem-wheel-cache-xk2kgrfo/wheels/3e/1e/0e/5938b132df8a36a6d291dfff0db888bda82ac6b6a3e30107ba/tmp5mfbjrbu/.tmp-iq98awtw/mymethod_cuda-0.2.0-cp310-cp310-linux_x86_64.whl' and adding 'build/bdist.linux-x86_64/wheel' to it
+  adding 'mymethod_cuda_ext.cpython-310-x86_64-linux-gnu.so'
+  adding 'mymethod_cuda/__init__.py'
+  adding 'mymethod_cuda/ops.py'
+  adding 'mymethod_cuda-0.2.0.dist-info/METADATA'
+  adding 'mymethod_cuda-0.2.0.dist-info/WHEEL'
+  adding 'mymethod_cuda-0.2.0.dist-info/top_level.txt'
+  adding 'mymethod_cuda-0.2.0.dist-info/RECORD'
+  removing build/bdist.linux-x86_64/wheel
+  Building wheel for mymethod_cuda (pyproject.toml): finished with status 'done'
+  Created wheel for mymethod_cuda: filename=mymethod_cuda-0.2.0-cp310-cp310-linux_x86_64.whl size=374092 sha256=e31962a5311653677db4703b207c9db8c74018ab574e0ca84579ad5a4bda0c03
+  Stored in directory: /tmp/pip-ephem-wheel-cache-xk2kgrfo/wheels/3e/1e/0e/5938b132df8a36a6d291dfff0db888bda82ac6b6a3e30107ba
+Successfully built mymethod_cuda
+Installing collected packages: mymethod_cuda
+Successfully installed mymethod_cuda-0.2.0
+QK parity torch.float16: max_abs=0.000968218
+route parity torch.float16: compatible=51/51
+graph small torch.float16: selected=[0, 1], gamma=0.4
+QK parity torch.bfloat16: max_abs=0.0078032
+route parity torch.bfloat16: compatible=51/51
+graph small torch.bfloat16: selected=[0, 1], gamma=0.400391
+graph large exact: passed N=300
+ALL mymethod_cuda smoke tests passed
