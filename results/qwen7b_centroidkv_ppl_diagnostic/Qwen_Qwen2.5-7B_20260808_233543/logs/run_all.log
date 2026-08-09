@@ -1,0 +1,70 @@
+========== MODEL CONFIG ==========
+{
+  "model_type": "qwen2",
+  "architectures": [
+    "Qwen2ForCausalLM"
+  ],
+  "hidden_size": 3584,
+  "num_hidden_layers": 28,
+  "num_attention_heads": 28,
+  "num_key_value_heads": 4,
+  "head_dim": null,
+  "max_position_embeddings": 131072,
+  "rope_theta": 1000000.0,
+  "rope_scaling": null,
+  "torch_dtype": "torch.bfloat16",
+  "gqa_query_per_kv_head": 7.0
+}
+
+========== RUN A_full_main ==========
+method=none ratio=0.0 seqlen=8192 maxseq=3 attn=sdpa force=0
+[DONE] A_full_main: /home/tlxr/SimCalKV/results/qwen7b_centroidkv_ppl_diagnostic/Qwen_Qwen2.5-7B_20260808_233543/json/A_full_main.json
+
+========== RUN B_centroid_main_sdpa ==========
+method=CentroidKV ratio=0.4 seqlen=8192 maxseq=3 attn=sdpa force=0
+[DONE] B_centroid_main_sdpa: /home/tlxr/SimCalKV/results/qwen7b_centroidkv_ppl_diagnostic/Qwen_Qwen2.5-7B_20260808_233543/json/B_centroid_main_sdpa.json
+
+========== RUN C_full_control_2048_sdpa ==========
+method=none ratio=0.0 seqlen=2048 maxseq=1 attn=sdpa force=0
+[DONE] C_full_control_2048_sdpa: /home/tlxr/SimCalKV/results/qwen7b_centroidkv_ppl_diagnostic/Qwen_Qwen2.5-7B_20260808_233543/json/C_full_control_2048_sdpa.json
+
+========== RUN D_centroid_ratio0_control_2048_sdpa ==========
+method=CentroidKV ratio=0.0 seqlen=2048 maxseq=1 attn=sdpa force=0
+[DONE] D_centroid_ratio0_control_2048_sdpa: /home/tlxr/SimCalKV/results/qwen7b_centroidkv_ppl_diagnostic/Qwen_Qwen2.5-7B_20260808_233543/json/D_centroid_ratio0_control_2048_sdpa.json
+
+========== RUN E_centroid_control_2048_sdpa ==========
+method=CentroidKV ratio=0.4 seqlen=2048 maxseq=1 attn=sdpa force=0
+[DONE] E_centroid_control_2048_sdpa: /home/tlxr/SimCalKV/results/qwen7b_centroidkv_ppl_diagnostic/Qwen_Qwen2.5-7B_20260808_233543/json/E_centroid_control_2048_sdpa.json
+
+========== RUN F_centroid_control_2048_eager ==========
+method=CentroidKV ratio=0.4 seqlen=2048 maxseq=1 attn=eager force=1
+[DONE] F_centroid_control_2048_eager: /home/tlxr/SimCalKV/results/qwen7b_centroidkv_ppl_diagnostic/Qwen_Qwen2.5-7B_20260808_233543/json/F_centroid_control_2048_eager.json
+
+=== PPL SUMMARY ===
+A_full_main: ppl=6.274012078011027 method=none ratio=0.0 attn=sdpa num_compressions=0 avg_compressed_kv_len=0.0 num_eval_sequences=3
+B_centroid_main_sdpa: ppl=5.600236510276571 method=CentroidKV ratio=0.4 attn=sdpa num_compressions=768 avg_compressed_kv_len=2467.515625 num_eval_sequences=3
+C_full_control_2048_sdpa: ppl=6.10198868083938 method=none ratio=0.0 attn=sdpa num_compressions=0 avg_compressed_kv_len=0.0 num_eval_sequences=1
+D_centroid_ratio0_control_2048_sdpa: ppl=4.746128576215448 method=CentroidKV ratio=0.0 attn=sdpa num_compressions=0 avg_compressed_kv_len=0.0 num_eval_sequences=1
+E_centroid_control_2048_sdpa: ppl=5.155803424277378 method=CentroidKV ratio=0.4 attn=sdpa num_compressions=64 avg_compressed_kv_len=625.265625 num_eval_sequences=1
+F_centroid_control_2048_eager: ppl=6.40343789526809 method=CentroidKV ratio=0.4 attn=eager num_compressions=64 avg_compressed_kv_len=625.265625 num_eval_sequences=1
+
+=== KEY DIFFERENCES ===
+main Full -> Centroid: 6.2740120780 -> 5.6002365103; delta=-0.6737755677; rel=-10.739150%
+2048 runtime-only Full -> Centroid ratio0: 6.1019886808 -> 4.7461285762; delta=-1.3558601046; rel=-22.219971%
+2048 Centroid SDPA -> eager: 5.1558034243 -> 6.4034378953; delta=+1.2476344710; rel=+24.198643%
+
+=== CENTROID TRACE CHECK ===
+B_centroid_main_sdpa: trace_rows=765 compression_rows=765 after-target[min,max]=(0, 11) layer_len_mismatch_rows=0
+  first_compression={"actual_physical_over_logical": 1.0, "after": 64, "after_layer_max": 64, "after_layer_min": 64, "after_minus_target": 0, "before": 64, "before_layer_max": 64, "before_layer_min": 64, "compression_called": 1, "event": "CKV_COMPRESS_TRACE", "expected_retained_ratio": 0.6, "forward_call": 2, "logical_seen": 64, "num_compressions": 2, "protected_floor": 64, "removed": 0, "target_expected": 64, "target_raw": 38}
+  last_compression={"actual_physical_over_logical": 0.5999755859375, "after": 4915, "after_layer_max": 4915, "after_layer_min": 4915, "after_minus_target": 0, "before": 4928, "before_layer_max": 4928, "before_layer_min": 4928, "compression_called": 1, "event": "CKV_COMPRESS_TRACE", "expected_retained_ratio": 0.6, "forward_call": 256, "logical_seen": 8192, "num_compressions": 768, "protected_floor": 80, "removed": 13, "target_expected": 4915, "target_raw": 4915}
+D_centroid_ratio0_control_2048_sdpa: trace_rows=63 compression_rows=0 after-target[min,max]=None layer_len_mismatch_rows=0
+E_centroid_control_2048_sdpa: trace_rows=63 compression_rows=63 after-target[min,max]=(0, 11) layer_len_mismatch_rows=0
+  first_compression={"actual_physical_over_logical": 1.0, "after": 64, "after_layer_max": 64, "after_layer_min": 64, "after_minus_target": 0, "before": 64, "before_layer_max": 64, "before_layer_min": 64, "compression_called": 1, "event": "CKV_COMPRESS_TRACE", "expected_retained_ratio": 0.6, "forward_call": 2, "logical_seen": 64, "num_compressions": 2, "protected_floor": 64, "removed": 0, "target_expected": 64, "target_raw": 38}
+  last_compression={"actual_physical_over_logical": 0.60009765625, "after": 1229, "after_layer_max": 1229, "after_layer_min": 1229, "after_minus_target": 0, "before": 1242, "before_layer_max": 1242, "before_layer_min": 1242, "compression_called": 1, "event": "CKV_COMPRESS_TRACE", "expected_retained_ratio": 0.6, "forward_call": 64, "logical_seen": 2048, "num_compressions": 64, "protected_floor": 80, "removed": 13, "target_expected": 1229, "target_raw": 1229}
+F_centroid_control_2048_eager: trace_rows=63 compression_rows=63 after-target[min,max]=(0, 11) layer_len_mismatch_rows=0
+  first_compression={"actual_physical_over_logical": 1.0, "after": 64, "after_layer_max": 64, "after_layer_min": 64, "after_minus_target": 0, "before": 64, "before_layer_max": 64, "before_layer_min": 64, "compression_called": 1, "event": "CKV_COMPRESS_TRACE", "expected_retained_ratio": 0.6, "forward_call": 2, "logical_seen": 64, "num_compressions": 2, "protected_floor": 64, "removed": 0, "target_expected": 64, "target_raw": 38}
+  last_compression={"actual_physical_over_logical": 0.60009765625, "after": 1229, "after_layer_max": 1229, "after_layer_min": 1229, "after_minus_target": 0, "before": 1242, "before_layer_max": 1242, "before_layer_min": 1242, "compression_called": 1, "event": "CKV_COMPRESS_TRACE", "expected_retained_ratio": 0.6, "forward_call": 64, "logical_seen": 2048, "num_compressions": 64, "protected_floor": 80, "removed": 13, "target_expected": 1229, "target_raw": 1229}
+
+=== INTERPRETATION FLAGS ===
+FLAG: ratio=0 Centroid runtime differs from Full by >0.2%; investigate runtime/cache protocol before interpreting compression quality.
+FLAG: Centroid eager vs SDPA differs by >0.2% at 2048; investigate attention/runtime semantics.

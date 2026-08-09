@@ -1,0 +1,22 @@
+MyMethod selector log-tag update validation
+===========================================
+
+Canonical active selector tags:
+  attention -> selector_attention
+  keepkv    -> selector_keepkv__sink<S>__recent<R>__window<W>__beta<B>__logc<L>
+  d2o       -> selector_d2o__sink<S>__recent<R>__logc<L>__reset<N>
+
+Properties checked:
+- inactive selector-family parameters are omitted from the tag
+- Python evaluator tags and shell sweep tags use the same format
+- evaluator stdout logs include [MYMETHOD_SELECTOR_TAG]
+- evaluator stdout logs include [MYMETHOD_SELECTOR_ACTIVE_CONFIG]
+- PPL/LongBench/system sweep filenames encode the selector tag
+- light comparison and ablation filenames encode the selector tag
+- selector tag does not absorb lambda/group/backend core parameters
+
+Validation:
+- python -m unittest discover -s tests -p 'test*.py' -v : 41 tests PASS
+- python -m compileall -q . : PASS
+- bash -n on all top-level *.sh : PASS
+- shell ${VAR:-default} fallback scan : no matches

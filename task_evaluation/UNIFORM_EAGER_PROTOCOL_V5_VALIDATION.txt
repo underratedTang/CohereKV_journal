@@ -1,0 +1,13 @@
+Uniform eager protocol V5 validation
+
+Static / unit validation performed in packaging environment:
+- PPL and LongBench reject any formal backend other than eager.
+- No CentroidKV/Full eager->SDPA override remains.
+- LongBench Full and CentroidKV install only the neutral exact-eager runtime.
+- CentroidKV remains independent of GroupLogitKV and reduced-score capture runtimes.
+- GroupLogitKV retains its own runtime.
+- SimCalKV/CaM retain the neutral reduced-score capture runtime.
+- Pure attention tests compare full eager vs query-tiled eager for causal and cached-prefix masks; maximum differences are normal GEMM-order floating-point roundoff and pass atol=rtol=1e-6 in float32.
+- Existing method tests remain enabled.
+
+A full GPU LongBench/Qwen-7B run cannot be executed in the packaging container because model weights / transformers runtime are not installed. User-side validation should first rerun the previously failing CentroidKV LongBench case and a short Full-vs-Centroid ratio=0 control under eager.

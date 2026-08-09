@@ -1,0 +1,71 @@
+PPL_SCRIPT=/home/tlxr/SimCalKV/task_evaluation/evaluate_ppl_kvmerge.py
+TASK_EVAL_DIR=/home/tlxr/SimCalKV/task_evaluation
+OUT_DIR=/home/tlxr/SimCalKV/results/ppl_manual_test
+MODEL_SLUG=Qwen_Qwen2.5-7B
+MODEL_OUT_DIR=/home/tlxr/SimCalKV/results/ppl_manual_test/Qwen_Qwen2.5-7B
+SUMMARY_FILE=/home/tlxr/SimCalKV/results/ppl_manual_test/Qwen_Qwen2.5-7B/ppl_summary_20260808_195106.jsonl
+FAMILY=qwen
+MODEL=Qwen/Qwen2.5-7B
+MODEL_SEQLEN=8192
+CHUNK_SIZE=32
+MIN_KV_LEN=2
+COMPRESS_EVERY=1
+TORCH_DTYPE=bfloat16
+AMP_DTYPE=none
+ATTN_IMPL=eager
+DEVICE=cuda
+DEVICE_MAP=auto
+SEED=0
+DATASETS=wikitext2
+METHODS=mymethod CentroidKV
+RATIOS=0.2 0.4 0.6 0.8
+SIM_THR_GROUPLOGITKV_LIST=0.8
+LAMBDA_MYMETHOD_LIST=0.5
+MYMETHOD_SELECTOR=keepkv
+[MYMETHOD_SELECTOR_TAG] selector_keepkv__sink4__recent128__window128__beta1__logc1
+MYMETHOD_GROUP_MODE=full
+MYMETHOD_GRAPH_BACKEND=cuda
+MYMETHOD_ROUTE_BACKEND=torch
+MYMETHOD_KEEPKV_SINK_SIZE=4
+MYMETHOD_KEEPKV_RECENT_PROTECT_SIZE=128
+MYMETHOD_KEEPKV_SCORE_WINDOW=128
+MYMETHOD_KEEPKV_RECENCY_BETA=1.0
+MYMETHOD_KEEPKV_USE_LOG_COUNT=1
+MYMETHOD_D2O_SINK_SIZE=4
+MYMETHOD_D2O_RECENT_SIZE=128
+MYMETHOD_D2O_USE_LOG_COUNT=1
+MYMETHOD_D2O_SCORE_RESET_INTERVAL=0
+MYMETHOD_DISTANCE_CHUNK_SIZE=256
+MYMETHOD_ATTENTION_CHUNK_SIZE=128
+CENTROIDKV_SINK_BUDGET=16
+CENTROIDKV_LOCAL_BUDGET=64
+CENTROIDKV_CHUNK_SIZE=256
+CENTROIDKV_MERGE_RATIO=0.8
+CENTROIDKV_DECREASE_RATE=0.2
+SIM_THR_SIMCALKV_LIST=-1
+SIM_THR_KEEPKV_LIST=0.8
+
+========== wikitext2 | mymethod | ratio=0.2 | sim=selector_keepkv__sink4__recent128__window128__beta1__logc1_lambda0.5 ==========
+[OK] qwen_wikitext2_mymethod_ratio0p2_simselector_keepkv__sink4__recent128__window128__beta1__logc1_lambda0p5
+========== wikitext2 | mymethod | ratio=0.4 | sim=selector_keepkv__sink4__recent128__window128__beta1__logc1_lambda0.5 ==========
+[OK] qwen_wikitext2_mymethod_ratio0p4_simselector_keepkv__sink4__recent128__window128__beta1__logc1_lambda0p5
+========== wikitext2 | mymethod | ratio=0.6 | sim=selector_keepkv__sink4__recent128__window128__beta1__logc1_lambda0.5 ==========
+[OK] qwen_wikitext2_mymethod_ratio0p6_simselector_keepkv__sink4__recent128__window128__beta1__logc1_lambda0p5
+========== wikitext2 | mymethod | ratio=0.8 | sim=selector_keepkv__sink4__recent128__window128__beta1__logc1_lambda0.5 ==========
+[OK] qwen_wikitext2_mymethod_ratio0p8_simselector_keepkv__sink4__recent128__window128__beta1__logc1_lambda0p5
+========== wikitext2 | CentroidKV | ratio=0.2 | sim=official ==========
+[OK] qwen_wikitext2_CentroidKV_ratio0p2_simofficial
+========== wikitext2 | CentroidKV | ratio=0.4 | sim=official ==========
+[OK] qwen_wikitext2_CentroidKV_ratio0p4_simofficial
+========== wikitext2 | CentroidKV | ratio=0.6 | sim=official ==========
+[OK] qwen_wikitext2_CentroidKV_ratio0p6_simofficial
+========== wikitext2 | CentroidKV | ratio=0.8 | sim=official ==========
+[OK] qwen_wikitext2_CentroidKV_ratio0p8_simofficial
+
+Done.
+OUT_DIR=/home/tlxr/SimCalKV/results/ppl_manual_test
+MODEL_SLUG=Qwen_Qwen2.5-7B
+MODEL_OUT_DIR=/home/tlxr/SimCalKV/results/ppl_manual_test/Qwen_Qwen2.5-7B
+SUMMARY_FILE=/home/tlxr/SimCalKV/results/ppl_manual_test/Qwen_Qwen2.5-7B/ppl_summary_20260808_195106.jsonl
+
+Preview:

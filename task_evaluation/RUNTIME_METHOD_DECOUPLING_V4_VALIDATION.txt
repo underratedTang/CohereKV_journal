@@ -1,0 +1,3 @@
+SUPERSEDED BY UNIFORM_EAGER_PROTOCOL_V5_VALIDATION.txt
+
+The V4 eager->SDPA policy for Full/CentroidKV is no longer part of the formal evaluator.
