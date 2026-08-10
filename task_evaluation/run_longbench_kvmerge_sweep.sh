@@ -217,7 +217,7 @@ run_one() {
     sim_tag="${thr}"
     extra_args+=(--sim_thr_grouplogitkv "${thr}")
   elif [[ "${method}" == "mymethod" ]]; then
-    sim_tag="${MYMETHOD_SELECTOR_TAG}_lambda${thr}"
+    sim_tag="${MYMETHOD_SELECTOR_TAG}__mode_${MYMETHOD_GROUP_MODE}__lambda${thr}"
     extra_args+=(
       --lambda_mymethod "${thr}"
       --mymethod_selector "${MYMETHOD_SELECTOR}"

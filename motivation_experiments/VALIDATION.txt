@@ -1,0 +1,42 @@
+Star-structure motivation pre-experiment package validation (v6)
+
+Design changes:
+- Panel (a) keeps the same semantics: group-level star-conflict prevalence vs retained KV budget.
+- Panel (b) is replaced by pooled pair-level conflict rate:
+    conflict_pair_rate = total conflicting same-anchor leaf pairs / total same-anchor leaf pairs.
+- Panel (b) is NOT conditioned on star-conflicted groups and does NOT average per-group conflict densities.
+  This removes the size-2-group artifact where one conflict would mechanically imply 100% group density.
+- Panels (a) and (b) both support the same cosine-threshold sweep (default 0.70 / 0.80 / 0.90).
+- Final figures depend only on summary_overall.csv + run_config.json, so existing real 3-sequence outputs can be redrawn without rerunning the model or requiring raw NPZ compatibility.
+- No stacked bars or hatches are used; both panels use color + line style + marker and remain grayscale-identifiable.
+- Horizontal combined (a)+(b) paper figure is generated.
+- figure_statistics.csv records exact group-level and pair-level plotted percentages plus source counts.
+- summary_overall arithmetic is validated from source counts before plotting.
+- Default MAX_EVAL_SEQUENCES remains 3.
+
+Validation performed in the artifact-build environment:
+- bash -n run_star_structure.sh: PASS
+- python compileall: PASS
+- star metric unit tests: PASS
+- synthetic standalone panel (a) PDF/PNG: PASS
+- synthetic standalone panel (b) PDF/PNG: PASS
+- synthetic horizontal two-panel PDF/PNG: PASS
+- synthetic figure_statistics.csv generation: PASS
+- summary arithmetic consistency checks: PASS
+- grayscale visual regression: PASS
+  - panel (a) curves remain distinguishable by independent line styles/markers
+  - panel (b) curves remain distinguishable by independent line styles/markers
+- forbidden ${VAR:-default} shell expansion scan: PASS
+- no font files bundled: PASS
+- Times New Roman remains strict-by-default for user runs; internal synthetic validation may use an installed serif font if the build container does not contain Times New Roman.
+
+Environment limitation:
+The artifact-build container does not have the user's model weights/GPU runtime. End-to-end Qwen/Llama cached-key analysis is therefore not claimed here. Existing real summary_overall.csv from the user's 3-sequence run is sufficient to generate the v6 final figures.
+
+
+V7 model-isolated output update:
+- RESULTS_ROOT is model-agnostic; OUT_DIR is derived as RESULTS_ROOT/MODEL_DIR_NAME/EXPERIMENT_NAME.
+- MODEL_DIR_NAME is derived from the final MODEL path/repository component and sanitized to [A-Za-z0-9._-].
+- Qwen/Qwen2.5-7B -> results/Qwen2.5-7B/star_structure_test/.
+- meta-llama/Meta-Llama-3.1-8B -> results/Meta-Llama-3.1-8B/star_structure_test/.
+- Analysis, raw records, logs, CSV summaries, and all figures share the same model-isolated OUT_DIR.

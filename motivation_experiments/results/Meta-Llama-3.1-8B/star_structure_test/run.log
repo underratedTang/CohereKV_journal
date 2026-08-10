@@ -1,0 +1,1102 @@
+ANALYSIS_SCRIPT=/home/tlxr/SimCalKV/motivation_experiments/star_structure_experiment.py
+PLOT_SCRIPT=/home/tlxr/SimCalKV/motivation_experiments/plot_star_structure.py
+RESULTS_ROOT=/home/tlxr/SimCalKV/motivation_experiments/results
+EXPERIMENT_NAME=star_structure_test
+OUT_DIR=/home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test
+MODEL=meta-llama/Meta-Llama-3.1-8B
+MODEL_DIR_NAME=Meta-Llama-3.1-8B
+MODEL_SLUG=meta-llama_Meta-Llama-3_1-8B
+DATASET=wikitext2
+MODEL_SEQLEN=8192
+MAX_EVAL_SEQUENCES=30
+TORCH_DTYPE=bfloat16
+ATTN_IMPL=eager
+DEVICE=cuda
+DEVICE_MAP=auto
+PREFILL_CHUNK_SIZE=128
+ANCHOR_BUDGETS=0.2 0.4 0.6 0.8
+COSINE_THRESHOLDS=0.75 0.85 0.95
+PANEL_A_TAUS=0.75 0.85 0.95
+PLOT_TAU=0.85
+ANCHOR_SEEDS=0 1 2
+SIMILARITY_CHUNK_SIZE=128
+LAYER_SELECTION=all
+KV_HEAD_SELECTION=all
+NUMERIC_EPS=1e-6
+FONT_FAMILY=Times New Roman
+STRICT_TIMES_NEW_ROMAN=1
+PANEL_WIDTH_IN=1.72
+PANEL_HEIGHT_IN=1.58
+COMBINED_WIDTH_IN=3.50
+COMBINED_HEIGHT_IN=1.58
+PNG_DPI=600
+PANEL_A_Y_MAX_PERCENT=auto
+PANEL_B_TAUS=0.75 0.85 0.95
+PANEL_B_Y_MAX_PERCENT=auto
+
+[ANALYSIS CMD]
+ python -u /home/tlxr/SimCalKV/motivation_experiments/star_structure_experiment.py --model meta-llama/Meta-Llama-3.1-8B --dataset wikitext2 --model_seqlen 8192 --max_eval_sequences 30 --torch_dtype bfloat16 --attn_implementation eager --device cuda --device_map auto --prefill_chunk_size 128 --anchor_budgets 0.2\,0.4\,0.6\,0.8 --cosine_thresholds 0.75\,0.85\,0.95 --record_tau 0.85 --anchor_seeds 0\,1\,2 --similarity_chunk_size 128 --layer_selection all --kv_head_selection all --numeric_eps 1e-6 --min_eligible_groups_warn 100 --output_dir /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test
+Loading model: meta-llama/Meta-Llama-3.1-8B
+Transformers version: 4.46.3
+Attention backend: eager
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:03,  1.17s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.16s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:03<00:01,  1.15s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.31it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.10it/s]
+Token indices sequence length is longer than the specified maximum sequence length for this model (289077 > 131072). Running this sequence through the model will result in indexing errors
+Dataset=wikitext2, tokens=289077, seqlen=8192, sequences=30
+
+[SEQUENCE 0] building full uncompressed cache for tokens [0, 8192)
+We detected that you are passing `past_key_values` as a tuple of tuples. This is deprecated and will be removed in v4.47. Please convert your cache or use an appropriate `Cache` class (https://huggingface.co/docs/transformers/kv_cache#legacy-cache-format)
+Selected layers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]
+Selected KV heads: [0, 1, 2, 3, 4, 5, 6, 7]
+[sequence=0] finished layer 0
+[sequence=0] finished layer 1
+[sequence=0] finished layer 2
+[sequence=0] finished layer 3
+[sequence=0] finished layer 4
+[sequence=0] finished layer 5
+[sequence=0] finished layer 6
+[sequence=0] finished layer 7
+[sequence=0] finished layer 8
+[sequence=0] finished layer 9
+[sequence=0] finished layer 10
+[sequence=0] finished layer 11
+[sequence=0] finished layer 12
+[sequence=0] finished layer 13
+[sequence=0] finished layer 14
+[sequence=0] finished layer 15
+[sequence=0] finished layer 16
+[sequence=0] finished layer 17
+[sequence=0] finished layer 18
+[sequence=0] finished layer 19
+[sequence=0] finished layer 20
+[sequence=0] finished layer 21
+[sequence=0] finished layer 22
+[sequence=0] finished layer 23
+[sequence=0] finished layer 24
+[sequence=0] finished layer 25
+[sequence=0] finished layer 26
+[sequence=0] finished layer 27
+[sequence=0] finished layer 28
+[sequence=0] finished layer 29
+[sequence=0] finished layer 30
+[sequence=0] finished layer 31
+
+[SEQUENCE 1] building full uncompressed cache for tokens [8192, 16384)
+[sequence=1] finished layer 0
+[sequence=1] finished layer 1
+[sequence=1] finished layer 2
+[sequence=1] finished layer 3
+[sequence=1] finished layer 4
+[sequence=1] finished layer 5
+[sequence=1] finished layer 6
+[sequence=1] finished layer 7
+[sequence=1] finished layer 8
+[sequence=1] finished layer 9
+[sequence=1] finished layer 10
+[sequence=1] finished layer 11
+[sequence=1] finished layer 12
+[sequence=1] finished layer 13
+[sequence=1] finished layer 14
+[sequence=1] finished layer 15
+[sequence=1] finished layer 16
+[sequence=1] finished layer 17
+[sequence=1] finished layer 18
+[sequence=1] finished layer 19
+[sequence=1] finished layer 20
+[sequence=1] finished layer 21
+[sequence=1] finished layer 22
+[sequence=1] finished layer 23
+[sequence=1] finished layer 24
+[sequence=1] finished layer 25
+[sequence=1] finished layer 26
+[sequence=1] finished layer 27
+[sequence=1] finished layer 28
+[sequence=1] finished layer 29
+[sequence=1] finished layer 30
+[sequence=1] finished layer 31
+
+[SEQUENCE 2] building full uncompressed cache for tokens [16384, 24576)
+[sequence=2] finished layer 0
+[sequence=2] finished layer 1
+[sequence=2] finished layer 2
+[sequence=2] finished layer 3
+[sequence=2] finished layer 4
+[sequence=2] finished layer 5
+[sequence=2] finished layer 6
+[sequence=2] finished layer 7
+[sequence=2] finished layer 8
+[sequence=2] finished layer 9
+[sequence=2] finished layer 10
+[sequence=2] finished layer 11
+[sequence=2] finished layer 12
+[sequence=2] finished layer 13
+[sequence=2] finished layer 14
+[sequence=2] finished layer 15
+[sequence=2] finished layer 16
+[sequence=2] finished layer 17
+[sequence=2] finished layer 18
+[sequence=2] finished layer 19
+[sequence=2] finished layer 20
+[sequence=2] finished layer 21
+[sequence=2] finished layer 22
+[sequence=2] finished layer 23
+[sequence=2] finished layer 24
+[sequence=2] finished layer 25
+[sequence=2] finished layer 26
+[sequence=2] finished layer 27
+[sequence=2] finished layer 28
+[sequence=2] finished layer 29
+[sequence=2] finished layer 30
+[sequence=2] finished layer 31
+
+[SEQUENCE 3] building full uncompressed cache for tokens [24576, 32768)
+[sequence=3] finished layer 0
+[sequence=3] finished layer 1
+[sequence=3] finished layer 2
+[sequence=3] finished layer 3
+[sequence=3] finished layer 4
+[sequence=3] finished layer 5
+[sequence=3] finished layer 6
+[sequence=3] finished layer 7
+[sequence=3] finished layer 8
+[sequence=3] finished layer 9
+[sequence=3] finished layer 10
+[sequence=3] finished layer 11
+[sequence=3] finished layer 12
+[sequence=3] finished layer 13
+[sequence=3] finished layer 14
+[sequence=3] finished layer 15
+[sequence=3] finished layer 16
+[sequence=3] finished layer 17
+[sequence=3] finished layer 18
+[sequence=3] finished layer 19
+[sequence=3] finished layer 20
+[sequence=3] finished layer 21
+[sequence=3] finished layer 22
+[sequence=3] finished layer 23
+[sequence=3] finished layer 24
+[sequence=3] finished layer 25
+[sequence=3] finished layer 26
+[sequence=3] finished layer 27
+[sequence=3] finished layer 28
+[sequence=3] finished layer 29
+[sequence=3] finished layer 30
+[sequence=3] finished layer 31
+
+[SEQUENCE 4] building full uncompressed cache for tokens [32768, 40960)
+[sequence=4] finished layer 0
+[sequence=4] finished layer 1
+[sequence=4] finished layer 2
+[sequence=4] finished layer 3
+[sequence=4] finished layer 4
+[sequence=4] finished layer 5
+[sequence=4] finished layer 6
+[sequence=4] finished layer 7
+[sequence=4] finished layer 8
+[sequence=4] finished layer 9
+[sequence=4] finished layer 10
+[sequence=4] finished layer 11
+[sequence=4] finished layer 12
+[sequence=4] finished layer 13
+[sequence=4] finished layer 14
+[sequence=4] finished layer 15
+[sequence=4] finished layer 16
+[sequence=4] finished layer 17
+[sequence=4] finished layer 18
+[sequence=4] finished layer 19
+[sequence=4] finished layer 20
+[sequence=4] finished layer 21
+[sequence=4] finished layer 22
+[sequence=4] finished layer 23
+[sequence=4] finished layer 24
+[sequence=4] finished layer 25
+[sequence=4] finished layer 26
+[sequence=4] finished layer 27
+[sequence=4] finished layer 28
+[sequence=4] finished layer 29
+[sequence=4] finished layer 30
+[sequence=4] finished layer 31
+
+[SEQUENCE 5] building full uncompressed cache for tokens [40960, 49152)
+[sequence=5] finished layer 0
+[sequence=5] finished layer 1
+[sequence=5] finished layer 2
+[sequence=5] finished layer 3
+[sequence=5] finished layer 4
+[sequence=5] finished layer 5
+[sequence=5] finished layer 6
+[sequence=5] finished layer 7
+[sequence=5] finished layer 8
+[sequence=5] finished layer 9
+[sequence=5] finished layer 10
+[sequence=5] finished layer 11
+[sequence=5] finished layer 12
+[sequence=5] finished layer 13
+[sequence=5] finished layer 14
+[sequence=5] finished layer 15
+[sequence=5] finished layer 16
+[sequence=5] finished layer 17
+[sequence=5] finished layer 18
+[sequence=5] finished layer 19
+[sequence=5] finished layer 20
+[sequence=5] finished layer 21
+[sequence=5] finished layer 22
+[sequence=5] finished layer 23
+[sequence=5] finished layer 24
+[sequence=5] finished layer 25
+[sequence=5] finished layer 26
+[sequence=5] finished layer 27
+[sequence=5] finished layer 28
+[sequence=5] finished layer 29
+[sequence=5] finished layer 30
+[sequence=5] finished layer 31
+
+[SEQUENCE 6] building full uncompressed cache for tokens [49152, 57344)
+[sequence=6] finished layer 0
+[sequence=6] finished layer 1
+[sequence=6] finished layer 2
+[sequence=6] finished layer 3
+[sequence=6] finished layer 4
+[sequence=6] finished layer 5
+[sequence=6] finished layer 6
+[sequence=6] finished layer 7
+[sequence=6] finished layer 8
+[sequence=6] finished layer 9
+[sequence=6] finished layer 10
+[sequence=6] finished layer 11
+[sequence=6] finished layer 12
+[sequence=6] finished layer 13
+[sequence=6] finished layer 14
+[sequence=6] finished layer 15
+[sequence=6] finished layer 16
+[sequence=6] finished layer 17
+[sequence=6] finished layer 18
+[sequence=6] finished layer 19
+[sequence=6] finished layer 20
+[sequence=6] finished layer 21
+[sequence=6] finished layer 22
+[sequence=6] finished layer 23
+[sequence=6] finished layer 24
+[sequence=6] finished layer 25
+[sequence=6] finished layer 26
+[sequence=6] finished layer 27
+[sequence=6] finished layer 28
+[sequence=6] finished layer 29
+[sequence=6] finished layer 30
+[sequence=6] finished layer 31
+
+[SEQUENCE 7] building full uncompressed cache for tokens [57344, 65536)
+[sequence=7] finished layer 0
+[sequence=7] finished layer 1
+[sequence=7] finished layer 2
+[sequence=7] finished layer 3
+[sequence=7] finished layer 4
+[sequence=7] finished layer 5
+[sequence=7] finished layer 6
+[sequence=7] finished layer 7
+[sequence=7] finished layer 8
+[sequence=7] finished layer 9
+[sequence=7] finished layer 10
+[sequence=7] finished layer 11
+[sequence=7] finished layer 12
+[sequence=7] finished layer 13
+[sequence=7] finished layer 14
+[sequence=7] finished layer 15
+[sequence=7] finished layer 16
+[sequence=7] finished layer 17
+[sequence=7] finished layer 18
+[sequence=7] finished layer 19
+[sequence=7] finished layer 20
+[sequence=7] finished layer 21
+[sequence=7] finished layer 22
+[sequence=7] finished layer 23
+[sequence=7] finished layer 24
+[sequence=7] finished layer 25
+[sequence=7] finished layer 26
+[sequence=7] finished layer 27
+[sequence=7] finished layer 28
+[sequence=7] finished layer 29
+[sequence=7] finished layer 30
+[sequence=7] finished layer 31
+
+[SEQUENCE 8] building full uncompressed cache for tokens [65536, 73728)
+[sequence=8] finished layer 0
+[sequence=8] finished layer 1
+[sequence=8] finished layer 2
+[sequence=8] finished layer 3
+[sequence=8] finished layer 4
+[sequence=8] finished layer 5
+[sequence=8] finished layer 6
+[sequence=8] finished layer 7
+[sequence=8] finished layer 8
+[sequence=8] finished layer 9
+[sequence=8] finished layer 10
+[sequence=8] finished layer 11
+[sequence=8] finished layer 12
+[sequence=8] finished layer 13
+[sequence=8] finished layer 14
+[sequence=8] finished layer 15
+[sequence=8] finished layer 16
+[sequence=8] finished layer 17
+[sequence=8] finished layer 18
+[sequence=8] finished layer 19
+[sequence=8] finished layer 20
+[sequence=8] finished layer 21
+[sequence=8] finished layer 22
+[sequence=8] finished layer 23
+[sequence=8] finished layer 24
+[sequence=8] finished layer 25
+[sequence=8] finished layer 26
+[sequence=8] finished layer 27
+[sequence=8] finished layer 28
+[sequence=8] finished layer 29
+[sequence=8] finished layer 30
+[sequence=8] finished layer 31
+
+[SEQUENCE 9] building full uncompressed cache for tokens [73728, 81920)
+[sequence=9] finished layer 0
+[sequence=9] finished layer 1
+[sequence=9] finished layer 2
+[sequence=9] finished layer 3
+[sequence=9] finished layer 4
+[sequence=9] finished layer 5
+[sequence=9] finished layer 6
+[sequence=9] finished layer 7
+[sequence=9] finished layer 8
+[sequence=9] finished layer 9
+[sequence=9] finished layer 10
+[sequence=9] finished layer 11
+[sequence=9] finished layer 12
+[sequence=9] finished layer 13
+[sequence=9] finished layer 14
+[sequence=9] finished layer 15
+[sequence=9] finished layer 16
+[sequence=9] finished layer 17
+[sequence=9] finished layer 18
+[sequence=9] finished layer 19
+[sequence=9] finished layer 20
+[sequence=9] finished layer 21
+[sequence=9] finished layer 22
+[sequence=9] finished layer 23
+[sequence=9] finished layer 24
+[sequence=9] finished layer 25
+[sequence=9] finished layer 26
+[sequence=9] finished layer 27
+[sequence=9] finished layer 28
+[sequence=9] finished layer 29
+[sequence=9] finished layer 30
+[sequence=9] finished layer 31
+
+[SEQUENCE 10] building full uncompressed cache for tokens [81920, 90112)
+[sequence=10] finished layer 0
+[sequence=10] finished layer 1
+[sequence=10] finished layer 2
+[sequence=10] finished layer 3
+[sequence=10] finished layer 4
+[sequence=10] finished layer 5
+[sequence=10] finished layer 6
+[sequence=10] finished layer 7
+[sequence=10] finished layer 8
+[sequence=10] finished layer 9
+[sequence=10] finished layer 10
+[sequence=10] finished layer 11
+[sequence=10] finished layer 12
+[sequence=10] finished layer 13
+[sequence=10] finished layer 14
+[sequence=10] finished layer 15
+[sequence=10] finished layer 16
+[sequence=10] finished layer 17
+[sequence=10] finished layer 18
+[sequence=10] finished layer 19
+[sequence=10] finished layer 20
+[sequence=10] finished layer 21
+[sequence=10] finished layer 22
+[sequence=10] finished layer 23
+[sequence=10] finished layer 24
+[sequence=10] finished layer 25
+[sequence=10] finished layer 26
+[sequence=10] finished layer 27
+[sequence=10] finished layer 28
+[sequence=10] finished layer 29
+[sequence=10] finished layer 30
+[sequence=10] finished layer 31
+
+[SEQUENCE 11] building full uncompressed cache for tokens [90112, 98304)
+[sequence=11] finished layer 0
+[sequence=11] finished layer 1
+[sequence=11] finished layer 2
+[sequence=11] finished layer 3
+[sequence=11] finished layer 4
+[sequence=11] finished layer 5
+[sequence=11] finished layer 6
+[sequence=11] finished layer 7
+[sequence=11] finished layer 8
+[sequence=11] finished layer 9
+[sequence=11] finished layer 10
+[sequence=11] finished layer 11
+[sequence=11] finished layer 12
+[sequence=11] finished layer 13
+[sequence=11] finished layer 14
+[sequence=11] finished layer 15
+[sequence=11] finished layer 16
+[sequence=11] finished layer 17
+[sequence=11] finished layer 18
+[sequence=11] finished layer 19
+[sequence=11] finished layer 20
+[sequence=11] finished layer 21
+[sequence=11] finished layer 22
+[sequence=11] finished layer 23
+[sequence=11] finished layer 24
+[sequence=11] finished layer 25
+[sequence=11] finished layer 26
+[sequence=11] finished layer 27
+[sequence=11] finished layer 28
+[sequence=11] finished layer 29
+[sequence=11] finished layer 30
+[sequence=11] finished layer 31
+
+[SEQUENCE 12] building full uncompressed cache for tokens [98304, 106496)
+[sequence=12] finished layer 0
+[sequence=12] finished layer 1
+[sequence=12] finished layer 2
+[sequence=12] finished layer 3
+[sequence=12] finished layer 4
+[sequence=12] finished layer 5
+[sequence=12] finished layer 6
+[sequence=12] finished layer 7
+[sequence=12] finished layer 8
+[sequence=12] finished layer 9
+[sequence=12] finished layer 10
+[sequence=12] finished layer 11
+[sequence=12] finished layer 12
+[sequence=12] finished layer 13
+[sequence=12] finished layer 14
+[sequence=12] finished layer 15
+[sequence=12] finished layer 16
+[sequence=12] finished layer 17
+[sequence=12] finished layer 18
+[sequence=12] finished layer 19
+[sequence=12] finished layer 20
+[sequence=12] finished layer 21
+[sequence=12] finished layer 22
+[sequence=12] finished layer 23
+[sequence=12] finished layer 24
+[sequence=12] finished layer 25
+[sequence=12] finished layer 26
+[sequence=12] finished layer 27
+[sequence=12] finished layer 28
+[sequence=12] finished layer 29
+[sequence=12] finished layer 30
+[sequence=12] finished layer 31
+
+[SEQUENCE 13] building full uncompressed cache for tokens [106496, 114688)
+[sequence=13] finished layer 0
+[sequence=13] finished layer 1
+[sequence=13] finished layer 2
+[sequence=13] finished layer 3
+[sequence=13] finished layer 4
+[sequence=13] finished layer 5
+[sequence=13] finished layer 6
+[sequence=13] finished layer 7
+[sequence=13] finished layer 8
+[sequence=13] finished layer 9
+[sequence=13] finished layer 10
+[sequence=13] finished layer 11
+[sequence=13] finished layer 12
+[sequence=13] finished layer 13
+[sequence=13] finished layer 14
+[sequence=13] finished layer 15
+[sequence=13] finished layer 16
+[sequence=13] finished layer 17
+[sequence=13] finished layer 18
+[sequence=13] finished layer 19
+[sequence=13] finished layer 20
+[sequence=13] finished layer 21
+[sequence=13] finished layer 22
+[sequence=13] finished layer 23
+[sequence=13] finished layer 24
+[sequence=13] finished layer 25
+[sequence=13] finished layer 26
+[sequence=13] finished layer 27
+[sequence=13] finished layer 28
+[sequence=13] finished layer 29
+[sequence=13] finished layer 30
+[sequence=13] finished layer 31
+
+[SEQUENCE 14] building full uncompressed cache for tokens [114688, 122880)
+[sequence=14] finished layer 0
+[sequence=14] finished layer 1
+[sequence=14] finished layer 2
+[sequence=14] finished layer 3
+[sequence=14] finished layer 4
+[sequence=14] finished layer 5
+[sequence=14] finished layer 6
+[sequence=14] finished layer 7
+[sequence=14] finished layer 8
+[sequence=14] finished layer 9
+[sequence=14] finished layer 10
+[sequence=14] finished layer 11
+[sequence=14] finished layer 12
+[sequence=14] finished layer 13
+[sequence=14] finished layer 14
+[sequence=14] finished layer 15
+[sequence=14] finished layer 16
+[sequence=14] finished layer 17
+[sequence=14] finished layer 18
+[sequence=14] finished layer 19
+[sequence=14] finished layer 20
+[sequence=14] finished layer 21
+[sequence=14] finished layer 22
+[sequence=14] finished layer 23
+[sequence=14] finished layer 24
+[sequence=14] finished layer 25
+[sequence=14] finished layer 26
+[sequence=14] finished layer 27
+[sequence=14] finished layer 28
+[sequence=14] finished layer 29
+[sequence=14] finished layer 30
+[sequence=14] finished layer 31
+
+[SEQUENCE 15] building full uncompressed cache for tokens [122880, 131072)
+[sequence=15] finished layer 0
+[sequence=15] finished layer 1
+[sequence=15] finished layer 2
+[sequence=15] finished layer 3
+[sequence=15] finished layer 4
+[sequence=15] finished layer 5
+[sequence=15] finished layer 6
+[sequence=15] finished layer 7
+[sequence=15] finished layer 8
+[sequence=15] finished layer 9
+[sequence=15] finished layer 10
+[sequence=15] finished layer 11
+[sequence=15] finished layer 12
+[sequence=15] finished layer 13
+[sequence=15] finished layer 14
+[sequence=15] finished layer 15
+[sequence=15] finished layer 16
+[sequence=15] finished layer 17
+[sequence=15] finished layer 18
+[sequence=15] finished layer 19
+[sequence=15] finished layer 20
+[sequence=15] finished layer 21
+[sequence=15] finished layer 22
+[sequence=15] finished layer 23
+[sequence=15] finished layer 24
+[sequence=15] finished layer 25
+[sequence=15] finished layer 26
+[sequence=15] finished layer 27
+[sequence=15] finished layer 28
+[sequence=15] finished layer 29
+[sequence=15] finished layer 30
+[sequence=15] finished layer 31
+
+[SEQUENCE 16] building full uncompressed cache for tokens [131072, 139264)
+[sequence=16] finished layer 0
+[sequence=16] finished layer 1
+[sequence=16] finished layer 2
+[sequence=16] finished layer 3
+[sequence=16] finished layer 4
+[sequence=16] finished layer 5
+[sequence=16] finished layer 6
+[sequence=16] finished layer 7
+[sequence=16] finished layer 8
+[sequence=16] finished layer 9
+[sequence=16] finished layer 10
+[sequence=16] finished layer 11
+[sequence=16] finished layer 12
+[sequence=16] finished layer 13
+[sequence=16] finished layer 14
+[sequence=16] finished layer 15
+[sequence=16] finished layer 16
+[sequence=16] finished layer 17
+[sequence=16] finished layer 18
+[sequence=16] finished layer 19
+[sequence=16] finished layer 20
+[sequence=16] finished layer 21
+[sequence=16] finished layer 22
+[sequence=16] finished layer 23
+[sequence=16] finished layer 24
+[sequence=16] finished layer 25
+[sequence=16] finished layer 26
+[sequence=16] finished layer 27
+[sequence=16] finished layer 28
+[sequence=16] finished layer 29
+[sequence=16] finished layer 30
+[sequence=16] finished layer 31
+
+[SEQUENCE 17] building full uncompressed cache for tokens [139264, 147456)
+[sequence=17] finished layer 0
+[sequence=17] finished layer 1
+[sequence=17] finished layer 2
+[sequence=17] finished layer 3
+[sequence=17] finished layer 4
+[sequence=17] finished layer 5
+[sequence=17] finished layer 6
+[sequence=17] finished layer 7
+[sequence=17] finished layer 8
+[sequence=17] finished layer 9
+[sequence=17] finished layer 10
+[sequence=17] finished layer 11
+[sequence=17] finished layer 12
+[sequence=17] finished layer 13
+[sequence=17] finished layer 14
+[sequence=17] finished layer 15
+[sequence=17] finished layer 16
+[sequence=17] finished layer 17
+[sequence=17] finished layer 18
+[sequence=17] finished layer 19
+[sequence=17] finished layer 20
+[sequence=17] finished layer 21
+[sequence=17] finished layer 22
+[sequence=17] finished layer 23
+[sequence=17] finished layer 24
+[sequence=17] finished layer 25
+[sequence=17] finished layer 26
+[sequence=17] finished layer 27
+[sequence=17] finished layer 28
+[sequence=17] finished layer 29
+[sequence=17] finished layer 30
+[sequence=17] finished layer 31
+
+[SEQUENCE 18] building full uncompressed cache for tokens [147456, 155648)
+[sequence=18] finished layer 0
+[sequence=18] finished layer 1
+[sequence=18] finished layer 2
+[sequence=18] finished layer 3
+[sequence=18] finished layer 4
+[sequence=18] finished layer 5
+[sequence=18] finished layer 6
+[sequence=18] finished layer 7
+[sequence=18] finished layer 8
+[sequence=18] finished layer 9
+[sequence=18] finished layer 10
+[sequence=18] finished layer 11
+[sequence=18] finished layer 12
+[sequence=18] finished layer 13
+[sequence=18] finished layer 14
+[sequence=18] finished layer 15
+[sequence=18] finished layer 16
+[sequence=18] finished layer 17
+[sequence=18] finished layer 18
+[sequence=18] finished layer 19
+[sequence=18] finished layer 20
+[sequence=18] finished layer 21
+[sequence=18] finished layer 22
+[sequence=18] finished layer 23
+[sequence=18] finished layer 24
+[sequence=18] finished layer 25
+[sequence=18] finished layer 26
+[sequence=18] finished layer 27
+[sequence=18] finished layer 28
+[sequence=18] finished layer 29
+[sequence=18] finished layer 30
+[sequence=18] finished layer 31
+
+[SEQUENCE 19] building full uncompressed cache for tokens [155648, 163840)
+[sequence=19] finished layer 0
+[sequence=19] finished layer 1
+[sequence=19] finished layer 2
+[sequence=19] finished layer 3
+[sequence=19] finished layer 4
+[sequence=19] finished layer 5
+[sequence=19] finished layer 6
+[sequence=19] finished layer 7
+[sequence=19] finished layer 8
+[sequence=19] finished layer 9
+[sequence=19] finished layer 10
+[sequence=19] finished layer 11
+[sequence=19] finished layer 12
+[sequence=19] finished layer 13
+[sequence=19] finished layer 14
+[sequence=19] finished layer 15
+[sequence=19] finished layer 16
+[sequence=19] finished layer 17
+[sequence=19] finished layer 18
+[sequence=19] finished layer 19
+[sequence=19] finished layer 20
+[sequence=19] finished layer 21
+[sequence=19] finished layer 22
+[sequence=19] finished layer 23
+[sequence=19] finished layer 24
+[sequence=19] finished layer 25
+[sequence=19] finished layer 26
+[sequence=19] finished layer 27
+[sequence=19] finished layer 28
+[sequence=19] finished layer 29
+[sequence=19] finished layer 30
+[sequence=19] finished layer 31
+
+[SEQUENCE 20] building full uncompressed cache for tokens [163840, 172032)
+[sequence=20] finished layer 0
+[sequence=20] finished layer 1
+[sequence=20] finished layer 2
+[sequence=20] finished layer 3
+[sequence=20] finished layer 4
+[sequence=20] finished layer 5
+[sequence=20] finished layer 6
+[sequence=20] finished layer 7
+[sequence=20] finished layer 8
+[sequence=20] finished layer 9
+[sequence=20] finished layer 10
+[sequence=20] finished layer 11
+[sequence=20] finished layer 12
+[sequence=20] finished layer 13
+[sequence=20] finished layer 14
+[sequence=20] finished layer 15
+[sequence=20] finished layer 16
+[sequence=20] finished layer 17
+[sequence=20] finished layer 18
+[sequence=20] finished layer 19
+[sequence=20] finished layer 20
+[sequence=20] finished layer 21
+[sequence=20] finished layer 22
+[sequence=20] finished layer 23
+[sequence=20] finished layer 24
+[sequence=20] finished layer 25
+[sequence=20] finished layer 26
+[sequence=20] finished layer 27
+[sequence=20] finished layer 28
+[sequence=20] finished layer 29
+[sequence=20] finished layer 30
+[sequence=20] finished layer 31
+
+[SEQUENCE 21] building full uncompressed cache for tokens [172032, 180224)
+[sequence=21] finished layer 0
+[sequence=21] finished layer 1
+[sequence=21] finished layer 2
+[sequence=21] finished layer 3
+[sequence=21] finished layer 4
+[sequence=21] finished layer 5
+[sequence=21] finished layer 6
+[sequence=21] finished layer 7
+[sequence=21] finished layer 8
+[sequence=21] finished layer 9
+[sequence=21] finished layer 10
+[sequence=21] finished layer 11
+[sequence=21] finished layer 12
+[sequence=21] finished layer 13
+[sequence=21] finished layer 14
+[sequence=21] finished layer 15
+[sequence=21] finished layer 16
+[sequence=21] finished layer 17
+[sequence=21] finished layer 18
+[sequence=21] finished layer 19
+[sequence=21] finished layer 20
+[sequence=21] finished layer 21
+[sequence=21] finished layer 22
+[sequence=21] finished layer 23
+[sequence=21] finished layer 24
+[sequence=21] finished layer 25
+[sequence=21] finished layer 26
+[sequence=21] finished layer 27
+[sequence=21] finished layer 28
+[sequence=21] finished layer 29
+[sequence=21] finished layer 30
+[sequence=21] finished layer 31
+
+[SEQUENCE 22] building full uncompressed cache for tokens [180224, 188416)
+[sequence=22] finished layer 0
+[sequence=22] finished layer 1
+[sequence=22] finished layer 2
+[sequence=22] finished layer 3
+[sequence=22] finished layer 4
+[sequence=22] finished layer 5
+[sequence=22] finished layer 6
+[sequence=22] finished layer 7
+[sequence=22] finished layer 8
+[sequence=22] finished layer 9
+[sequence=22] finished layer 10
+[sequence=22] finished layer 11
+[sequence=22] finished layer 12
+[sequence=22] finished layer 13
+[sequence=22] finished layer 14
+[sequence=22] finished layer 15
+[sequence=22] finished layer 16
+[sequence=22] finished layer 17
+[sequence=22] finished layer 18
+[sequence=22] finished layer 19
+[sequence=22] finished layer 20
+[sequence=22] finished layer 21
+[sequence=22] finished layer 22
+[sequence=22] finished layer 23
+[sequence=22] finished layer 24
+[sequence=22] finished layer 25
+[sequence=22] finished layer 26
+[sequence=22] finished layer 27
+[sequence=22] finished layer 28
+[sequence=22] finished layer 29
+[sequence=22] finished layer 30
+[sequence=22] finished layer 31
+
+[SEQUENCE 23] building full uncompressed cache for tokens [188416, 196608)
+[sequence=23] finished layer 0
+[sequence=23] finished layer 1
+[sequence=23] finished layer 2
+[sequence=23] finished layer 3
+[sequence=23] finished layer 4
+[sequence=23] finished layer 5
+[sequence=23] finished layer 6
+[sequence=23] finished layer 7
+[sequence=23] finished layer 8
+[sequence=23] finished layer 9
+[sequence=23] finished layer 10
+[sequence=23] finished layer 11
+[sequence=23] finished layer 12
+[sequence=23] finished layer 13
+[sequence=23] finished layer 14
+[sequence=23] finished layer 15
+[sequence=23] finished layer 16
+[sequence=23] finished layer 17
+[sequence=23] finished layer 18
+[sequence=23] finished layer 19
+[sequence=23] finished layer 20
+[sequence=23] finished layer 21
+[sequence=23] finished layer 22
+[sequence=23] finished layer 23
+[sequence=23] finished layer 24
+[sequence=23] finished layer 25
+[sequence=23] finished layer 26
+[sequence=23] finished layer 27
+[sequence=23] finished layer 28
+[sequence=23] finished layer 29
+[sequence=23] finished layer 30
+[sequence=23] finished layer 31
+
+[SEQUENCE 24] building full uncompressed cache for tokens [196608, 204800)
+[sequence=24] finished layer 0
+[sequence=24] finished layer 1
+[sequence=24] finished layer 2
+[sequence=24] finished layer 3
+[sequence=24] finished layer 4
+[sequence=24] finished layer 5
+[sequence=24] finished layer 6
+[sequence=24] finished layer 7
+[sequence=24] finished layer 8
+[sequence=24] finished layer 9
+[sequence=24] finished layer 10
+[sequence=24] finished layer 11
+[sequence=24] finished layer 12
+[sequence=24] finished layer 13
+[sequence=24] finished layer 14
+[sequence=24] finished layer 15
+[sequence=24] finished layer 16
+[sequence=24] finished layer 17
+[sequence=24] finished layer 18
+[sequence=24] finished layer 19
+[sequence=24] finished layer 20
+[sequence=24] finished layer 21
+[sequence=24] finished layer 22
+[sequence=24] finished layer 23
+[sequence=24] finished layer 24
+[sequence=24] finished layer 25
+[sequence=24] finished layer 26
+[sequence=24] finished layer 27
+[sequence=24] finished layer 28
+[sequence=24] finished layer 29
+[sequence=24] finished layer 30
+[sequence=24] finished layer 31
+
+[SEQUENCE 25] building full uncompressed cache for tokens [204800, 212992)
+[sequence=25] finished layer 0
+[sequence=25] finished layer 1
+[sequence=25] finished layer 2
+[sequence=25] finished layer 3
+[sequence=25] finished layer 4
+[sequence=25] finished layer 5
+[sequence=25] finished layer 6
+[sequence=25] finished layer 7
+[sequence=25] finished layer 8
+[sequence=25] finished layer 9
+[sequence=25] finished layer 10
+[sequence=25] finished layer 11
+[sequence=25] finished layer 12
+[sequence=25] finished layer 13
+[sequence=25] finished layer 14
+[sequence=25] finished layer 15
+[sequence=25] finished layer 16
+[sequence=25] finished layer 17
+[sequence=25] finished layer 18
+[sequence=25] finished layer 19
+[sequence=25] finished layer 20
+[sequence=25] finished layer 21
+[sequence=25] finished layer 22
+[sequence=25] finished layer 23
+[sequence=25] finished layer 24
+[sequence=25] finished layer 25
+[sequence=25] finished layer 26
+[sequence=25] finished layer 27
+[sequence=25] finished layer 28
+[sequence=25] finished layer 29
+[sequence=25] finished layer 30
+[sequence=25] finished layer 31
+
+[SEQUENCE 26] building full uncompressed cache for tokens [212992, 221184)
+[sequence=26] finished layer 0
+[sequence=26] finished layer 1
+[sequence=26] finished layer 2
+[sequence=26] finished layer 3
+[sequence=26] finished layer 4
+[sequence=26] finished layer 5
+[sequence=26] finished layer 6
+[sequence=26] finished layer 7
+[sequence=26] finished layer 8
+[sequence=26] finished layer 9
+[sequence=26] finished layer 10
+[sequence=26] finished layer 11
+[sequence=26] finished layer 12
+[sequence=26] finished layer 13
+[sequence=26] finished layer 14
+[sequence=26] finished layer 15
+[sequence=26] finished layer 16
+[sequence=26] finished layer 17
+[sequence=26] finished layer 18
+[sequence=26] finished layer 19
+[sequence=26] finished layer 20
+[sequence=26] finished layer 21
+[sequence=26] finished layer 22
+[sequence=26] finished layer 23
+[sequence=26] finished layer 24
+[sequence=26] finished layer 25
+[sequence=26] finished layer 26
+[sequence=26] finished layer 27
+[sequence=26] finished layer 28
+[sequence=26] finished layer 29
+[sequence=26] finished layer 30
+[sequence=26] finished layer 31
+
+[SEQUENCE 27] building full uncompressed cache for tokens [221184, 229376)
+[sequence=27] finished layer 0
+[sequence=27] finished layer 1
+[sequence=27] finished layer 2
+[sequence=27] finished layer 3
+[sequence=27] finished layer 4
+[sequence=27] finished layer 5
+[sequence=27] finished layer 6
+[sequence=27] finished layer 7
+[sequence=27] finished layer 8
+[sequence=27] finished layer 9
+[sequence=27] finished layer 10
+[sequence=27] finished layer 11
+[sequence=27] finished layer 12
+[sequence=27] finished layer 13
+[sequence=27] finished layer 14
+[sequence=27] finished layer 15
+[sequence=27] finished layer 16
+[sequence=27] finished layer 17
+[sequence=27] finished layer 18
+[sequence=27] finished layer 19
+[sequence=27] finished layer 20
+[sequence=27] finished layer 21
+[sequence=27] finished layer 22
+[sequence=27] finished layer 23
+[sequence=27] finished layer 24
+[sequence=27] finished layer 25
+[sequence=27] finished layer 26
+[sequence=27] finished layer 27
+[sequence=27] finished layer 28
+[sequence=27] finished layer 29
+[sequence=27] finished layer 30
+[sequence=27] finished layer 31
+
+[SEQUENCE 28] building full uncompressed cache for tokens [229376, 237568)
+[sequence=28] finished layer 0
+[sequence=28] finished layer 1
+[sequence=28] finished layer 2
+[sequence=28] finished layer 3
+[sequence=28] finished layer 4
+[sequence=28] finished layer 5
+[sequence=28] finished layer 6
+[sequence=28] finished layer 7
+[sequence=28] finished layer 8
+[sequence=28] finished layer 9
+[sequence=28] finished layer 10
+[sequence=28] finished layer 11
+[sequence=28] finished layer 12
+[sequence=28] finished layer 13
+[sequence=28] finished layer 14
+[sequence=28] finished layer 15
+[sequence=28] finished layer 16
+[sequence=28] finished layer 17
+[sequence=28] finished layer 18
+[sequence=28] finished layer 19
+[sequence=28] finished layer 20
+[sequence=28] finished layer 21
+[sequence=28] finished layer 22
+[sequence=28] finished layer 23
+[sequence=28] finished layer 24
+[sequence=28] finished layer 25
+[sequence=28] finished layer 26
+[sequence=28] finished layer 27
+[sequence=28] finished layer 28
+[sequence=28] finished layer 29
+[sequence=28] finished layer 30
+[sequence=28] finished layer 31
+
+[SEQUENCE 29] building full uncompressed cache for tokens [237568, 245760)
+[sequence=29] finished layer 0
+[sequence=29] finished layer 1
+[sequence=29] finished layer 2
+[sequence=29] finished layer 3
+[sequence=29] finished layer 4
+[sequence=29] finished layer 5
+[sequence=29] finished layer 6
+[sequence=29] finished layer 7
+[sequence=29] finished layer 8
+[sequence=29] finished layer 9
+[sequence=29] finished layer 10
+[sequence=29] finished layer 11
+[sequence=29] finished layer 12
+[sequence=29] finished layer 13
+[sequence=29] finished layer 14
+[sequence=29] finished layer 15
+[sequence=29] finished layer 16
+[sequence=29] finished layer 17
+[sequence=29] finished layer 18
+[sequence=29] finished layer 19
+[sequence=29] finished layer 20
+[sequence=29] finished layer 21
+[sequence=29] finished layer 22
+[sequence=29] finished layer 23
+[sequence=29] finished layer 24
+[sequence=29] finished layer 25
+[sequence=29] finished layer 26
+[sequence=29] finished layer 27
+[sequence=29] finished layer 28
+[sequence=29] finished layer 29
+[sequence=29] finished layer 30
+[sequence=29] finished layer 31
+
+=== Pooled star statistics ===
+budget=0.20 tau=0.850 eligible=15278956 unsafe=10791128 unsafe_rate=0.706274 conflict_pair_rate=0.459771
+budget=0.40 tau=0.850 eligible=16126043 unsafe=9432258 unsafe_rate=0.584908 conflict_pair_rate=0.440320
+budget=0.60 tau=0.850 eligible=9330227 unsafe=4634461 unsafe_rate=0.496715 conflict_pair_rate=0.421107
+budget=0.80 tau=0.850 eligible=2599235 unsafe=1135010 unsafe_rate=0.436671 conflict_pair_rate=0.406569
+
+Saved: /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test/summary_by_head.csv
+Saved: /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test/summary_overall.csv
+Saved: /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test/raw/group_records_plot_tau.npz
+Saved: /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test/run_config.json
+[PLOT CMD]
+ python -u /home/tlxr/SimCalKV/motivation_experiments/plot_star_structure.py --input_dir /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test --panel_a_taus 0.75\,0.85\,0.95 --font_family Times\ New\ Roman --strict_times_new_roman 1 --panel_width_in 1.72 --panel_height_in 1.58 --combined_width_in 3.50 --combined_height_in 1.58 --png_dpi 600 --panel_a_y_max_percent auto --panel_b_taus 0.75\,0.85\,0.95 --panel_b_y_max_percent auto
+Resolved plotting font: Times New Roman
+Saved: /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test/figures/panel_a_star_prevalence.pdf
+Saved: /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test/figures/panel_a_star_prevalence.png
+Saved: /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test/figures/panel_b_pair_conflict_rate.pdf
+Saved: /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test/figures/panel_b_pair_conflict_rate.png
+Saved: /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test/figures/star_motivation_two_panel.pdf
+Saved: /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test/figures/star_motivation_two_panel.png
+Saved: /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test/figures/figure_statistics.csv
+
+Panel (b) pooled pair-level conflict rates:
+  tau=0.75 | budget=0.20: 28.18% | budget=0.40: 19.71% | budget=0.60: 14.79% | budget=0.80: 11.62%
+  tau=0.85 | budget=0.20: 45.98% | budget=0.40: 44.03% | budget=0.60: 42.11% | budget=0.80: 40.66%
+  tau=0.95 | budget=0.20: 64.84% | budget=0.40: 65.15% | budget=0.60: 65.62% | budget=0.80: 66.26%
+
+[DONE] Results: /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test
+[PANEL A PDF] /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test/figures/panel_a_star_prevalence.pdf
+[PANEL A PNG] /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test/figures/panel_a_star_prevalence.png
+[PANEL B PDF] /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test/figures/panel_b_pair_conflict_rate.pdf
+[PANEL B PNG] /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test/figures/panel_b_pair_conflict_rate.png
+[COMBINED PDF] /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test/figures/star_motivation_two_panel.pdf
+[COMBINED PNG] /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test/figures/star_motivation_two_panel.png
+[FIGURE STATS] /home/tlxr/SimCalKV/motivation_experiments/results/Meta-Llama-3.1-8B/star_structure_test/figures/figure_statistics.csv

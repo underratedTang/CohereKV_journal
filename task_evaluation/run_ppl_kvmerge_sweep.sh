@@ -29,8 +29,8 @@ OUT_DIR="/home/tlxr/SimCalKV/results/ppl_manual_test"
 
 # LLaMA 示例：
 FAMILY="llama"
-MODEL="meta-llama/Llama-3.2-1B"
-# MODEL="meta-llama/Llama-3.2-3B"
+# MODEL="meta-llama/Llama-3.2-1B"
+MODEL="meta-llama/Llama-3.2-3B"
 # MODEL="meta-llama/Meta-Llama-3.1-8B"
 
 # PPL 设置
@@ -59,11 +59,11 @@ DATASETS=(
 METHODS=(
   # "none"
   # "GroupLogitKV"
-  # "CentroidKV"
   "mymethod"
   # "SimCalKV"
   # "KeepKV"
   # "CaM"
+  # "CentroidKV"
 )
 
 # 压缩率
@@ -81,9 +81,9 @@ RATIOS=(
 # SIM_THR_KEEPKV_LIST=("-1" "0.0" "0.2" "0.4" "0.6" "0.8")
 SIM_THR_GROUPLOGITKV_LIST=("0.8")
 # LAMBDA_MYMETHOD_LIST=("0.5")
-LAMBDA_MYMETHOD_LIST=("0.01" "0.1" "0.3" "0.5" "0.7" "0.9")
-MYMETHOD_SELECTOR="d2o"  # keepkv | attention | d2o
-MYMETHOD_GROUP_MODE="full"   # full | anchor_only | eviction_only
+LAMBDA_MYMETHOD_LIST=("0.01" "0.1" "0.3" "0.7" "0.9")
+MYMETHOD_SELECTOR="keepkv"  # keepkv | attention | d2o
+MYMETHOD_GROUP_MODE="eviction_only"   # full | anchor_only | eviction_only
 MYMETHOD_GRAPH_BACKEND="cuda" # auto | cuda | torch
 MYMETHOD_ROUTE_BACKEND="torch" # auto | cuda | torch
 
@@ -209,7 +209,7 @@ run_one() {
     sim_tag="${thr}"
     extra_args+=(--sim_thr_grouplogitkv "${thr}")
   elif [[ "${method}" == "mymethod" ]]; then
-    sim_tag="${MYMETHOD_SELECTOR_TAG}_lambda${thr}"
+    sim_tag="${MYMETHOD_SELECTOR_TAG}__mode_${MYMETHOD_GROUP_MODE}__lambda${thr}"
     extra_args+=(
       --lambda_mymethod "${thr}"
       --mymethod_selector "${MYMETHOD_SELECTOR}"
