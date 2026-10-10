@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd /home/tlxr/SimCalKV
+cd /home/tlxr/CohereKV
 
 # ===== 手动修改区 =====
 export HF_ENDPOINT=https://hf-mirror.com
 export CUDA_VISIBLE_DEVICES=0
 export PYTORCH_ALLOC_CONF=expandable_segments:True
-TASK_DIR="/home/tlxr/SimCalKV/task_evaluation"
+TASK_DIR="/home/tlxr/CohereKV/task_evaluation"
 source "${TASK_DIR}/mymethod_selector_tag.sh"
-OUT_DIR="/home/tlxr/SimCalKV/results/mymethod_graph_mis_light_compare"
+OUT_DIR="/home/tlxr/CohereKV/results/mymethod_graph_mis_light_compare"
 MODEL="meta-llama/Llama-3.2-3B"
 FAMILY="llama"
 DEVICE_MAP="auto"

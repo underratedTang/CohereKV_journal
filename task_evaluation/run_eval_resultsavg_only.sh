@@ -7,11 +7,11 @@ set -euo pipefail
 USE_E=0  # 0: 普通 LongBench；1: LongBench-E
 
 # ==== 2) 路径配置 ====
-PY_SCRIPT="/home/tlxr/SimCalKV/task_evaluation/eval_resultsavg_only.py"
+PY_SCRIPT="/home/tlxr/CohereKV/task_evaluation/eval_resultsavg_only.py"
 
 
 
-ROOT="/home/tlxr/SimCalKV/results/ablation_manual_test/meta-llama_Llama-3.2-3B/pred/llama_longbench_group_merge_no_bias_ratio0p8"
+ROOT="/home/tlxr/CohereKV/results/ablation_manual_test/meta-llama_Llama-3.2-3B/pred/llama_longbench_group_merge_no_bias_ratio0p8"
 
 
 if [[ "$USE_E" -eq 1 ]]; then

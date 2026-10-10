@@ -3,13 +3,13 @@
 Place this directory at:
 
 ```
-/home/tlxr/SimCalKV/mymethod_cuda_src
+/home/tlxr/CohereKV/mymethod_cuda_src
 ```
 
 Install:
 
 ```bash
-cd /home/tlxr/SimCalKV/mymethod_cuda_src
+cd /home/tlxr/CohereKV/mymethod_cuda_src
 bash install_mymethod_cuda.sh
 ```
 
@@ -25,6 +25,6 @@ may keep its own extension for its independent comparison run.
 Then run the integrated engineering gate from the sibling task_evaluation folder:
 
 ```bash
-cd /home/tlxr/SimCalKV/task_evaluation
+cd /home/tlxr/CohereKV/task_evaluation
 bash run_mymethod_engineering_validation.sh
 ```

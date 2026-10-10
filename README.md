@@ -1,3 +1,9 @@
+# CohereKV Working Code Package
+
+This package is the CohereKV resubmission codebase. The CohereKV implementation keeps the existing internal method name `mymethod`; baseline method names (including `SimCalKV`) are intentionally unchanged. The redesigned necessity experiments are under `motivation_experiments/`.
+
+---
+
 <h1 align="center">Efficient LLMs Inference via Similarity-Aware KV Cache Merging with Bias Calibration</h1>
 <p align="center">
 Yukai Cheng<sup>1</sup>, Wenxuan Zhou<sup>1</sup>, Zhizhou Li<sup>1</sup>, Zhihao Qu<sup>1</sup>, Baoliu Ye<sup>2</sup><br>

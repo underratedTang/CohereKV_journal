@@ -1,34 +1,0 @@
-Loading model: meta-llama/Llama-3.2-1B
-Transformers version: 4.46.3
-KV method: SimCalKV, ratio=0.8
-Loading eval dataset: wikitext2
-Token indices sequence length is longer than the specified maximum sequence length for this model (289077 > 131072). Running this sequence through the model will result in indexing errors
-Evaluating perplexity:   0%|          | 0/35 [00:00<?, ?it/s]Evaluating perplexity:   3%|▎         | 1/35 [00:50<28:44, 50.73s/it]Evaluating perplexity:   6%|▌         | 2/35 [01:41<27:45, 50.48s/it]Evaluating perplexity:   9%|▊         | 3/35 [02:31<26:48, 50.26s/it]Evaluating perplexity:  11%|█▏        | 4/35 [03:20<25:49, 49.98s/it]Evaluating perplexity:  14%|█▍        | 5/35 [04:10<24:56, 49.87s/it]Evaluating perplexity:  17%|█▋        | 6/35 [05:00<24:05, 49.83s/it]Evaluating perplexity:  20%|██        | 7/35 [05:50<23:18, 49.95s/it]Evaluating perplexity:  23%|██▎       | 8/35 [06:42<22:49, 50.71s/it]Evaluating perplexity:  26%|██▌       | 9/35 [07:32<21:56, 50.62s/it]Evaluating perplexity:  29%|██▊       | 10/35 [08:22<21:00, 50.42s/it]Evaluating perplexity:  31%|███▏      | 11/35 [09:12<20:06, 50.27s/it]Evaluating perplexity:  34%|███▍      | 12/35 [10:02<19:13, 50.15s/it]Evaluating perplexity:  37%|███▋      | 13/35 [10:53<18:29, 50.42s/it]Evaluating perplexity:  40%|████      | 14/35 [11:44<17:38, 50.43s/it]Evaluating perplexity:  43%|████▎     | 15/35 [12:33<16:44, 50.21s/it]Evaluating perplexity:  46%|████▌     | 16/35 [13:23<15:50, 50.01s/it]Evaluating perplexity:  49%|████▊     | 17/35 [14:13<14:57, 49.88s/it]Evaluating perplexity:  51%|█████▏    | 18/35 [15:02<14:06, 49.78s/it]Evaluating perplexity:  54%|█████▍    | 19/35 [15:52<13:16, 49.76s/it]Evaluating perplexity:  57%|█████▋    | 20/35 [16:42<12:29, 49.94s/it]Evaluating perplexity:  60%|██████    | 21/35 [17:33<11:43, 50.26s/it]Evaluating perplexity:  63%|██████▎   | 22/35 [18:26<11:02, 50.97s/it]Evaluating perplexity:  66%|██████▌   | 23/35 [19:18<10:16, 51.38s/it]Evaluating perplexity:  69%|██████▊   | 24/35 [20:09<09:22, 51.18s/it]Evaluating perplexity:  71%|███████▏  | 25/35 [20:59<08:27, 50.73s/it]Evaluating perplexity:  74%|███████▍  | 26/35 [21:48<07:34, 50.45s/it]Evaluating perplexity:  77%|███████▋  | 27/35 [22:38<06:41, 50.19s/it]Evaluating perplexity:  80%|████████  | 28/35 [23:28<05:50, 50.11s/it]Evaluating perplexity:  83%|████████▎ | 29/35 [24:20<05:04, 50.69s/it]Evaluating perplexity:  86%|████████▌ | 30/35 [25:09<04:11, 50.37s/it]Evaluating perplexity:  89%|████████▊ | 31/35 [25:59<03:20, 50.10s/it]Evaluating perplexity:  91%|█████████▏| 32/35 [26:48<02:29, 49.92s/it]Evaluating perplexity:  94%|█████████▍| 33/35 [27:38<01:39, 49.79s/it]Evaluating perplexity:  97%|█████████▋| 34/35 [28:27<00:49, 49.70s/it]Evaluating perplexity: 100%|██████████| 35/35 [29:17<00:00, 49.65s/it]Evaluating perplexity: 100%|██████████| 35/35 [29:17<00:00, 50.21s/it]
-{
-  "model_name": "meta-llama/Llama-3.2-1B",
-  "family": "llama",
-  "dataset": "wikitext2",
-  "kv_method": "SimCalKV",
-  "compress_ratio": 0.8,
-  "sim_thr_effective": -1.0,
-  "sim_thr_grouplogitkv": null,
-  "sim_thr_simcalkv": -1.0,
-  "sim_thr_keepkv": null,
-  "model_seqlen": 8192,
-  "chunk_size": 32,
-  "actual_step_size": 32,
-  "min_kv_len": 2,
-  "compress_every": 1,
-  "torch_dtype": "bfloat16",
-  "amp_dtype": "none",
-  "attn_implementation": "eager",
-  "seed": 0,
-  "ppl": 56.20568212089554,
-  "elapsed_s": 1757.4968256950378,
-  "num_eval_tokens": 289077,
-  "num_compressions": 8960,
-  "total_compress_time_s": 1590.371455192566,
-  "avg_compress_time_s": 0.17749681419559887,
-  "avg_compressed_kv_len": 7.99609375,
-  "avg_compressed_kv_mib": 0.2498779296875
-}

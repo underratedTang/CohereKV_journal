@@ -1,0 +1,15 @@
+font: Times New Roman
+M1 cosine: prevalence=81.7%; CR gain=+3.6705pp; positive=61.1%
+M1 euclidean: prevalence=64.5%; CR gain=+2.4635pp; positive=55.2%
+M2 euclidean: best routing-only MA=10.7679%; best plotted CR=10.5489%
+M2 cosine: best routing-only MA=10.6371%; best plotted CR=10.1143%
+Single eviction_only: 7.1009%
+Single merge_all: 6.5603%
+Single original_coherekv: 6.6677%
+Single modified_coherekv: 6.6607%
+PPL full: 5.6821; wall=33.67s
+PPL eviction_only: 6.1088; wall=58.21s
+PPL merge_all: 6.0936; wall=78.19s
+PPL original_coherekv: 6.1055; wall=166.60s
+PPL modified_coherekv: 6.0883; wall=137.18s
+figures -> /home/tlxr/CohereKV/motivation_experiments/results/Meta-Llama-3.1-8B_focused_preliminary_v12_wholelayer_fig2_fig3left/figures

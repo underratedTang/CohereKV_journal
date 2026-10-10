@@ -1,55 +1,0 @@
-Loading model: Qwen/Qwen2.5-7B
-Transformers version: 4.46.3
-KV method: CaM, ratio=0.2
-Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:03,  1.23s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.19s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:03<00:01,  1.14s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.11s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.13s/it]
-Loading eval dataset: wikitext2
-Token indices sequence length is longer than the specified maximum sequence length for this model (299078 > 131072). Running this sequence through the model will result in indexing errors
-PPL evaluation windows: 36 (seqlen=8192, dataset_tokens=299078, limit=0)
-Evaluating perplexity:   0%|          | 0/36 [00:00<?, ?it/s]Evaluating perplexity:   3%|▎         | 1/36 [00:21<12:47, 21.93s/it]Evaluating perplexity:   6%|▌         | 2/36 [00:43<12:14, 21.59s/it]Evaluating perplexity:   8%|▊         | 3/36 [01:04<11:49, 21.49s/it]Evaluating perplexity:  11%|█         | 4/36 [01:26<11:28, 21.51s/it]Evaluating perplexity:  14%|█▍        | 5/36 [01:47<11:02, 21.36s/it]Evaluating perplexity:  17%|█▋        | 6/36 [02:08<10:41, 21.38s/it]Evaluating perplexity:  19%|█▉        | 7/36 [02:29<10:19, 21.35s/it]Evaluating perplexity:  22%|██▏       | 8/36 [02:51<10:01, 21.48s/it]Evaluating perplexity:  25%|██▌       | 9/36 [03:14<09:46, 21.73s/it]Evaluating perplexity:  28%|██▊       | 10/36 [03:35<09:26, 21.78s/it]Evaluating perplexity:  31%|███       | 11/36 [03:56<08:59, 21.57s/it]Evaluating perplexity:  33%|███▎      | 12/36 [04:18<08:33, 21.41s/it]Evaluating perplexity:  36%|███▌      | 13/36 [04:39<08:10, 21.31s/it]Evaluating perplexity:  39%|███▉      | 14/36 [05:00<07:48, 21.29s/it]Evaluating perplexity:  42%|████▏     | 15/36 [05:21<07:26, 21.24s/it]Evaluating perplexity:  44%|████▍     | 16/36 [05:42<07:04, 21.20s/it]Evaluating perplexity:  47%|████▋     | 17/36 [06:03<06:42, 21.20s/it]Evaluating perplexity:  50%|█████     | 18/36 [06:25<06:22, 21.26s/it]Evaluating perplexity:  53%|█████▎    | 19/36 [06:46<06:00, 21.20s/it]Evaluating perplexity:  56%|█████▌    | 20/36 [07:07<05:38, 21.17s/it]Evaluating perplexity:  58%|█████▊    | 21/36 [07:28<05:17, 21.15s/it]Evaluating perplexity:  61%|██████    | 22/36 [07:49<04:55, 21.14s/it]Evaluating perplexity:  64%|██████▍   | 23/36 [08:10<04:35, 21.22s/it]Evaluating perplexity:  67%|██████▋   | 24/36 [08:32<04:15, 21.25s/it]Evaluating perplexity:  69%|██████▉   | 25/36 [08:53<03:53, 21.26s/it]Evaluating perplexity:  72%|███████▏  | 26/36 [09:14<03:32, 21.26s/it]Evaluating perplexity:  75%|███████▌  | 27/36 [09:35<03:11, 21.23s/it]Evaluating perplexity:  78%|███████▊  | 28/36 [09:57<02:49, 21.22s/it]Evaluating perplexity:  81%|████████  | 29/36 [10:18<02:28, 21.20s/it]Evaluating perplexity:  83%|████████▎ | 30/36 [10:39<02:07, 21.18s/it]Evaluating perplexity:  86%|████████▌ | 31/36 [11:00<01:45, 21.20s/it]Evaluating perplexity:  89%|████████▉ | 32/36 [11:21<01:24, 21.19s/it]Evaluating perplexity:  92%|█████████▏| 33/36 [11:43<01:03, 21.23s/it]Evaluating perplexity:  94%|█████████▍| 34/36 [12:04<00:42, 21.21s/it]Evaluating perplexity:  97%|█████████▋| 35/36 [12:25<00:21, 21.20s/it]Evaluating perplexity: 100%|██████████| 36/36 [12:46<00:00, 21.20s/it]Evaluating perplexity: 100%|██████████| 36/36 [12:46<00:00, 21.30s/it]
-{
-  "model_name": "Qwen/Qwen2.5-7B",
-  "family": "qwen",
-  "dataset": "wikitext2",
-  "kv_method": "CaM",
-  "compress_ratio": 0.2,
-  "cam_protocol": "query_ordered_chunk_approximation",
-  "cam_merge_size": 16,
-  "cam_start_fraction": 0.1,
-  "sim_thr_effective": null,
-  "sim_thr_grouplogitkv": null,
-  "sim_thr_simcalkv": null,
-  "sim_thr_keepkv": null,
-  "keepkv_similarity_threshold": 0.8,
-  "keepkv_prefill_similarity_threshold": 0.8,
-  "keepkv_epsilon_times": 1.0,
-  "keepkv_pyramid_recent_ratio": 0.2,
-  "keepkv_pyramid_budget": false,
-  "keepkv_pyramid_decay_strategy": "cosine",
-  "keepkv_pyramid_decay_ratio": 0.8,
-  "keepkv_distance_weight": 1.2,
-  "keepkv_sink_len": 4,
-  "keepkv_protect_sink": false,
-  "keepkv_assert_causal": false,
-  "keepkv_disable_vote_bias": false,
-  "keepkv_runtime_only": false,
-  "max_eval_sequences": 0,
-  "model_seqlen": 8192,
-  "chunk_size": 32,
-  "actual_step_size": 32,
-  "min_kv_len": 2,
-  "compress_every": 1,
-  "torch_dtype": "bfloat16",
-  "amp_dtype": "none",
-  "attn_implementation": "eager",
-  "seed": 0,
-  "ppl": 7.2579666590684395,
-  "elapsed_s": 766.75341963768,
-  "num_eval_tokens": 294876,
-  "num_eval_sequences": 36,
-  "num_compressions": 9216,
-  "total_compress_time_s": 475.64709854125977,
-  "avg_compress_time_s": 0.05161101329657766,
-  "avg_compressed_kv_len": 3289.6015625,
-  "avg_compressed_kv_mib": 179.90008544921875
-}
-[W723 14:01:01.230484015 AllocatorConfig.cpp:28] Warning: PYTORCH_CUDA_ALLOC_CONF is deprecated, use PYTORCH_ALLOC_CONF instead (function operator())

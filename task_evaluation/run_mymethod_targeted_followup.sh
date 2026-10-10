@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd /home/tlxr/SimCalKV
+cd /home/tlxr/CohereKV
 
 # Minimal follow-up after the first graph-MIS quick validation.
 # Goal: isolate selector vs grouping, then probe the higher-coverage regime.
@@ -8,8 +8,8 @@ export HF_ENDPOINT=https://hf-mirror.com
 export CUDA_VISIBLE_DEVICES=0
 export PYTORCH_ALLOC_CONF=expandable_segments:True
 
-TASK_DIR="/home/tlxr/SimCalKV/task_evaluation"
-OUT_DIR="/home/tlxr/SimCalKV/results/mymethod_graph_mis_targeted"
+TASK_DIR="/home/tlxr/CohereKV/task_evaluation"
+OUT_DIR="/home/tlxr/CohereKV/results/mymethod_graph_mis_targeted"
 MODEL="meta-llama/Llama-3.2-3B"
 FAMILY="llama"
 DEVICE_MAP="auto"
@@ -19,7 +19,7 @@ MODEL_SEQLEN=8192
 MAX_EVAL_SEQUENCES=2
 CHUNK_SIZE=32
 COMPRESS_RATIO=0.4
-SNAPSHOT="/home/tlxr/SimCalKV/results/mymethod_graph_mis_quick/kv_snapshot.pt"
+SNAPSHOT="/home/tlxr/CohereKV/results/mymethod_graph_mis_quick/kv_snapshot.pt"
 
 mkdir -p "${OUT_DIR}"
 

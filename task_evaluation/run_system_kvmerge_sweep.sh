@@ -4,14 +4,14 @@ set -euo pipefail
 # =========================
 # 项目路径
 # =========================
-cd /home/tlxr/SimCalKV
+cd /home/tlxr/CohereKV
 
 # =========================
 # 手动修改区
 # =========================
-SYSTEM_SCRIPT="/home/tlxr/SimCalKV/task_evaluation/evaluate_system_kvmerge.py"
-# OUT_DIR="/home/tlxr/SimCalKV/results/system_manual_$(date +%Y%m%d_%H%M%S)"
-OUT_DIR="/home/tlxr/SimCalKV/results/system_manual_test3"
+SYSTEM_SCRIPT="/home/tlxr/CohereKV/task_evaluation/evaluate_system_kvmerge.py"
+# OUT_DIR="/home/tlxr/CohereKV/results/system_manual_$(date +%Y%m%d_%H%M%S)"
+OUT_DIR="/home/tlxr/CohereKV/results/system_manual_test3"
 
 
 ARCH="llama"

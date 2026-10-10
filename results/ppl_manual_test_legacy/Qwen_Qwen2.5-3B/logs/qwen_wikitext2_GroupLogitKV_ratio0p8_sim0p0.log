@@ -1,35 +1,0 @@
-Loading model: Qwen/Qwen2.5-3B
-Transformers version: 4.46.3
-KV method: GroupLogitKV, ratio=0.8
-Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:01<00:01,  1.07s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:01<00:00,  1.23it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:01<00:00,  1.17it/s]
-Loading eval dataset: wikitext2
-Token indices sequence length is longer than the specified maximum sequence length for this model (299078 > 131072). Running this sequence through the model will result in indexing errors
-Evaluating perplexity:   0%|          | 0/36 [00:00<?, ?it/s]Evaluating perplexity:   3%|▎         | 1/36 [00:19<11:22, 19.51s/it]Evaluating perplexity:   6%|▌         | 2/36 [00:38<10:44, 18.95s/it]Evaluating perplexity:   8%|▊         | 3/36 [00:57<10:26, 19.00s/it]Evaluating perplexity:  11%|█         | 4/36 [01:15<09:59, 18.74s/it]Evaluating perplexity:  14%|█▍        | 5/36 [01:33<09:36, 18.59s/it]Evaluating perplexity:  17%|█▋        | 6/36 [01:52<09:19, 18.66s/it]Evaluating perplexity:  19%|█▉        | 7/36 [02:11<09:02, 18.70s/it]Evaluating perplexity:  22%|██▏       | 8/36 [02:30<08:44, 18.74s/it]Evaluating perplexity:  25%|██▌       | 9/36 [02:48<08:23, 18.64s/it]Evaluating perplexity:  28%|██▊       | 10/36 [03:06<08:01, 18.50s/it]Evaluating perplexity:  31%|███       | 11/36 [03:24<07:39, 18.37s/it]Evaluating perplexity:  33%|███▎      | 12/36 [03:42<07:18, 18.26s/it]Evaluating perplexity:  36%|███▌      | 13/36 [04:00<06:58, 18.18s/it]Evaluating perplexity:  39%|███▉      | 14/36 [04:18<06:38, 18.12s/it]Evaluating perplexity:  42%|████▏     | 15/36 [04:37<06:20, 18.13s/it]Evaluating perplexity:  44%|████▍     | 16/36 [04:55<06:02, 18.10s/it]Evaluating perplexity:  47%|████▋     | 17/36 [05:13<05:43, 18.08s/it]Evaluating perplexity:  50%|█████     | 18/36 [05:31<05:26, 18.13s/it]Evaluating perplexity:  53%|█████▎    | 19/36 [05:49<05:08, 18.14s/it]Evaluating perplexity:  56%|█████▌    | 20/36 [06:07<04:49, 18.09s/it]Evaluating perplexity:  58%|█████▊    | 21/36 [06:25<04:31, 18.09s/it]Evaluating perplexity:  61%|██████    | 22/36 [06:43<04:13, 18.11s/it]Evaluating perplexity:  64%|██████▍   | 23/36 [07:01<03:54, 18.06s/it]Evaluating perplexity:  67%|██████▋   | 24/36 [07:19<03:37, 18.09s/it]Evaluating perplexity:  69%|██████▉   | 25/36 [07:37<03:19, 18.10s/it]Evaluating perplexity:  72%|███████▏  | 26/36 [07:55<03:00, 18.07s/it]Evaluating perplexity:  75%|███████▌  | 27/36 [08:14<02:43, 18.16s/it]Evaluating perplexity:  78%|███████▊  | 28/36 [08:32<02:25, 18.22s/it]Evaluating perplexity:  81%|████████  | 29/36 [08:50<02:07, 18.15s/it]Evaluating perplexity:  83%|████████▎ | 30/36 [09:08<01:48, 18.14s/it]Evaluating perplexity:  86%|████████▌ | 31/36 [09:26<01:30, 18.16s/it]Evaluating perplexity:  89%|████████▉ | 32/36 [09:45<01:12, 18.24s/it]Evaluating perplexity:  92%|█████████▏| 33/36 [10:03<00:54, 18.21s/it]Evaluating perplexity:  94%|█████████▍| 34/36 [10:21<00:36, 18.23s/it]Evaluating perplexity:  97%|█████████▋| 35/36 [10:40<00:18, 18.27s/it]Evaluating perplexity: 100%|██████████| 36/36 [10:58<00:00, 18.20s/it]Evaluating perplexity: 100%|██████████| 36/36 [10:58<00:00, 18.28s/it]
-{
-  "model_name": "Qwen/Qwen2.5-3B",
-  "family": "qwen",
-  "dataset": "wikitext2",
-  "kv_method": "GroupLogitKV",
-  "compress_ratio": 0.8,
-  "sim_thr_effective": 0.0,
-  "sim_thr_grouplogitkv": 0.0,
-  "sim_thr_simcalkv": null,
-  "sim_thr_keepkv": null,
-  "model_seqlen": 8192,
-  "chunk_size": 32,
-  "actual_step_size": 32,
-  "min_kv_len": 2,
-  "compress_every": 1,
-  "torch_dtype": "bfloat16",
-  "amp_dtype": "none",
-  "attn_implementation": "eager",
-  "seed": 0,
-  "ppl": 22.213371879141565,
-  "elapsed_s": 658.2364797592163,
-  "num_eval_tokens": 299078,
-  "num_compressions": 9216,
-  "total_compress_time_s": 254.43684220314026,
-  "avg_compress_time_s": 0.027608164301556017,
-  "avg_compressed_kv_len": 7.99609375,
-  "avg_compressed_kv_mib": 0.2811126708984375
-}

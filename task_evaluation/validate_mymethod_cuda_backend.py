@@ -78,7 +78,7 @@ def main():
     try:
         import mymethod_cuda
     except Exception as e:
-        raise RuntimeError('Install /home/tlxr/SimCalKV/mymethod_cuda_src first') from e
+        raise RuntimeError('Install /home/tlxr/CohereKV/mymethod_cuda_src first') from e
     if not mymethod_cuda.is_available():
         raise RuntimeError(f'mymethod_cuda unavailable: {mymethod_cuda.extension_error()!r}')
     out={'synthetic':synthetic(torch.device('cuda')),'real':[]}

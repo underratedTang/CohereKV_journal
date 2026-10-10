@@ -1,0 +1,123 @@
+{
+  "model": "meta-llama/Meta-Llama-3.1-8B",
+  "dataset": "wikitext2",
+  "model_seqlen": 4096,
+  "max_eval_prefixes": 4,
+  "prefix_stride": 0,
+  "torch_dtype": "bfloat16",
+  "attn_implementation": "eager",
+  "device": "cuda:0",
+  "device_map": "none",
+  "trust_remote_code": false,
+  "use_fast_tokenizer": false,
+  "prefill_chunk_size": 256,
+  "keep_ratio": 0.2,
+  "routing_score_chunk_size": 1024,
+  "calibration_scale_file": "/home/tlxr/CohereKV/motivation_experiments/results/Meta-Llama-3.1-8B_focused_preliminary_v12_wholelayer_fig2_fig3left/calibration/layer_head_scales.json",
+  "fig1_euclidean_route_lambda": 0.5,
+  "fig1_cosine_route_lambda": 0.8,
+  "fig1_conflict_lambda": 0.5,
+  "fig1_enable_hparam_sweep": false,
+  "fig1_euclidean_route_grid": "0.40,0.50,0.60,0.70",
+  "fig1_cosine_route_grid": "0.70,,0.75,0.80,0.85,0.90,0.95",
+  "fig1_conflict_grid": "0.40,0.50,0.60",
+  "fig1_cr_num_removals": 1,
+  "fig1_cr_num_removals_grid": "1,2,4",
+  "fig2_euclidean_route_lambda": 0.5,
+  "fig2_cosine_route_lambda": 0.8,
+  "fig2_conflict_lambda": 0.5,
+  "fig2_euclidean_route_grid": "0.30,0.40,0.50,0.60,0.70",
+  "fig2_cosine_route_grid": "0.70,0.75,0.80,0.85,0.90,0.95",
+  "fig2_enable_hparam_sweep": false,
+  "fig2_conflict_grid": "0.40,0.50,0.60",
+  "fig2_cr_num_removals": 1,
+  "fig2_enable_cr_grid": true,
+  "fig2_cr_num_removals_grid": "1,2,4",
+  "max_groups_per_head": 0,
+  "keepkv_sink_size": 4,
+  "keepkv_recent_protect_size": 32,
+  "keepkv_score_window": 32,
+  "keepkv_recency_beta": 1.0,
+  "layer_selection": "0,8,16,24,31",
+  "kv_head_selection": "0,1,2,3,4,5,6,7",
+  "prob_eps": 1e-30,
+  "output_norm_eps": 1e-20,
+  "progress_every_head": true,
+  "output_dir": "/home/tlxr/CohereKV/motivation_experiments/results/Meta-Llama-3.1-8B_focused_preliminary_v12_wholelayer_fig2_fig3left/motivation",
+  "experiment": "coherekv_focused_motivation",
+  "evaluated_prefixes": 4,
+  "figure1_routing_metrics": [
+    "euclidean",
+    "cosine"
+  ],
+  "figure1_configs": {
+    "euclidean": [
+      {
+        "config_id": "primary",
+        "is_primary": 1,
+        "routing_metric": "euclidean",
+        "route_param": 0.5,
+        "conflict_lambda": 0.5,
+        "cr_num_removals": 1
+      }
+    ],
+    "cosine": [
+      {
+        "config_id": "primary",
+        "is_primary": 1,
+        "routing_metric": "cosine",
+        "route_param": 0.8,
+        "conflict_lambda": 0.5,
+        "cr_num_removals": 1
+      }
+    ]
+  },
+  "figure1_sweep_design": "OFAT: route, conflict threshold, or CR removal budget changes; never Cartesian product",
+  "figure1_design": "no clean matching; report Star-conflict prevalence and within-group counterfactual severe-conflict filtering gain across layer/head",
+  "figure1_intervention": "identify the current most-severe K-space conflict pair; evaluate evict-u and evict-v; follow the lower-error filtering branch; repeat up to K times. This is an existence/potential diagnostic, not the Figure-3 selector",
+  "figure2_routing_metrics": [
+    "euclidean",
+    "cosine"
+  ],
+  "figure2_route_grids": {
+    "euclidean": [
+      0.3,
+      0.4,
+      0.5,
+      0.6,
+      0.7
+    ],
+    "cosine": [
+      0.7,
+      0.75,
+      0.8,
+      0.85,
+      0.9,
+      0.95
+    ]
+  },
+  "figure2_conflict_sweep_grid": [
+    0.4,
+    0.5,
+    0.6
+  ],
+  "figure2_cr_num_removals_grid": [
+    1,
+    2,
+    4
+  ],
+  "figure2_cr_grid_enabled": true,
+  "figure2_design": "routing threshold is the x-axis; at every routing point, each Star group independently resolves up to K severe conflicts using the same local counterfactual as Figure 1; all query-head outputs are then concatenated and passed through the real layer o_proj before computing one whole-layer relative error",
+  "figure2_error_scope": "whole attention-layer output after o_proj; one observation per prefix x layer x routing configuration; no macro-average of per-head relative errors",
+  "calibration_scale_shape": [
+    32,
+    8
+  ],
+  "scale_protocol": "multiple independent calibration sequences; RMS-aggregated frozen per-(layer,KV-head) S_lh for all Euclidean routing/conflict decisions",
+  "conflict_definition": "||K_u-K_v||_2 / S_lh^calib > conflict_lambda; current-round K only",
+  "query_protocol": "one natural next-token Q per frozen prefix; query token KV excluded",
+  "torch": "2.9.0+cu128",
+  "transformers": "4.46.3",
+  "python": "3.10.20",
+  "elapsed_seconds": 1294.7410802841187
+}

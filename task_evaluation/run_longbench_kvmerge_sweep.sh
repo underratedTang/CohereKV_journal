@@ -5,7 +5,7 @@ set -euo pipefail
 # 项目路径
 # =========================
 
-cd /home/tlxr/SimCalKV
+cd /home/tlxr/CohereKV
 
 # =========================
 # 手动修改区
@@ -15,15 +15,15 @@ export HF_ENDPOINT=https://hf-mirror.com
 export CUDA_VISIBLE_DEVICES=0
 
 # LongBench 评测脚本完整路径
-# 你的文件放在：/home/tlxr/SimCalKV/task_evaluation/evaluate_longbench_kvmerge.py
-LONG_SCRIPT="/home/tlxr/SimCalKV/task_evaluation/evaluate_longbench_kvmerge.py"
+# 你的文件放在：/home/tlxr/CohereKV/task_evaluation/evaluate_longbench_kvmerge.py
+LONG_SCRIPT="/home/tlxr/CohereKV/task_evaluation/evaluate_longbench_kvmerge.py"
 
 
 
 # 手动指定输出目录
 # 如果不想覆盖旧结果，可以在末尾加时间戳
-# OUT_DIR="/home/tlxr/SimCalKV/results/longbench_manual_$(date +%Y%m%d_%H%M%S)"
-OUT_DIR="/home/tlxr/SimCalKV/results/longbench_manual_test2"
+# OUT_DIR="/home/tlxr/CohereKV/results/longbench_manual_$(date +%Y%m%d_%H%M%S)"
+OUT_DIR="/home/tlxr/CohereKV/results/longbench_manual_test2"
 
 # 模型设置
 # FAMILY="qwen"   # qwen | llama

@@ -1,0 +1,27 @@
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  6.24it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  6.72it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  6.64it/s]
+Token indices sequence length is longer than the specified maximum sequence length for this model (289077 > 131072). Running this sequence through the model will result in indexing errors
+PPL configs=1; sweep=off
+Modified/Merge-All frozen S_lh calibration shape=(28, 8); min=12.7865, max=28.5257
+=== repository-style PPL: full / primary ===
+PPL evaluation windows: 4 (seqlen=8192, dataset_tokens=289077, limit=4)
+Evaluating perplexity:   0%|          | 0/4 [00:00<?, ?it/s]Evaluating perplexity:  25%|██▌       | 1/4 [00:06<00:19,  6.61s/it]Evaluating perplexity:  50%|█████     | 2/4 [00:13<00:13,  6.53s/it]Evaluating perplexity:  75%|███████▌  | 3/4 [00:19<00:06,  6.52s/it]Evaluating perplexity: 100%|██████████| 4/4 [00:25<00:00,  6.47s/it]Evaluating perplexity: 100%|██████████| 4/4 [00:25<00:00,  6.50s/it]
+=== repository-style PPL: eviction_only / primary ===
+PPL evaluation windows: 4 (seqlen=8192, dataset_tokens=289077, limit=4)
+Evaluating perplexity:   0%|          | 0/4 [00:00<?, ?it/s]Evaluating perplexity:  25%|██▌       | 1/4 [00:12<00:38, 12.92s/it]Evaluating perplexity:  50%|█████     | 2/4 [00:25<00:25, 12.72s/it]Evaluating perplexity:  75%|███████▌  | 3/4 [00:38<00:12, 12.67s/it]Evaluating perplexity: 100%|██████████| 4/4 [00:50<00:00, 12.64s/it]Evaluating perplexity: 100%|██████████| 4/4 [00:50<00:00, 12.68s/it]
+=== repository-style PPL: merge_all / primary ===
+PPL evaluation windows: 4 (seqlen=8192, dataset_tokens=289077, limit=4)
+Evaluating perplexity:   0%|          | 0/4 [00:00<?, ?it/s]Evaluating perplexity:  25%|██▌       | 1/4 [00:17<00:52, 17.51s/it]Evaluating perplexity:  50%|█████     | 2/4 [00:34<00:34, 17.43s/it]Evaluating perplexity:  75%|███████▌  | 3/4 [00:52<00:17, 17.43s/it]Evaluating perplexity: 100%|██████████| 4/4 [01:09<00:00, 17.41s/it]Evaluating perplexity: 100%|██████████| 4/4 [01:09<00:00, 17.42s/it]
+=== repository-style PPL: original_coherekv / primary ===
+PPL evaluation windows: 4 (seqlen=8192, dataset_tokens=289077, limit=4)
+Evaluating perplexity:   0%|          | 0/4 [00:00<?, ?it/s]Evaluating perplexity:  25%|██▌       | 1/4 [00:36<01:48, 36.09s/it]Evaluating perplexity:  50%|█████     | 2/4 [01:12<01:12, 36.09s/it]Evaluating perplexity:  75%|███████▌  | 3/4 [01:48<00:36, 36.09s/it]Evaluating perplexity: 100%|██████████| 4/4 [02:24<00:00, 36.08s/it]Evaluating perplexity: 100%|██████████| 4/4 [02:24<00:00, 36.09s/it]
+=== repository-style PPL: modified_coherekv / primary ===
+PPL evaluation windows: 4 (seqlen=8192, dataset_tokens=289077, limit=4)
+Evaluating perplexity:   0%|          | 0/4 [00:00<?, ?it/s]Evaluating perplexity:  25%|██▌       | 1/4 [00:29<01:29, 29.77s/it]Evaluating perplexity:  50%|█████     | 2/4 [00:59<00:59, 29.50s/it]Evaluating perplexity:  75%|███████▌  | 3/4 [01:28<00:29, 29.56s/it]Evaluating perplexity: 100%|██████████| 4/4 [01:58<00:00, 29.58s/it]Evaluating perplexity: 100%|██████████| 4/4 [01:58<00:00, 29.58s/it]
+Focused CohereKV repository-style PPL
+=======================================
+seqlen=8192; step=32; compress_ratio=0.8
+[PRIMARY] full: PPL=6.999441; wall=25.99s; compressions=0
+[PRIMARY] eviction_only: PPL=7.836915; wall=50.72s; compressions=1004
+[PRIMARY] merge_all: PPL=7.754984; wall=69.69s; compressions=1004; accepted/routed=100.00%
+[PRIMARY] original_coherekv: PPL=7.794809; wall=144.35s; compressions=1004
+[PRIMARY] modified_coherekv: PPL=7.758067; wall=118.32s; compressions=1004; accepted/routed=96.59%

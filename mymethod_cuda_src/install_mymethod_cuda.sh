@@ -3,7 +3,7 @@ set -euo pipefail
 # =========================
 # 手动修改区
 # =========================
-ROOT="/home/tlxr/SimCalKV/mymethod_cuda_src"
+ROOT="/home/tlxr/CohereKV/mymethod_cuda_src"
 # 留空时由 PyTorch 根据当前可见 GPU 自动选择架构；如需离线编译可手动填 "8.9"（RTX 4090）。
 TORCH_CUDA_ARCH_LIST_VALUE=""
 

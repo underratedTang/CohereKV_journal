@@ -5,10 +5,10 @@ set -euo pipefail
 # 手动修改区
 # =========================
 
-ROOT="/home/tlxr/SimCalKV"
-TASK_DIR="/home/tlxr/SimCalKV/task_evaluation"
-CUDA_DIR="/home/tlxr/SimCalKV/mymethod_cuda_src"
-OUT_DIR="/home/tlxr/SimCalKV/results/mymethod_engineering_validation"
+ROOT="/home/tlxr/CohereKV"
+TASK_DIR="/home/tlxr/CohereKV/task_evaluation"
+CUDA_DIR="/home/tlxr/CohereKV/mymethod_cuda_src"
+OUT_DIR="/home/tlxr/CohereKV/results/mymethod_engineering_validation"
 
 # 模型设置
 FAMILY="llama"                       # llama | qwen

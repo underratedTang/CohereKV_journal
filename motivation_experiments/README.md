@@ -1,264 +1,201 @@
-# Star-Structure Motivation Pre-Experiment
+# Focused CohereKV preliminary experiments — v12 whole-layer Figure-2/3-left metrics
 
-该文件夹用于直接放在：
+Only `motivation_experiments/` is changed. Production code and `task_evaluation/` remain untouched.
 
-```text
-/home/tlxr/SimCalKV/motivation_experiments/
-```
+This version leaves Figure 1, Figure 2, Modified CohereKV, Figure 3-right/PPL, and all thresholds unchanged from v11. The only experiment change is Figure 3-left: its single-round metric now matches Figure 2 exactly by evaluating the complete attention-layer output after the real `o_proj`. All three paper figures request Times New Roman through the shared plotting entry point.
 
-与 `task_evaluation/` 平行。预实验只研究真实 LLM cached-Key 空间中的 **many-to-one star structure**，不运行任何 KV-cache 压缩方法，不计算 PPL/LongBench，也不使用 `\method` 的欧氏距离、证书或 Graph-MIS。
+## Frozen calibration
 
-## 1. 现象定义
+Calibration keeps the validated multi-sequence protocol:
 
-对每个 KV head，按 retained KV / anchor budget ratio
-
-\[
-\rho=\frac{N_{\mathrm{anchor}}}{L}
-\]
-
-随机选择 anchor positions。剩余 positions 为 candidates。每个 candidate `i` 只分配给 cosine similarity 最大的 anchor：
+- 16 reproducible, non-overlapping WikiText-2 train windows;
+- 8192 tokens/window;
+- seed 42;
+- per-sequence, per-layer/head scale `S_{l,h,m}`;
+- frozen operational scale
 
 \[
-j_i^\star=\arg\max_{j\in\mathcal R}\cos(K_i,K_j).
+S_{l,h}^{calib}=\sqrt{\frac1M\sum_m S_{l,h,m}^{2}}.
 \]
 
-只有当
+Figure 1/2/3 share this frozen `S_{l,h}^{calib}`. Original CohereKV remains unchanged.
+
+## Motivation-only Conflict-Reduced counterfactual
+
+Figure 1/2 do **not** run Modified CohereKV, MIS, degree priority, or any deployable source-selection rule.
+
+For a routed Star group, conflicts are first identified only from K-space:
 
 \[
-\cos(K_i,K_{j_i^\star})\ge\tau
+conflict(u,v)\iff \|K_u-K_v\|_2/S_{l,h}^{calib}>\lambda_{conflict}.
 \]
 
-时，candidate 才进入该 anchor 的 candidate pool `P_j`。因此每个 candidate 至多属于一个 anchor，形成中性的 many-to-one assignment。
+At each local counterfactual step:
 
-对于任意 `|P_j| >= 2` 的 group，如果存在 `i,l in P_j` 使
+1. find the currently most severe conflict edge
+   \[
+   (u,v)=\arg\max_{(i,j)\in E_{conflict}} \|K_i-K_j\|_2/S_{l,h}^{calib};
+   \]
+2. evaluate the two legal filtering outcomes:
+   - evict `u`, keep `v` eligible for Merge-All;
+   - evict `v`, keep `u` eligible for Merge-All;
+3. follow the branch with lower attention-output error;
+4. recompute conflicts inside that same Star group and repeat for at most `K` steps.
+
+A filtered source is **evicted**; it is not retained as an independent KV entry. Attention-output error is used only for this offline counterfactual branch comparison. This measures the potential of conflict-aware filtering; it is not the Figure-3 source-selection rule.
+
+## Figure 1 — Motivation 1
+
+Goal: show that Star conflicts are widespread across layers/KV heads and that resolving a small number of severe conflicts can improve Merge-All.
+
+Default 8B preliminary operating point:
+
+- Euclidean route lambda: `0.60`;
+- cosine route lambda: `0.80`;
+- conflict lambda: `0.50`;
+- primary per-Star-group counterfactual budget: `K=1`.
+
+Optional compact OFAT values remain available:
+
+- Euclidean route: `0.40,0.50,0.60,0.70`;
+- cosine route: `0.70,0.80,0.90`;
+- conflict: `0.40,0.50,0.60`;
+- counterfactual steps `K`: `1,2,4`.
+
+Figure 1 uses the requested **2 x 3** layout:
+
+- top row: cosine routing;
+- bottom row: Euclidean routing;
+- column 1: Star-conflict prevalence;
+- column 2: mean `Merge-All error - Conflict-Reduced error`;
+- column 3: fraction of sampled conflict groups improved by the counterfactual.
+
+Prevalence uses all eligible Star groups. The intervention analysis remains bounded by `FIG1_MAX_GROUPS_PER_HEAD` sampled conflict groups/head.
+
+## Figure 2 — Motivation 2
+
+Goal: show directly that explicit conflict reduction can outperform **only tuning the Merge-All routing threshold**.
+
+The x-axis is now the routing threshold itself. For every threshold in the compact routing grid, Figure 2 computes:
+
+- `Merge-All(route_threshold)`;
+- `Conflict-Reduced(route_threshold, K)`.
+
+The per-Star definition of `K` remains unchanged from v10 and has **exactly the same meaning as Figure 1**:
 
 \[
-\cos(K_i,K_j)\ge\tau,\qquad
-\cos(K_l,K_j)\ge\tau,
+\boxed{K=\text{maximum conflicts resolved independently in each Star group}}
 \]
 
-但
+It is no longer a single budget shared by the whole KV head. For every Star group in every KV head, the Figure-1 local counterfactual is run independently. Figure 2 then reconstructs the compressed attention output for **all query heads in the layer**, concatenates them in model order, applies that layer's real attention `o_proj`, and computes a single whole-layer relative error. It does **not** average per-head relative errors.
 
-\[
-\cos(K_i,K_l)<\tau,
-\]
+Default Figure-2 setup:
 
-则该 group 包含 star conflict。
+- Euclidean routing grid: `0.30,0.40,0.50,0.60,0.70,0.80`;
+- cosine routing grid: `0.70,0.80,0.90`;
+- default conflict lambda: `0.50`;
+- primary CR curve: `K=1` per Star group.
 
-## 2. Introduction 两张预实验图
+By default the plot therefore contains only two curves per routing metric:
 
-本版本将“group-level prevalence”和“pair-level structural inconsistency”分开，并且两张图使用完全相同的 cosine thresholds 和 retained KV budgets。
+- `Merge-All`;
+- `Conflict-Reduced (K=1/Star)`.
 
-### (a) Star conflict prevalence
-
-\[
-\mathrm{StarGroupRate}(\rho,\tau)
-=
-\frac{
-\#\{j:|P_j|\ge2,\ \exists i,l\in P_j,\ \cos(K_i,K_l)<\tau\}
-}{
-\#\{j:|P_j|\ge2\}
-}.
-\]
-
-- x 轴：`Retained KV budget (%)`；
-- y 轴：`Groups with star conflict (%)`；
-- 不同曲线：不同 cosine threshold `tau`。
-
-它回答：**星形问题有多普遍？**
-
-### (b) Pair-level conflict rate
-
-对同一个 anchor 下形成的全部 leaf--leaf pairs 直接做 pooled 统计：
-
-\[
-\boxed{
-\mathrm{PairConflictRate}(\rho,\tau)
-=
-\frac{
-\sum_j\#\{(i,l)\subset P_j:\cos(K_i,K_l)<\tau\}
-}{
-\sum_j\binom{|P_j|}{2}
-}.
-}
-\]
-
-- x 轴：`Retained KV budget (%)`；
-- y 轴：`Conflicting leaf pairs (%)`；
-- 不同曲线：不同 cosine threshold `tau`。
-
-它回答：**在已经被同一个 anchor 接收并共同分组的 leaf pairs 中，有多少比例本身不满足同一个 cosine criterion？**
-
-该指标直接使用 `summary_overall.csv` 中
-
-```text
-conflict_pair_rate = conflict_pairs / candidate_pairs
-```
-
-而不是先按 group 求 conflict density 再平均，也不条件化在 star-conflicted groups 上。因此不会出现 size-2 group 一旦冲突就自动得到 100% density 的 group-size artifact。
-
-两张图共同对应：
-
-```text
-(a) How common is the star problem at the group level?
-(b) How much pairwise inconsistency exists inside the formed groups?
-```
-
-## 3. 默认展示阈值
-
-SH 顶部默认：
+Set:
 
 ```bash
-PANEL_A_TAUS=(
-  "0.70"
-  "0.80"
-  "0.90"
-)
-
-PANEL_B_TAUS=(
-  "0.70"
-  "0.80"
-  "0.90"
-)
+FIG2_RUN_CR_GRID="1"
 ```
 
-建议两张图保持一致，便于横向比较。完整分析仍可在 `COSINE_THRESHOLDS` 中保留更多阈值，例如 `0.95`。
-
-`PLOT_TAU` 现在只用于分析阶段额外保存一个 group-level raw NPZ，便于以后做诊断；最终两张主图只读取 `summary_overall.csv`。
-
-## 4. 运行
+to additionally evaluate and plot the compact grid:
 
 ```bash
-cd /home/tlxr/SimCalKV
-bash motivation_experiments/run_star_structure.sh
+FIG2_CR_NUM_REMOVALS_GRID="1,2,4"
 ```
 
-所有需要修改的变量集中在 `run_star_structure.sh` 顶部“手动修改区”。脚本不使用 `${VAR:-default}` 风格的变量默认值。
+which produces one CR curve per K. The best Merge-All routing point is marked directly on the Merge-All curve, so the reviewer can see the tuned baseline from the same plot rather than relying on a separate horizontal reference.
 
-默认正式预实验设置：
+`FIG2_RUN_HPARAM_SWEEP=1` remains a separate OFAT diagnostic for the conflict threshold and is not part of the main Figure-2 plot.
 
-```bash
-MAX_EVAL_SEQUENCES=3
-ANCHOR_SEEDS=(0 1 2)
-```
+### Figure-2 error metric
 
-### 直接复用已有真实结果重画
-
-最终两张图只需要当前模型目录下的：
-
-```text
-summary_overall.csv
-run_config.json
-```
-
-因此已有 3-sequence 分析结果时可直接设置：
-
-```bash
-RUN_ANALYSIS=0
-RUN_PLOT=1
-```
-
-无需再次运行模型 forward，也不要求旧 raw NPZ 与当前绘图版本完全一致。注意：升级到按模型分目录后，旧版共享目录 `results/star_structure_test/` 不会被自动当作某个模型的结果；如需复用旧结果，应先根据其中 `run_config.json` 的 `model` 字段手工移动到对应模型目录。
-
-## 5. 按模型隔离输出
-
-结果不会再写入共享的 `results/star_structure_test/`。脚本从 `MODEL` 自动取最后一级名称作为模型目录，因此不同模型不会覆盖彼此的 CSV、raw records、日志或图片。
-
-例如：
-
-```text
-MODEL="Qwen/Qwen2.5-7B"
--> results/Qwen2.5-7B/star_structure_test/
-
-MODEL="meta-llama/Meta-Llama-3.1-8B"
--> results/Meta-Llama-3.1-8B/star_structure_test/
-```
-
-完整结构为：
-
-```text
-results/
-├── Qwen2.5-7B/
-│   └── star_structure_test/
-│       ├── run.log
-│       ├── run_config.json
-│       ├── summary_by_head.csv
-│       ├── summary_overall.csv
-│       ├── raw/
-│       │   └── group_records_plot_tau.npz
-│       └── figures/
-│           ├── panel_a_star_prevalence.pdf
-│           ├── panel_a_star_prevalence.png
-│           ├── panel_b_pair_conflict_rate.pdf
-│           ├── panel_b_pair_conflict_rate.png
-│           ├── star_motivation_two_panel.pdf
-│           ├── star_motivation_two_panel.png
-│           └── figure_statistics.csv
-└── Meta-Llama-3.1-8B/
-    └── star_structure_test/
-        └── ...
-```
-
-顶层只需要设置：
-
-```bash
-RESULTS_ROOT="/home/tlxr/SimCalKV/motivation_experiments/results"
-EXPERIMENT_NAME="star_structure_test"
-MODEL="..."
-```
-
-`OUT_DIR` 在自动区生成，不需要手工同步模型名。模型目录名仅允许 `A-Z/a-z/0-9/._-`，其他字符会自动替换成 `_`。
-
-`figure_statistics.csv` 保存两张图每个 `(budget, tau)` 的精确百分比，以及对应的原始 group/pair counts，便于论文引用和审计。
-
-## 6. IEEE 风格与灰度可辨识性
-
-默认：
-
-```bash
-FONT_FAMILY="Times New Roman"
-STRICT_TIMES_NEW_ROMAN=1
-PNG_DPI=600
-
-PANEL_WIDTH_IN=1.72
-PANEL_HEIGHT_IN=1.58
-COMBINED_WIDTH_IN=3.50
-COMBINED_HEIGHT_IN=1.58
-```
-
-- PDF 使用 TrueType embedding (`pdf.fonttype=42`)；
-- PNG 使用 600 DPI；
-- 英文使用 Times New Roman；
-- color-blind-friendly 配色；
-- 每条曲线同时具有独立 line style 和 marker，灰度打印仍可辨识；
-- 不使用 hatch；
-- 不携带或分发字体文件；Times New Roman 缺失时默认直接报错。
-
-## 7. 统计完整性
-
-分析保存：
-
-- `eligible_groups`；
-- `unsafe_groups / unsafe_group_rate`；
-- `candidate_pairs`；
-- `conflict_pairs / conflict_pair_rate`；
-- `assigned_candidates / candidate_acceptance_rate`；
-- `PLOT_TAU` 下的 group-level raw records，用于后续诊断。
-
-绘图会检查 `summary_overall.csv` 中：
+For one prefix/layer/configuration, let the pre-`o_proj` query-head outputs be concatenated as
 
 \[
-\mathrm{unsafe\_group\_rate}
-=
-\frac{\mathrm{unsafe\_groups}}{\mathrm{eligible\_groups}},
+O_{\mathrm{cat}} = \operatorname{Concat}(O_1,\ldots,O_{H_q}),
 \]
 
-以及
+and let `o_proj` be the model's actual output projection for that attention layer. Figure 2 reports
 
 \[
-\mathrm{conflict\_pair\_rate}
-=
-\frac{\mathrm{conflict\_pairs}}{\mathrm{candidate\_pairs}}.
+E_{\mathrm{layer}} =
+\frac{\|W_O O_{\mathrm{cat}}^{\mathrm{compressed}} - W_O O_{\mathrm{cat}}^{\mathrm{full}}\|_2}
+{\|W_O O_{\mathrm{cat}}^{\mathrm{full}}\|_2}.
 \]
 
-如果 pooled rate 与原始 counts 不一致会直接报错，不静默画图。
+Thus one observation is `prefix x layer x routing configuration`, not `prefix x layer x KV-head`. `kv_head_selection` continues to control Figure 1 only; Figure 2 always evaluates all KV/query heads so the metric is a true whole-layer output.
+
+## Figure 3 — Improved CohereKV
+
+### Left: single-round whole-layer attention-output error
+
+Compares:
+
+- Eviction-only;
+- Merge-All;
+- Original CohereKV;
+- Modified CohereKV.
+
+The compression methods, partitions, thresholds, routing/conflict logic, and one-round protocol are unchanged. Only the evaluation metric is changed to match Figure 2 exactly. For every selected layer, Figure 3-left always evaluates **all** KV/query heads, concatenates the pre-`o_proj` query-head outputs in model order, applies the layer's real `o_proj`, and reports
+
+\[
+E_{\mathrm{layer}} =
+\frac{\|W_O O_{\mathrm{cat}}^{\mathrm{compressed}}-W_O O_{\mathrm{cat}}^{\mathrm{full}}\|_2}
+{\|W_O O_{\mathrm{cat}}^{\mathrm{full}}\|_2}.
+\]
+
+Thus one Figure-3-left observation is `prefix x layer x method`, not `prefix x layer x KV-head`. `kv_head_selection` is retained for launch-script compatibility but is intentionally ignored by Figure 3-left because a true whole-layer metric requires every head. Raw observations are written to `single_round_by_layer.csv`.
+
+### Right: repository PPL
+
+`ppl_continuation_experiment.py` still directly calls:
+
+`task_evaluation/evaluate_ppl_kvmerge.py::evaluate_perplexity`
+
+and compares:
+
+- Full;
+- Eviction-only;
+- Merge-All;
+- Original CohereKV;
+- Modified CohereKV.
+
+Figure-3 PPL settings and implementation are unchanged from v9.
+
+## Modified CohereKV — unchanged
+
+Modified still uses frozen `S_{l,h}^{calib}` and tensorized MIS priority:
+
+`degree -> anchor distance -> stable hash -> physical position`.
+
+No importance term is used in MIS.
+
+## Plotting style
+
+`plot_motivation_attention.py` applies one shared publication style to Figure 1/2/3:
+
+- font family requested: **Times New Roman**;
+- STIX math text;
+- PDF/PS font type 42.
+
+If Times New Roman is unavailable in the execution environment, Matplotlib falls back to the configured serif fallback; on the target plotting machine install/enable Times New Roman to obtain the exact requested face.
+
+## Run
+
+Edit `motivation_experiments/run_motivation_attention.sh`, then run:
+
+```bash
+bash /home/tlxr/CohereKV/motivation_experiments/run_motivation_attention.sh
+```
+
+The default preliminary suite keeps all optional sweeps off, except the mandatory compact Figure-2 routing-threshold curve.

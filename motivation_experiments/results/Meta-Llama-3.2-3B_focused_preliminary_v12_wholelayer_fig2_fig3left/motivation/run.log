@@ -1,0 +1,143 @@
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  6.02it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  6.38it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  6.32it/s]
+Token indices sequence length is longer than the specified maximum sequence length for this model (289077 > 131072). Running this sequence through the model will result in indexing errors
+=== Figure 1/2 focused motivation ===
+Frozen calibration S_lh shape=(28, 8); min=12.7865, max=28.5257
+Figure 1: Euclidean + cosine routing; K-step severe-conflict filtering counterfactual
+Figure 1 sweep=off; configs={'euclidean': 1, 'cosine': 1}
+Figure 2: routing-threshold x-axis; Merge-All + per-Star-group CR(K); route grids={'euclidean': [0.3, 0.4, 0.5, 0.6, 0.7], 'cosine': [0.7, 0.75, 0.8, 0.85, 0.9, 0.95]}; K curves=[1, 2, 4]; CR-grid=on; OFAT sweep=off
+We detected that you are passing `past_key_values` as a tuple of tuples. This is deprecated and will be removed in v4.47. Please convert your cache or use an appropriate `Cache` class (https://huggingface.co/docs/transformers/kv_cache#legacy-cache-format)
+  prefix=0 layer=0 head=0
+  prefix=0 layer=0 head=1
+  prefix=0 layer=0 head=2
+  prefix=0 layer=0 head=3
+  prefix=0 layer=0 head=4
+  prefix=0 layer=0 head=5
+  prefix=0 layer=0 head=6
+  prefix=0 layer=0 head=7
+  prefix=0 layer=8 head=0
+  prefix=0 layer=8 head=1
+  prefix=0 layer=8 head=2
+  prefix=0 layer=8 head=3
+  prefix=0 layer=8 head=4
+  prefix=0 layer=8 head=5
+  prefix=0 layer=8 head=6
+  prefix=0 layer=8 head=7
+  prefix=0 layer=16 head=0
+  prefix=0 layer=16 head=1
+  prefix=0 layer=16 head=2
+  prefix=0 layer=16 head=3
+  prefix=0 layer=16 head=4
+  prefix=0 layer=16 head=5
+  prefix=0 layer=16 head=6
+  prefix=0 layer=16 head=7
+  prefix=0 layer=24 head=0
+  prefix=0 layer=24 head=1
+  prefix=0 layer=24 head=2
+  prefix=0 layer=24 head=3
+  prefix=0 layer=24 head=4
+  prefix=0 layer=24 head=5
+  prefix=0 layer=24 head=6
+  prefix=0 layer=24 head=7
+  prefix=1 layer=0 head=0
+  prefix=1 layer=0 head=1
+  prefix=1 layer=0 head=2
+  prefix=1 layer=0 head=3
+  prefix=1 layer=0 head=4
+  prefix=1 layer=0 head=5
+  prefix=1 layer=0 head=6
+  prefix=1 layer=0 head=7
+  prefix=1 layer=8 head=0
+  prefix=1 layer=8 head=1
+  prefix=1 layer=8 head=2
+  prefix=1 layer=8 head=3
+  prefix=1 layer=8 head=4
+  prefix=1 layer=8 head=5
+  prefix=1 layer=8 head=6
+  prefix=1 layer=8 head=7
+  prefix=1 layer=16 head=0
+  prefix=1 layer=16 head=1
+  prefix=1 layer=16 head=2
+  prefix=1 layer=16 head=3
+  prefix=1 layer=16 head=4
+  prefix=1 layer=16 head=5
+  prefix=1 layer=16 head=6
+  prefix=1 layer=16 head=7
+  prefix=1 layer=24 head=0
+  prefix=1 layer=24 head=1
+  prefix=1 layer=24 head=2
+  prefix=1 layer=24 head=3
+  prefix=1 layer=24 head=4
+  prefix=1 layer=24 head=5
+  prefix=1 layer=24 head=6
+  prefix=1 layer=24 head=7
+  prefix=2 layer=0 head=0
+  prefix=2 layer=0 head=1
+  prefix=2 layer=0 head=2
+  prefix=2 layer=0 head=3
+  prefix=2 layer=0 head=4
+  prefix=2 layer=0 head=5
+  prefix=2 layer=0 head=6
+  prefix=2 layer=0 head=7
+  prefix=2 layer=8 head=0
+  prefix=2 layer=8 head=1
+  prefix=2 layer=8 head=2
+  prefix=2 layer=8 head=3
+  prefix=2 layer=8 head=4
+  prefix=2 layer=8 head=5
+  prefix=2 layer=8 head=6
+  prefix=2 layer=8 head=7
+  prefix=2 layer=16 head=0
+  prefix=2 layer=16 head=1
+  prefix=2 layer=16 head=2
+  prefix=2 layer=16 head=3
+  prefix=2 layer=16 head=4
+  prefix=2 layer=16 head=5
+  prefix=2 layer=16 head=6
+  prefix=2 layer=16 head=7
+  prefix=2 layer=24 head=0
+  prefix=2 layer=24 head=1
+  prefix=2 layer=24 head=2
+  prefix=2 layer=24 head=3
+  prefix=2 layer=24 head=4
+  prefix=2 layer=24 head=5
+  prefix=2 layer=24 head=6
+  prefix=2 layer=24 head=7
+  prefix=3 layer=0 head=0
+  prefix=3 layer=0 head=1
+  prefix=3 layer=0 head=2
+  prefix=3 layer=0 head=3
+  prefix=3 layer=0 head=4
+  prefix=3 layer=0 head=5
+  prefix=3 layer=0 head=6
+  prefix=3 layer=0 head=7
+  prefix=3 layer=8 head=0
+  prefix=3 layer=8 head=1
+  prefix=3 layer=8 head=2
+  prefix=3 layer=8 head=3
+  prefix=3 layer=8 head=4
+  prefix=3 layer=8 head=5
+  prefix=3 layer=8 head=6
+  prefix=3 layer=8 head=7
+  prefix=3 layer=16 head=0
+  prefix=3 layer=16 head=1
+  prefix=3 layer=16 head=2
+  prefix=3 layer=16 head=3
+  prefix=3 layer=16 head=4
+  prefix=3 layer=16 head=5
+  prefix=3 layer=16 head=6
+  prefix=3 layer=16 head=7
+  prefix=3 layer=24 head=0
+  prefix=3 layer=24 head=1
+  prefix=3 layer=24 head=2
+  prefix=3 layer=24 head=3
+  prefix=3 layer=24 head=4
+  prefix=3 layer=24 head=5
+  prefix=3 layer=24 head=6
+  prefix=3 layer=24 head=7
+Focused CohereKV Motivation 1/2
+================================
+M1 euclidean: conflict prevalence=63.2%; CR gain=+2.4789pp; positive=55.4%
+M1 cosine: conflict prevalence=84.7%; CR gain=+4.1364pp; positive=65.3%
+M2 euclidean: best routing-only MA=11.7015% @route=0.6; best CR(K=1)=11.5768% @route=0.6; same-route CR gain=+0.1247pp
+M2 cosine: best routing-only MA=12.1248% @route=0.8; best CR(K=1)=11.9821% @route=0.8; same-route CR gain=+0.1427pp
+[done] /home/tlxr/CohereKV/motivation_experiments/results/Meta-Llama-3.2-3B_focused_preliminary_v12_wholelayer_fig2_fig3left/motivation elapsed=861.7s

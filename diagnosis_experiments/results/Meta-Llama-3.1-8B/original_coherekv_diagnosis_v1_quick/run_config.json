@@ -1,0 +1,36 @@
+{
+  "experiment": "original_coherekv_diagnosis_v1",
+  "model": "meta-llama/Meta-Llama-3.1-8B",
+  "dataset": "wikitext2",
+  "model_seqlen": 4096,
+  "probe_tokens": 8,
+  "max_eval_sequences": 1,
+  "single_round_budgets": [
+    0.2,
+    0.4,
+    0.6,
+    0.8
+  ],
+  "lambda_values": [
+    0.5,
+    0.7,
+    0.9
+  ],
+  "repeated_rounds": 5,
+  "round_keep_ratio": 0.8,
+  "min_physical_entries": 256,
+  "layer_selection": "0,8,16,24",
+  "kv_head_selection": "0,2,4,6",
+  "keepkv_sink_size": 4,
+  "keepkv_recent_protect_size": 128,
+  "keepkv_score_window": 128,
+  "keepkv_recency_beta": 1.0,
+  "distance_chunk_size": 1024,
+  "geometry_chunk_size": 512,
+  "attention_metric_note": "Post-hoc count-mean K/V + log(C) attention-output error generalized to multi-round partitions; used only for diagnosis, never for selection.",
+  "repeated_round_note": "Controlled repeated compression of one fixed prefix. Original CohereKV state is advanced each round; fresh-certificate and refreshed-S_ref variants are same-state shadows and do not alter the trajectory.",
+  "platform": "Linux-6.8.0-124-generic-x86_64-with-glibc2.35",
+  "torch": "2.9.0+cu128",
+  "transformers": "4.46.3",
+  "elapsed_seconds": 16.023831367492676
+}

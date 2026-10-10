@@ -1,6 +1,5 @@
+numpy
+matplotlib
 torch
 transformers
 datasets
-numpy
-matplotlib
-accelerate

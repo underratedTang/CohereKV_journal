@@ -5,7 +5,7 @@ set -euo pipefail
 # 项目路径
 # =========================
 
-cd /home/tlxr/SimCalKV
+cd /home/tlxr/CohereKV
 
 # =========================
 # 手动修改区
@@ -16,21 +16,21 @@ export CUDA_VISIBLE_DEVICES=0
 export PYTORCH_ALLOC_CONF=expandable_segments:True
 
 # PPL 评测脚本完整路径
-PPL_SCRIPT="/home/tlxr/SimCalKV/task_evaluation/evaluate_ppl_kvmerge.py"
+PPL_SCRIPT="/home/tlxr/CohereKV/task_evaluation/evaluate_ppl_kvmerge.py"
 
 # 手动指定输出目录
-# OUT_DIR="/home/tlxr/SimCalKV/results/ppl_manual_$(date +%Y%m%d_%H%M%S)"
-OUT_DIR="/home/tlxr/SimCalKV/results/ppl_manual_test"
+# OUT_DIR="/home/tlxr/CohereKV/results/ppl_manual_$(date +%Y%m%d_%H%M%S)"
+OUT_DIR="/home/tlxr/CohereKV/results/ppl_manual_robustness"
 
 # 模型设置
-# FAMILY="qwen"   # qwen | llama
+FAMILY="qwen"   # qwen | llama
 # MODEL="Qwen/Qwen2.5-7B"
-# MODEL="Qwen/Qwen2.5-3B"
+MODEL="Qwen/Qwen2.5-3B"
 
 # LLaMA 示例：
-FAMILY="llama"
+# FAMILY="llama"
 # MODEL="meta-llama/Llama-3.2-1B"
-MODEL="meta-llama/Llama-3.2-3B"
+# MODEL="meta-llama/Llama-3.2-3B"
 # MODEL="meta-llama/Meta-Llama-3.1-8B"
 
 # PPL 设置
@@ -68,9 +68,9 @@ METHODS=(
 
 # 压缩率
 RATIOS=(
-  "0.2"
-  "0.4"  # 压缩40%，保留 60%
-  "0.6"
+  # "0.2"
+  # "0.4"  # 压缩40%，保留 60%
+  # "0.6"
   "0.8"
 )
 
@@ -81,9 +81,9 @@ RATIOS=(
 # SIM_THR_KEEPKV_LIST=("-1" "0.0" "0.2" "0.4" "0.6" "0.8")
 SIM_THR_GROUPLOGITKV_LIST=("0.8")
 # LAMBDA_MYMETHOD_LIST=("0.5")
-LAMBDA_MYMETHOD_LIST=("0.01" "0.1" "0.3" "0.7" "0.9")
+LAMBDA_MYMETHOD_LIST=("0.1" "0.5" "0.9" "1.3")
 MYMETHOD_SELECTOR="keepkv"  # keepkv | attention | d2o
-MYMETHOD_GROUP_MODE="eviction_only"   # full | anchor_only | eviction_only
+MYMETHOD_GROUP_MODE="full"   # full | anchor_only | eviction_only
 MYMETHOD_GRAPH_BACKEND="cuda" # auto | cuda | torch
 MYMETHOD_ROUTE_BACKEND="torch" # auto | cuda | torch
 
@@ -92,7 +92,7 @@ MYMETHOD_KEEPKV_SINK_SIZE=4
 MYMETHOD_KEEPKV_RECENT_PROTECT_SIZE=128
 MYMETHOD_KEEPKV_SCORE_WINDOW=128
 MYMETHOD_KEEPKV_RECENCY_BETA=1.0
-MYMETHOD_KEEPKV_USE_LOG_COUNT=0  # 0: official-style base score; 1: C*score (logC ablation)
+MYMETHOD_KEEPKV_USE_LOG_COUNT=1  # 0: official-style base score; 1: C*score (logC ablation)
 
 # D2O-style selector only. D2O only decides retained/evicted; merging remains mymethod.
 MYMETHOD_D2O_SINK_SIZE=4

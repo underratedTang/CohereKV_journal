@@ -7,7 +7,7 @@ until these checks pass.
 ## A. CPU/unit correctness (no model weights)
 
 ```bash
-cd /home/tlxr/SimCalKV/task_evaluation
+cd /home/tlxr/CohereKV/task_evaluation
 PYTHONPATH=. python tests/test_mymethod.py -v
 PYTHONPATH=. python tests/test_ablation_wrapper.py -v
 PYTHONPATH=. python tests/test_centroidkv.py -v

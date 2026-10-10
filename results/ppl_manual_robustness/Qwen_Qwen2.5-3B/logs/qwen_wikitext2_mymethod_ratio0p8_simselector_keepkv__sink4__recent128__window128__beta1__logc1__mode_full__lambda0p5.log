@@ -1,0 +1,103 @@
+[ATTENTION_PROTOCOL] requested=eager effective=eager mode=eager
+Loading model: Qwen/Qwen2.5-3B
+Transformers version: 4.46.3
+KV method: mymethod, ratio=0.8
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:01<00:01,  1.15s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:01<00:00,  1.11it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:01<00:00,  1.06it/s]
+[MYMETHOD_SELECTOR_TAG] selector_keepkv__sink4__recent128__window128__beta1__logc1
+[MYMETHOD_SELECTOR_ACTIVE_CONFIG] {"recency_beta": 1.0, "recent_protect_size": 128, "score_window": 128, "selector": "keepkv", "sink_size": 4, "use_log_count": true}
+Token indices sequence length is longer than the specified maximum sequence length for this model (299078 > 131072). Running this sequence through the model will result in indexing errors
+Loading eval dataset: wikitext2
+PPL evaluation windows: 36 (seqlen=8192, dataset_tokens=299078, limit=0)
+Evaluating perplexity:   0%|          | 0/36 [00:00<?, ?it/s]Evaluating perplexity:   3%|▎         | 1/36 [00:40<23:41, 40.61s/it]Evaluating perplexity:   6%|▌         | 2/36 [01:19<22:31, 39.74s/it]Evaluating perplexity:   8%|▊         | 3/36 [01:59<21:46, 39.60s/it]Evaluating perplexity:  11%|█         | 4/36 [02:38<21:00, 39.40s/it]Evaluating perplexity:  14%|█▍        | 5/36 [03:17<20:18, 39.32s/it]Evaluating perplexity:  17%|█▋        | 6/36 [03:56<19:32, 39.08s/it]Evaluating perplexity:  19%|█▉        | 7/36 [04:35<18:59, 39.31s/it]Evaluating perplexity:  22%|██▏       | 8/36 [05:15<18:21, 39.34s/it]Evaluating perplexity:  25%|██▌       | 9/36 [05:53<17:36, 39.15s/it]Evaluating perplexity:  28%|██▊       | 10/36 [06:33<16:59, 39.22s/it]Evaluating perplexity:  31%|███       | 11/36 [07:12<16:17, 39.08s/it]Evaluating perplexity:  33%|███▎      | 12/36 [07:50<15:32, 38.87s/it]Evaluating perplexity:  36%|███▌      | 13/36 [08:29<14:53, 38.86s/it]Evaluating perplexity:  39%|███▉      | 14/36 [09:08<14:15, 38.90s/it]Evaluating perplexity:  42%|████▏     | 15/36 [09:47<13:35, 38.84s/it]Evaluating perplexity:  44%|████▍     | 16/36 [10:25<12:51, 38.59s/it]Evaluating perplexity:  47%|████▋     | 17/36 [11:04<12:18, 38.84s/it]Evaluating perplexity:  50%|█████     | 18/36 [11:43<11:37, 38.75s/it]Evaluating perplexity:  53%|█████▎    | 19/36 [12:21<10:55, 38.58s/it]Evaluating perplexity:  56%|█████▌    | 20/36 [12:59<10:17, 38.62s/it]Evaluating perplexity:  58%|█████▊    | 21/36 [13:39<09:43, 38.92s/it]Evaluating perplexity:  61%|██████    | 22/36 [14:18<09:03, 38.82s/it]Evaluating perplexity:  64%|██████▍   | 23/36 [14:56<08:21, 38.61s/it]Evaluating perplexity:  67%|██████▋   | 24/36 [15:35<07:45, 38.81s/it]Evaluating perplexity:  69%|██████▉   | 25/36 [16:13<07:05, 38.69s/it]Evaluating perplexity:  72%|███████▏  | 26/36 [16:52<06:27, 38.78s/it]Evaluating perplexity:  75%|███████▌  | 27/36 [17:32<05:50, 38.98s/it]Evaluating perplexity:  78%|███████▊  | 28/36 [18:09<05:07, 38.48s/it]Evaluating perplexity:  81%|████████  | 29/36 [18:49<04:32, 38.92s/it]Evaluating perplexity:  83%|████████▎ | 30/36 [19:28<03:53, 38.96s/it]Evaluating perplexity:  86%|████████▌ | 31/36 [20:07<03:14, 38.87s/it]Evaluating perplexity:  89%|████████▉ | 32/36 [20:46<02:35, 38.87s/it]Evaluating perplexity:  92%|█████████▏| 33/36 [21:25<01:56, 38.96s/it]Evaluating perplexity:  94%|█████████▍| 34/36 [22:04<01:17, 38.90s/it]Evaluating perplexity:  97%|█████████▋| 35/36 [22:43<00:38, 38.98s/it]Evaluating perplexity: 100%|██████████| 36/36 [23:21<00:00, 38.83s/it]Evaluating perplexity: 100%|██████████| 36/36 [23:21<00:00, 38.94s/it]
+{
+  "model_name": "Qwen/Qwen2.5-3B",
+  "family": "qwen",
+  "dataset": "wikitext2",
+  "kv_method": "mymethod",
+  "compress_ratio": 0.8,
+  "cam_protocol": null,
+  "cam_merge_size": null,
+  "cam_start_fraction": null,
+  "sim_thr_effective": null,
+  "sim_thr_grouplogitkv": null,
+  "lambda_mymethod": 0.5,
+  "mymethod_group_mode": "full",
+  "mymethod_selector": "keepkv",
+  "mymethod_selector_tag": "selector_keepkv__sink4__recent128__window128__beta1__logc1",
+  "mymethod_selector_active_config": {
+    "selector": "keepkv",
+    "sink_size": 4,
+    "recent_protect_size": 128,
+    "score_window": 128,
+    "recency_beta": 1.0,
+    "use_log_count": true
+  },
+  "mymethod_graph_backend": "cuda",
+  "mymethod_route_backend": "torch",
+  "mymethod_keepkv_sink_size": 4,
+  "mymethod_keepkv_recent_protect_size": 128,
+  "mymethod_keepkv_score_window": 128,
+  "mymethod_keepkv_recency_beta": 1.0,
+  "mymethod_keepkv_use_log_count": true,
+  "mymethod_d2o_sink_size": 4,
+  "mymethod_d2o_recent_size": 128,
+  "mymethod_d2o_use_log_count": true,
+  "mymethod_d2o_score_reset_interval": 0,
+  "mymethod_distance_chunk_size": 256,
+  "mymethod_attention_chunk_size": 128,
+  "centroidkv_sink_budget": null,
+  "centroidkv_local_budget": null,
+  "centroidkv_chunk_size": null,
+  "centroidkv_merge_ratio": null,
+  "centroidkv_decrease_rate": null,
+  "sim_thr_simcalkv": null,
+  "sim_thr_keepkv": null,
+  "keepkv_similarity_threshold": 0.8,
+  "keepkv_prefill_similarity_threshold": 0.8,
+  "keepkv_epsilon_times": 1.0,
+  "keepkv_pyramid_recent_ratio": 0.2,
+  "keepkv_pyramid_budget": false,
+  "keepkv_pyramid_decay_strategy": "cosine",
+  "keepkv_pyramid_decay_ratio": 0.8,
+  "keepkv_distance_weight": 1.2,
+  "keepkv_sink_len": 4,
+  "keepkv_protect_sink": false,
+  "keepkv_assert_causal": false,
+  "keepkv_disable_vote_bias": false,
+  "keepkv_runtime_only": false,
+  "max_eval_sequences": 0,
+  "model_seqlen": 8192,
+  "chunk_size": 32,
+  "actual_step_size": 32,
+  "min_kv_len": 2,
+  "compress_every": 1,
+  "torch_dtype": "bfloat16",
+  "amp_dtype": "none",
+  "attn_implementation": "eager",
+  "requested_attn_implementation": "eager",
+  "attention_protocol": "uniform_eager",
+  "seed": 0,
+  "ppl": 7.6566620695672105,
+  "elapsed_s": 1401.7806446552277,
+  "num_eval_tokens": 294876,
+  "num_eval_sequences": 36,
+  "num_compressions": 8496,
+  "total_compress_time_s": 853.0876245498657,
+  "avg_compress_time_s": 0.10041050194795971,
+  "avg_compressed_kv_len": 886.3983050847457,
+  "avg_compressed_kv_mib": 31.16244041313559,
+  "mymethod_diagnostic_events": 0,
+  "mymethod_mean_accepted_entry_ratio": null,
+  "mymethod_mean_accepted_count_mass_ratio": null,
+  "mymethod_total_evicted_count_mass": 0.0,
+  "mymethod_total_accepted_count_mass": 0.0,
+  "mymethod_total_rejected_count_mass": 0.0,
+  "mymethod_mean_route_compatible_ratio": null,
+  "mymethod_mean_mis_accept_given_routed_ratio": null,
+  "mymethod_max_candidate_pool_size": 0,
+  "mymethod_max_selected_candidates_per_group": 0,
+  "mymethod_total_conflict_edges": 0,
+  "mymethod_max_mis_rounds": 0,
+  "mymethod_max_post_diameter_over_delta": null,
+  "mymethod_max_post_radius_over_delta": null
+}

@@ -1,0 +1,6 @@
+Focused single-round CohereKV — whole-layer post-o_proj error
+=============================================================
+[PRIMARY] eviction_only: 7.1009%
+[PRIMARY] merge_all: 6.5603%
+[PRIMARY] original_coherekv: 6.6677%
+[PRIMARY] modified_coherekv: 6.6607%

@@ -12,7 +12,7 @@
 The CUDA package lives beside `task_evaluation`:
 
 ```
-/home/tlxr/SimCalKV/
+/home/tlxr/CohereKV/
   mymethod_cuda_src/
   task_evaluation/
   grouplogitkv_calibrated_qk_src/   # optional comparison-method code only

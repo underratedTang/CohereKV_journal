@@ -13,7 +13,7 @@ The common graph path uses one CUDA block per candidate pool and a shared-memory
 ## Install
 
 ```bash
-cd /home/tlxr/SimCalKV/mymethod_cuda_src
+cd /home/tlxr/CohereKV/mymethod_cuda_src
 bash install_mymethod_cuda.sh
 ```
 

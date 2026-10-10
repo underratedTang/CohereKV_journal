@@ -1,0 +1,3 @@
+routing_metric,config_id,is_primary,route_param,conflict_lambda,cr_num_removals,candidate_groups,conflict_groups,conflict_prevalence,intervention_groups,conflict_reduced_gain,conflict_reduced_positive_fraction
+euclidean,primary,1,0.4,0.4,1,2911,1792,0.6155960151150808,1792,0.02278356677015836,0.5373883928571429
+cosine,primary,1,0.9,0.4,1,7048,5686,0.8067536889897844,5686,0.04063567040341366,0.6195919803024974
