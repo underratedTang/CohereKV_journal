@@ -12,21 +12,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def configure_times_new_roman():
-    """Use Times New Roman for all three paper figures, with serif fallbacks."""
+def configure_times_new_roman(strict=True):
+    """Use Times New Roman; fail loudly rather than silently relabel another font."""
     import matplotlib.font_manager as fm
     names = {f.name for f in fm.fontManager.ttflist}
-    preferred = ["Times New Roman", "Times", "Nimbus Roman No9 L", "DejaVu Serif"]
-    chosen = next((name for name in preferred if name in names), preferred[-1])
+    if strict and "Times New Roman" not in names:
+        raise RuntimeError("Times New Roman is unavailable; install the licensed font "
+                           "and run fc-cache -f. For local smoke tests only use "
+                           "--strict_times_new_roman 0.")
     plt.rcParams.update({
-        "font.family": "serif",
-        "font.serif": preferred,
+        "font.family": "Times New Roman",
         "mathtext.fontset": "stix",
         "axes.unicode_minus": False,
         "pdf.fonttype": 42,
         "ps.fonttype": 42,
     })
-    return chosen
+    return "Times New Roman"
 
 
 def read_csv(path: Path) -> List[Dict[str, str]]:
@@ -164,15 +165,20 @@ def plot_motivation2(root: Path, out: Path, dpi: int) -> List[str]:
         if best is not None:
             bx = f(best, "route_param"); by = 100*f(best, "merge_all_output_rel_error")
             ax.scatter([bx], [by], s=80, marker="*", zorder=5)
+            symbol = r"$\lambda$" if metric == "euclidean" else r"$\tau_{\mathrm{cos}}$"
             ax.annotate(
-                f"Best Merge-All\n$\\lambda_r$={bx:g}",
+                f"Best Merge-All\n{symbol}={bx:g}",
                 xy=(bx, by), xytext=(7, 8), textcoords="offset points", fontsize=8,
             )
 
-        conflict_lambda = f(rr_cr[0], "conflict_lambda")
-        ax.set_xlabel("Routing threshold")
+        shared_lam = f(rr_cr[0], "lambda_value")
+        if metric == "euclidean":
+            ax.set_xlabel(r"Shared $\lambda$ (routing and conflict), $\Delta=\lambda S$")
+            ax.set_title(r"Euclidean routing and conflict: unified $\Delta$")
+        else:
+            ax.set_xlabel(r"Cosine routing threshold $\tau_{\mathrm{cos}}$")
+            ax.set_title(f"Cosine routing ($\\lambda$={shared_lam:g} for Euclidean conflicts)")
         ax.set_ylabel("Whole-layer post-o_proj attention-output relative error (%) ↓")
-        ax.set_title(f"{metric.capitalize()} routing  ($\\lambda_c$={conflict_lambda:g})")
         ax.grid(alpha=.22)
         ax.legend(fontsize=8)
 
@@ -189,68 +195,21 @@ def plot_motivation2(root: Path, out: Path, dpi: int) -> List[str]:
     save(fig, out / "02_conflict_reduced_vs_routing_threshold", dpi)
     return notes
 
-def plot_method(method_root: Path, ppl_root: Path, out: Path, dpi: int) -> List[str]:
-    single = [r for r in read_csv(method_root / "single_round_summary.csv") if int(f(r, "is_primary", 1)) == 1]
-    ppl = [r for r in read_csv(ppl_root / "ppl_summary.csv") if int(f(r, "is_primary", 1)) == 1] if ppl_root else []
-    order_left = ["eviction_only", "merge_all", "original_coherekv", "modified_coherekv"]
-    order_right = ["full", "eviction_only", "merge_all", "original_coherekv", "modified_coherekv"]
-
-    fig, axes = plt.subplots(1, 2, figsize=(13.8, 5.3), constrained_layout=True)
-    notes = []
-    smap = {r.get("variant"): r for r in single}
-    vals = [100*f(smap[v], "output_rel_error") if v in smap else np.nan for v in order_left]
-    x = np.arange(len(order_left))
-    axes[0].bar(x, vals)
-    axes[0].set_xticks(x, ["Eviction-only", "Merge-All", "Original", "Modified"])
-    axes[0].set_ylabel("Whole-layer post-o_proj attention-output relative error (%) ↓")
-    axes[0].set_title("(a) Single-round whole-layer attention-output error")
-    axes[0].grid(axis="y", alpha=.2)
-    for xi, v, y in zip(x, order_left, vals):
-        if np.isfinite(y):
-            axes[0].annotate(f"{y:.4f}%", (xi, y), xytext=(0, 5), textcoords="offset points", ha="center", fontsize=8)
-            notes.append(f"Single {v}: {y:.4f}%")
-
-    pmap = {r.get("variant"): r for r in ppl}
-    pvals = [f(pmap[v], "ppl") if v in pmap else np.nan for v in order_right]
-    x2 = np.arange(len(order_right))
-    axes[1].bar(x2, pvals)
-    axes[1].set_xticks(x2, ["Full", "Eviction-only", "Merge-All", "Original", "Modified"])
-    axes[1].set_ylabel("repository fixed-sequence PPL ↓")
-    axes[1].set_title("(b) PPL via evaluate_perplexity")
-    axes[1].grid(axis="y", alpha=.2)
-    for xi, v, y in zip(x2, order_right, pvals):
-        if np.isfinite(y):
-            axes[1].annotate(f"{y:.3f}", (xi, y), xytext=(0, 5), textcoords="offset points", ha="center", fontsize=8)
-            notes.append(f"PPL {v}: {y:.4f}; wall={f(pmap[v], 'wall_seconds'):.2f}s")
-    if not ppl:
-        axes[1].text(.5, .5, "PPL results not available", transform=axes[1].transAxes, ha="center", va="center")
-
-    fig.suptitle(
-        "Figure 3 / Improved CohereKV: single-round attention fidelity and repository-standard PPL",
-        fontsize=13,
-    )
-    save(fig, out / "03_modified_coherekv_attention_error_and_ppl", dpi)
-    return notes
-
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--motivation_dir", required=True)
-    ap.add_argument("--method_dir", required=True)
-    ap.add_argument("--ppl_dir", required=True)
     ap.add_argument("--output_dir", default="")
     ap.add_argument("--dpi", type=int, default=240)
+    ap.add_argument("--strict_times_new_roman", type=int, choices=(0, 1), default=1)
     args = ap.parse_args()
-    font = configure_times_new_roman()
+    font = configure_times_new_roman(bool(args.strict_times_new_roman))
     mot = Path(args.motivation_dir).resolve()
-    method = Path(args.method_dir).resolve()
-    ppl = Path(args.ppl_dir).resolve()
     out = Path(args.output_dir).resolve() if args.output_dir else mot / "figures"
     out.mkdir(parents=True, exist_ok=True)
     notes = [f"font: {font or 'system fallback'}"]
     notes += plot_motivation1(mot, out, args.dpi)
     notes += plot_motivation2(mot, out, args.dpi)
-    notes += plot_method(method, ppl, out, args.dpi)
     (out / "PLOT_SUMMARY.txt").write_text("\n".join(notes) + "\n", encoding="utf-8")
     print("\n".join(notes)); print(f"figures -> {out}")
 

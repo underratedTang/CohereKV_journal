@@ -1,22 +1,0 @@
-Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  7.61it/s]Loading checkpoint shards:  50%|█████     | 2/4 [00:00<00:00,  7.89it/s]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:00<00:00,  7.99it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  8.17it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  8.06it/s]
-Token indices sequence length is longer than the specified maximum sequence length for this model (2436214 > 131072). Running this sequence through the model will result in indexing errors
-Calibrating frozen S_lh on wikitext2/train: sequences=16, tokens/sequence=8192, chunk=256, seed=42
-  calibration sequence 1/16: token_start=29184
-We detected that you are passing `past_key_values` as a tuple of tuples. This is deprecated and will be removed in v4.47. Please convert your cache or use an appropriate `Cache` class (https://huggingface.co/docs/transformers/kv_cache#legacy-cache-format)
-  calibration sequence 2/16: token_start=158819
-  calibration sequence 3/16: token_start=376623
-  calibration sequence 4/16: token_start=520986
-  calibration sequence 5/16: token_start=667566
-  calibration sequence 6/16: token_start=797895
-  calibration sequence 7/16: token_start=940448
-  calibration sequence 8/16: token_start=1208807
-  calibration sequence 9/16: token_start=1240897
-  calibration sequence 10/16: token_start=1480974
-  calibration sequence 11/16: token_start=1530964
-  calibration sequence 12/16: token_start=1682708
-  calibration sequence 13/16: token_start=1851721
-  calibration sequence 14/16: token_start=2036737
-  calibration sequence 15/16: token_start=2192677
-  calibration sequence 16/16: token_start=2416425
-Frozen S_lh matrix: shape=(32, 8), min=14.3414, max=32.5037, summary RMS=25.6697, mean CV=0.008058, max CV=0.01891
-Wrote /home/tlxr/CohereKV/motivation_experiments/results/Meta-Llama-3.1-8B_focused_preliminary_v12_wholelayer_fig2_fig3left/calibration/layer_head_scales.json

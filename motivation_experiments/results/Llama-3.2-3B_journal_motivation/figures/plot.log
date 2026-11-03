@@ -1,0 +1,6 @@
+font: Times New Roman
+M1 cosine: prevalence=87.1%; CR gain=+4.1151pp; positive=66.4%
+M1 euclidean: prevalence=66.4%; CR gain=+2.6669pp; positive=55.8%
+M2 euclidean: best routing-only MA=19.8770%; best plotted CR=19.5246%
+M2 cosine: best routing-only MA=20.9583%; best plotted CR=20.4979%
+figures -> /home/tlxr/CohereKV/motivation_experiments/results/Llama-3.2-3B_journal_motivation/figures

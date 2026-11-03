@@ -49,12 +49,12 @@ def test_loader_and_batch_alignment_keep_layer_head_identity(tmp_path):
     assert got.tolist() == [3.0, 4.0, 3.0, 4.0]
 
 
-def test_multi_sequence_calibration_uses_rms_of_sequence_scales():
+def test_multi_sequence_calibration_uses_median_of_sequence_scales():
     from calibrate_layer_head_scales import aggregate_sequence_scales
     a = torch.tensor([[1.0, 2.0], [3.0, 4.0]], dtype=torch.float64)
     b = torch.tensor([[3.0, 4.0], [5.0, 6.0]], dtype=torch.float64)
     frozen, mean, std, cv = aggregate_sequence_scales([a, b])
-    expected = torch.sqrt((a.square() + b.square()) / 2.0)
+    expected = (a + b) / 2.0
     assert torch.allclose(frozen, expected)
     assert torch.allclose(mean, (a + b) / 2.0)
     assert torch.all(std >= 0)

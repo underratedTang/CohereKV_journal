@@ -1,51 +1,10 @@
-CohereKV focused preliminary v12 validation
-===========================================
-
-Scope
------
-Only motivation_experiments/ is intentionally changed. Figure 1 and Figure 2 experiment logic/settings remain unchanged from v11. Figure 3-right/PPL, Modified CohereKV, and all Figure-3 thresholds remain unchanged. Figure 3-left changes only its final single-round metric from a macro-average of per-head relative errors to the same true whole-layer post-o_proj relative error used by Figure 2.
-
-Calibration
------------
-- Default: 16 reproducible non-overlapping WikiText-2 train windows x 8192 tokens.
-- Operational frozen scale: S_lh^calib = sqrt(mean_m S_lh,m^2).
-
-Motivation 1
-------------
-- Unchanged from v11.
-- Counterfactual K is per Star group.
-- Figure 1 primary K=1; optional K=1,2,4.
-- Figure layout: 2 rows x 3 columns; cosine top, Euclidean bottom.
-
-Motivation 2
-------------
-- Unchanged from v11.
-- Routing threshold remains the x-axis.
-- Merge-All and Conflict-Reduced use the same per-Star-group K semantics as Figure 1.
-- Figure 2 always evaluates every KV/query head, concatenates pre-o_proj outputs, applies the real layer o_proj, and computes one whole-layer relative error.
-
-Figure 3-left
--------------
-- Compression methods and hyperparameters are unchanged.
-- NEW: all KV/query heads are evaluated for every selected layer.
-- NEW: Full and compressed head outputs are concatenated in query-head order, passed through the layer's real o_proj, and one whole-layer relative error is computed.
-- One observation is prefix x layer x method; no macro-average of per-head relative errors.
-- kv_head_selection is retained only for CLI compatibility and is ignored by Figure 3-left.
-
-Figure 3-right
---------------
-- Unchanged from v11.
-- PPL still calls task_evaluation/evaluate_ppl_kvmerge.py::evaluate_perplexity.
-
-Plotting
---------
-- Figure 1/2/3 request Times New Roman via the common plotting entry point.
-- Figure 3-left y-axis explicitly states whole-layer post-o_proj error.
-- STIX math text; PDF/PS font type 42.
-
-Checks
-------
-- pytest motivation_experiments/tests: 40 passed
-- python -m compileall motivation_experiments: passed
-- bash -n motivation_experiments/run_motivation_attention.sh: passed
-- synthetic Figure 1/2/3 plot smoke test: passed
+Motivation experiments scope - Journal fair-comparison revision
+=============================================================
+- The Star Conflict and oracle filtering experiments remain single-round.
+- Python 3.10 f-string backslash bug from earlier release is repaired.
+- Layer/head scale uses original per-sequence S and cross-sequence median.
+- Euclidean routing and conflict share one Delta; cosine routing uses tau_cos.
+- Shell has manually selectable 1B / 3B / 8B blocks.
+- PNG/PDF plots have strict Times New Roman checking by default.
+- Historical results/ removed from delivery.
+- CPU syntax/tests pass; GPU tests must be run by the user.

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 Figure 1 / Motivation 1
 ----------------------
-At pre-declared operating points, test Euclidean and cosine routing across
+At operating points with unified Euclidean Delta and cosine tau controls, test both routings across
 multiple layers and KV heads.  Figure 1 measures directly:
   (i) Star-conflict prevalence in every layer/head;
   (ii) within a conflict group, the counterfactual gain after resolving up to K
@@ -88,6 +88,7 @@ from whole_cache_attention import (  # noqa: E402
     WholePrefixAttentionEvaluator, whole_layer_attention_relative_error,
 )
 from calibration_scale import load_calibration_scales, scale_for, validate_calibration_scales  # noqa: E402
+from threshold_protocol import shared_lambda_at_point  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -110,32 +111,29 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--calibration_scale_file", required=True,
                    help="JSON produced by calibrate_layer_head_scales.py; frozen S_{layer,head} for Euclidean routing/conflict")
 
-    # Figure 1 owns its routing/conflict parameters.  Sweep is compact OFAT.
-    p.add_argument("--fig1_euclidean_route_lambda", type=float, default=0.60)
-    p.add_argument("--fig1_cosine_route_lambda", type=float, default=0.80)
-    p.add_argument("--fig1_conflict_lambda", type=float, default=0.50)
+    # One Euclidean compactness coefficient: Delta_(layer,head) = lambda*S_calib.
+    # Euclidean routing AND Euclidean conflict detection use this identical Delta.
+    # Cosine routing is a separate motivation-only control with cosine tau,
+    # while its conflict detection still uses the same Euclidean Delta.
+    p.add_argument("--lambda_value", type=float, default=0.40)
+
+    p.add_argument("--fig1_cosine_tau", type=float, default=0.90)
     p.add_argument("--fig1_enable_hparam_sweep", action="store_true")
-    p.add_argument("--fig1_euclidean_route_grid", default="0.40,0.50,0.60,0.70")
-    p.add_argument("--fig1_cosine_route_grid", default="0.70,0.80,0.90")
-    p.add_argument("--fig1_conflict_grid", default="0.40,0.50,0.60")
+    p.add_argument("--fig1_lambda_grid", default="0.30,0.40,0.50")
+    p.add_argument("--fig1_cosine_tau_grid", default="0.85,0.90,0.95")
     p.add_argument("--fig1_cr_num_removals", type=int, default=1,
                    help="max severe conflicts resolved per sampled Star group")
     p.add_argument("--fig1_cr_num_removals_grid", default="1,2,4")
 
-    # Figure 2 owns a separate operating point and separate grids.
-    p.add_argument("--fig2_euclidean_route_lambda", type=float, default=0.60)
-    p.add_argument("--fig2_cosine_route_lambda", type=float, default=0.80)
-    p.add_argument("--fig2_conflict_lambda", type=float, default=0.50)
-    p.add_argument("--fig2_euclidean_route_grid", default="0.30,0.40,0.50,0.60,0.70,0.80")
-    p.add_argument("--fig2_cosine_route_grid", default="0.70,0.80,0.90")
-    p.add_argument("--fig2_enable_hparam_sweep", action="store_true")
-    p.add_argument("--fig2_conflict_grid", default="0.40,0.50,0.60")
+    # Figure 2: Euclidean x-axis sweeps shared lambda (routing AND conflicts).
+    # Cosine x-axis sweeps tau_cos with Euclidean conflict Delta fixed by lambda.
+    p.add_argument("--fig2_cosine_tau", type=float, default=0.90)
+    p.add_argument("--fig2_euclidean_lambda_grid", default="0.30,0.40,0.50")
+    p.add_argument("--fig2_cosine_tau_grid", default="0.85,0.90,0.95")
     p.add_argument("--fig2_cr_num_removals", type=int, default=1,
-                   help="max severe conflicts resolved PER STAR GROUP for the primary Figure-2 CR curve")
-    p.add_argument("--fig2_enable_cr_grid", action="store_true",
-                   help="evaluate multiple per-Star-group CR(K) curves instead of only the primary K")
-    p.add_argument("--fig2_cr_num_removals_grid", default="1,2,4",
-                   help="optional per-Star-group K values used when --fig2_enable_cr_grid is set")
+                   help="max severe conflicts resolved PER STAR GROUP for Figure-2 CR curve")
+    p.add_argument("--fig2_enable_cr_grid", action="store_true")
+    p.add_argument("--fig2_cr_num_removals_grid", default="1,2,4")
 
     p.add_argument("--max_groups_per_head", type=int, default=16,
                    help="max Figure-1 conflict groups sampled per head for the local intervention; prevalence uses all groups")
@@ -186,42 +184,47 @@ def _unique_configs(configs: Sequence[Dict]) -> List[Dict]:
     out = []
     seen = set()
     for c in configs:
-        key = (str(c["routing_metric"]), float(c["route_param"]), float(c["conflict_lambda"]), int(c.get("cr_num_removals", 0)))
+        key = (str(c["routing_metric"]), float(c["route_param"]), float(c["lambda_value"]), int(c.get("cr_num_removals", 0)))
         if key not in seen:
             seen.add(key); out.append(c)
     return out
 
 
 def build_fig1_configs(args, metric: str) -> List[Dict]:
-    route_main = float(getattr(args, f"fig1_{metric}_route_lambda"))
-    route_grid = parse_float_list(getattr(args, f"fig1_{metric}_route_grid"))
-    conflict_main = float(args.fig1_conflict_lambda)
+    """Euclidean: route lambda == conflict lambda; cosine: tau_cos and Delta."""
+    base_lambda = float(args.lambda_value)
+    tau_cos = float(args.fig1_cosine_tau)
+    route_main = base_lambda if metric == "euclidean" else tau_cos
     k_main = int(args.fig1_cr_num_removals)
     configs = [{
         "config_id": "primary", "is_primary": 1, "routing_metric": metric,
-        "route_param": route_main, "conflict_lambda": conflict_main,
+        "route_param": route_main, "lambda_value": base_lambda,
         "cr_num_removals": k_main,
     }]
     if args.fig1_enable_hparam_sweep:
-        for x in route_grid:
+        # A Euclidean lambda sweep changes BOTH routing admission and conflicts.
+        # For cosine, only the Euclidean conflict bound changes in this sweep.
+        for val in parse_float_list(args.fig1_lambda_grid):
             configs.append({
-                "config_id": f"route_{x:g}", "is_primary": 0, "routing_metric": metric,
-                "route_param": float(x), "conflict_lambda": conflict_main,
-                "cr_num_removals": k_main,
+                "config_id": f"lambda_{val:g}", "is_primary": 0, "routing_metric": metric,
+                "route_param": val if metric == "euclidean" else tau_cos,
+                "lambda_value": val, "cr_num_removals": k_main,
             })
-        for x in parse_float_list(args.fig1_conflict_grid):
-            configs.append({
-                "config_id": f"conflict_{x:g}", "is_primary": 0, "routing_metric": metric,
-                "route_param": route_main, "conflict_lambda": float(x),
-                "cr_num_removals": k_main,
-            })
+        if metric == "cosine":
+            for tau in parse_float_list(args.fig1_cosine_tau_grid):
+                configs.append({
+                    "config_id": f"tau_cos_{tau:g}", "is_primary": 0,
+                    "routing_metric": metric, "route_param": tau,
+                    "lambda_value": base_lambda, "cr_num_removals": k_main,
+                })
         for k in parse_int_list(args.fig1_cr_num_removals_grid):
             configs.append({
                 "config_id": f"cr_k_{k}", "is_primary": 0, "routing_metric": metric,
-                "route_param": route_main, "conflict_lambda": conflict_main,
+                "route_param": route_main, "lambda_value": base_lambda,
                 "cr_num_removals": int(k),
             })
     return _unique_configs(configs)
+
 
 def write_csv(path: Path, rows: Sequence[Dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -253,7 +256,7 @@ def deterministic_subsample(items: Sequence, limit: int) -> List:
 @torch.inference_mode()
 def prepare_group_infos(*, view, routing_metric: str, evict_global: torch.Tensor,
                         keep_global: torch.Tensor, state, k_scale: float,
-                        conflict_lambda: float) -> List[Dict]:
+                        lambda_value: float) -> List[Dict]:
     infos: List[Dict] = []
     metric = str(routing_metric).lower()
     for anchor_local, cand_local in enumerate_candidate_groups(view=view, min_candidates=2):
@@ -261,7 +264,7 @@ def prepare_group_infos(*, view, routing_metric: str, evict_global: torch.Tensor
         anchor_pos = int(keep_global[int(anchor_local)].item())
         k_pair = pairwise_candidate_distances(state.keys.index_select(0, cand_pos))
         k_score = normalized_k_conflict_score(k_pairwise_dist=k_pair, k_scale=k_scale)
-        conf = conflict_mask_from_score(k_score, conflict_lambda)
+        conf = conflict_mask_from_score(k_score, lambda_value)
         edges, vertices = conflict_stats(conf)
         anchor_dist_norm = view.assigned_distance.index_select(0, cand_local) / max(k_scale, 1e-12)
         anchor_cosine = view.assigned_cosine.index_select(0, cand_local)
@@ -298,7 +301,7 @@ def _mean_num_error(errors) -> float:
 def group_counterfactual_conflict_reduction(*, evaluator: GroupLocalAttentionEvaluator,
                                             group_positions: torch.Tensor,
                                             k_conflict_score: torch.Tensor,
-                                            conflict_lambda: float,
+                                            lambda_value: float,
                                             max_removals: int):
     """Motivation-only K-step filtering counterfactual for one Star group.
 
@@ -317,7 +320,7 @@ def group_counterfactual_conflict_reduction(*, evaluator: GroupLocalAttentionEva
 
     keep, removed, trace = counterfactual_conflict_reduction_mask(
         score=k_conflict_score,
-        threshold=float(conflict_lambda),
+        threshold=float(lambda_value),
         max_removals=int(max_removals),
         evaluate_keep=evaluate_keep,
         initial_keep=torch.ones(n, dtype=torch.bool, device=group_positions.device),
@@ -330,7 +333,7 @@ def group_counterfactual_conflict_reduction(*, evaluator: GroupLocalAttentionEva
 def group_counterfactual_keep_curve(*, evaluator: GroupLocalAttentionEvaluator,
                                     group_positions: torch.Tensor,
                                     k_conflict_score: torch.Tensor,
-                                    conflict_lambda: float,
+                                    lambda_value: float,
                                     k_values: Sequence[int]):
     """Return local accepted masks for several per-Star-group removal budgets.
 
@@ -352,7 +355,7 @@ def group_counterfactual_keep_curve(*, evaluator: GroupLocalAttentionEvaluator,
 
     keep, removed, trace = counterfactual_conflict_reduction_mask(
         score=k_conflict_score,
-        threshold=float(conflict_lambda),
+        threshold=float(lambda_value),
         max_removals=int(max_k),
         evaluate_keep=evaluate_keep,
         initial_keep=torch.ones(n, dtype=torch.bool, device=group_positions.device),
@@ -370,7 +373,7 @@ def group_counterfactual_keep_curve(*, evaluator: GroupLocalAttentionEvaluator,
 @torch.inference_mode()
 def per_star_group_counterfactual_curve(*, group_evaluator: GroupLocalAttentionEvaluator,
                                         view, infos: Sequence[Dict],
-                                        conflict_lambda: float, k_values: Sequence[int]):
+                                        lambda_value: float, k_values: Sequence[int]):
     """Return Figure-2 accepted masks with K defined per Star group.
 
     Every eligible routed Star group independently resolves up to K severe
@@ -399,7 +402,7 @@ def per_star_group_counterfactual_curve(*, group_evaluator: GroupLocalAttentionE
             evaluator=group_evaluator,
             group_positions=group_pos,
             k_conflict_score=info["k_conflict_score"],
-            conflict_lambda=float(conflict_lambda),
+            lambda_value=float(lambda_value),
             k_values=ks,
         )
         for k in ks:
@@ -445,7 +448,7 @@ def summarize_figure1(group_rows: Sequence[Dict], route_rows: Sequence[Dict], ar
             "config_id": config_id,
             "is_primary": int(route_cfg[0].get("is_primary", 0)),
             "route_param": float(route_cfg[0]["route_param"]),
-            "conflict_lambda": float(route_cfg[0]["conflict_lambda"]),
+            "lambda_value": float(route_cfg[0]["lambda_value"]),
             "cr_num_removals": int(route_cfg[0].get("cr_num_removals", 0)),
             "candidate_groups": total_groups,
             "conflict_groups": conflict_groups,
@@ -474,7 +477,7 @@ def summarize_figure1(group_rows: Sequence[Dict], route_rows: Sequence[Dict], ar
                 "routing_metric": metric, "config_id": config_id,
                 "is_primary": int(route_cfg[0].get("is_primary", 0)),
                 "route_param": float(route_cfg[0]["route_param"]),
-                "conflict_lambda": float(route_cfg[0]["conflict_lambda"]),
+                "lambda_value": float(route_cfg[0]["lambda_value"]),
                 "cr_num_removals": int(route_cfg[0].get("cr_num_removals", 0)),
                 "prefix_idx": pref, "layer_idx": layer, "kv_head_idx": head,
                 "candidate_groups": total, "conflict_groups": conf,
@@ -498,7 +501,7 @@ def summarize_figure1(group_rows: Sequence[Dict], route_rows: Sequence[Dict], ar
                 "routing_metric": metric, "config_id": config_id,
                 "is_primary": int(route_cfg[0].get("is_primary", 0)),
                 "route_param": float(route_cfg[0]["route_param"]),
-                "conflict_lambda": float(route_cfg[0]["conflict_lambda"]),
+                "lambda_value": float(route_cfg[0]["lambda_value"]),
                 "cr_num_removals": int(route_cfg[0].get("cr_num_removals", 0)),
                 "layer_idx": layer, "kv_head_idx": head,
                 "prefix_observations": len(rr),
@@ -515,7 +518,7 @@ def summarize_figure1(group_rows: Sequence[Dict], route_rows: Sequence[Dict], ar
 def whole_prefix_counterfactual_curve(*, evaluator: WholePrefixAttentionEvaluator,
                                       keep_idx: torch.Tensor, evict_idx: torch.Tensor,
                                       view, infos: Sequence[Dict], counts_1d: torch.Tensor,
-                                      conflict_lambda: float, k_values: Sequence[int]):
+                                      lambda_value: float, k_values: Sequence[int]):
     """Return a motivation-only K-step conflict-resolution curve for one head.
 
     Starting from Merge-All at the pre-declared routing point, repeatedly find
@@ -549,7 +552,7 @@ def whole_prefix_counterfactual_curve(*, evaluator: WholePrefixAttentionEvaluato
             cand_local = info["cand_local"]
             local_keep = accepted.index_select(0, cand_local).bool()
             edge = most_severe_conflict_edge(
-                info["k_conflict_score"], float(conflict_lambda), keep=local_keep,
+                info["k_conflict_score"], float(lambda_value), keep=local_keep,
             )
             if edge is None:
                 continue
@@ -649,7 +652,7 @@ def aggregate_figure2(ma_rows: Sequence[Dict], cr_rows: Sequence[Dict]):
                 cr_curve.append({
                     "routing_metric": metric,
                     "route_param": param,
-                    "conflict_lambda": float(rr[0]["conflict_lambda"]),
+                    "lambda_value": float(rr[0]["lambda_value"]),
                     "cr_num_removals": int(k),
                     "observations": len(rr),
                     "conflict_reduced_output_rel_error": cr_mean,
@@ -669,16 +672,25 @@ def main() -> None:
         raise ValueError("motivation requires eager attention")
     if not 0 < float(args.keep_ratio) < 1:
         raise ValueError("keep_ratio must be in (0,1)")
-    if float(args.fig1_conflict_lambda) <= 0 or float(args.fig2_conflict_lambda) <= 0:
-        raise ValueError("conflict lambdas must be positive")
+    if not math.isfinite(args.lambda_value) or args.lambda_value <= 0:
+        raise ValueError("shared lambda must be finite and positive")
+    if not 0 < args.fig1_cosine_tau <= 1 or not 0 < args.fig2_cosine_tau <= 1:
+        raise ValueError("cosine routing tau must lie in (0,1]")
     if int(args.fig1_cr_num_removals) < 0 or int(args.fig2_cr_num_removals) < 0:
         raise ValueError("Conflict-Reduced removal budgets must be non-negative")
 
+    for val in parse_float_list(args.fig1_lambda_grid):
+        shared_lambda_at_point("euclidean", val, args.lambda_value)
+    for val in parse_float_list(args.fig1_cosine_tau_grid):
+        shared_lambda_at_point("cosine", val, args.lambda_value)
     fig1_configs = {m: build_fig1_configs(args, m) for m in ("euclidean", "cosine")}
     fig2_route_grids = {
-        "euclidean": sorted(set(parse_float_list(args.fig2_euclidean_route_grid) + [float(args.fig2_euclidean_route_lambda)])),
-        "cosine": sorted(set(parse_float_list(args.fig2_cosine_route_grid) + [float(args.fig2_cosine_route_lambda)])),
+        "euclidean": sorted(set(parse_float_list(args.fig2_euclidean_lambda_grid) + [float(args.lambda_value)])),
+        "cosine": sorted(set(parse_float_list(args.fig2_cosine_tau_grid) + [float(args.fig2_cosine_tau)])),
     }
+    for metric, grid in fig2_route_grids.items():
+        for val in grid:
+            shared_lambda_at_point(metric, val, args.lambda_value)
     out_dir = Path(args.output_dir).resolve(); out_dir.mkdir(parents=True, exist_ok=True)
     set_seed(0)
 
@@ -718,14 +730,15 @@ def main() -> None:
           f"min={float(calibration_scales.min()):.6g}, max={float(calibration_scales.max()):.6g}", flush=True)
     print("Figure 1: Euclidean + cosine routing; K-step severe-conflict filtering counterfactual", flush=True)
     fig1_counts = {m: len(v) for m, v in fig1_configs.items()}
+    print(f"Shared Delta=lambda*S_calib; lambda={args.lambda_value}; cosine tau (fig1/fig2)="
+          f"{args.fig1_cosine_tau}/{args.fig2_cosine_tau}", flush=True)
     print(f"Figure 1 sweep={'on' if args.fig1_enable_hparam_sweep else 'off'}; configs={fig1_counts}", flush=True)
     fig2_k_values = (sorted(set(parse_int_list(args.fig2_cr_num_removals_grid)
                                 + [int(args.fig2_cr_num_removals)]))
                      if args.fig2_enable_cr_grid else [int(args.fig2_cr_num_removals)])
     print(f"Figure 2: routing-threshold x-axis; Merge-All + per-Star-group CR(K); "
           f"route grids={fig2_route_grids}; K curves={fig2_k_values}; "
-          f"CR-grid={'on' if args.fig2_enable_cr_grid else 'off'}; "
-          f"OFAT sweep={'on' if args.fig2_enable_hparam_sweep else 'off'}", flush=True)
+          f"CR-grid={'on' if args.fig2_enable_cr_grid else 'off'}", flush=True)
 
     for prefix_idx, s0 in enumerate(starts):
         prefix_ids = tokens[:, s0:s0 + int(args.model_seqlen)]
@@ -806,13 +819,13 @@ def main() -> None:
                 ones = torch.ones(int(raw_keys.shape[0]), dtype=torch.float32, device=raw_keys.device)
 
                 # ---------------- Figure 1 ----------------
-                # Figure 1 is intentionally unchanged: only the user-selected
+                # Figure 1: only the user-selected
                 # heads contribute to the layer/head generality heatmaps.
                 if head_idx in fig1_heads:
                     for metric in ("euclidean", "cosine"):
                         for cfg_item in fig1_configs[metric]:
                             param = float(cfg_item["route_param"])
-                            conflict_lambda = float(cfg_item["conflict_lambda"])
+                            lambda_value = float(cfg_item["lambda_value"])
                             view = route_view(
                                 scores=scores, metric=metric,
                                 threshold=route_threshold(metric, param, k_scale),
@@ -820,7 +833,7 @@ def main() -> None:
                             rs = route_stats(view, int(keep_idx.numel()), int(evict_idx.numel()))
                             infos_all = prepare_group_infos(
                                 view=view, routing_metric=metric, evict_global=evict_global, keep_global=keep_global,
-                                state=state, k_scale=k_scale, conflict_lambda=conflict_lambda,
+                                state=state, k_scale=k_scale, lambda_value=lambda_value,
                             )
                             conflict_infos = [x for x in infos_all if int(x["has_star_conflict"]) == 1]
                             route_rows.append({
@@ -828,7 +841,7 @@ def main() -> None:
                                 "is_primary": int(cfg_item["is_primary"]),
                                 "prefix_idx": prefix_idx, "layer_idx": layer_idx, "kv_head_idx": head_idx,
                                 "routing_metric": metric, "route_param": param,
-                                "conflict_lambda": conflict_lambda, "calibration_scale": k_scale,
+                                "lambda_value": lambda_value, "calibration_scale": k_scale,
                                 "cr_num_removals": int(cfg_item["cr_num_removals"]),
                                 "all_candidate_groups": len(infos_all),
                                 "all_conflict_groups": len(conflict_infos),
@@ -851,14 +864,14 @@ def main() -> None:
                                     evaluator=group_eval,
                                     group_positions=group_pos,
                                     k_conflict_score=info["k_conflict_score"],
-                                    conflict_lambda=conflict_lambda,
+                                    lambda_value=lambda_value,
                                     max_removals=int(cfg_item["cr_num_removals"]),
                                 )
                                 group_rows.append({
                                     "config_id": cfg_item["config_id"], "is_primary": int(cfg_item["is_primary"]),
                                     "prefix_idx": prefix_idx, "layer_idx": layer_idx, "kv_head_idx": head_idx,
                                     "routing_metric": metric, "route_param": param,
-                                    "conflict_lambda": conflict_lambda, "calibration_scale": k_scale,
+                                    "lambda_value": lambda_value, "calibration_scale": k_scale,
                                     "cr_num_removals": int(cfg_item["cr_num_removals"]),
                                     "candidate_count": n,
                                     "anchor_distance_mean_norm": float(info["anchor_gamma"].mean().item()),
@@ -879,11 +892,11 @@ def main() -> None:
                 # the outputs are concatenated and passed through the real o_proj;
                 # only then is one whole-layer relative error computed.
                 for metric in ("euclidean", "cosine"):
-                    conflict_lambda = float(args.fig2_conflict_lambda)
                     k_values = fig2_k_values
 
                     for route_param in fig2_route_grids[metric]:
                         route_param = float(route_param)
+                        lambda_value = shared_lambda_at_point(metric, route_param, args.lambda_value)
                         view = route_view(
                             scores=scores, metric=metric,
                             threshold=route_threshold(metric, route_param, k_scale),
@@ -898,18 +911,18 @@ def main() -> None:
                             view=view, routing_metric=metric,
                             evict_global=evict_global, keep_global=keep_global,
                             state=state, k_scale=k_scale,
-                            conflict_lambda=conflict_lambda,
+                            lambda_value=lambda_value,
                         )
                         accepted_by_k, removed_by_k, affected_groups_by_k = per_star_group_counterfactual_curve(
                             group_evaluator=group_eval,
                             view=view,
                             infos=infos,
-                            conflict_lambda=conflict_lambda,
+                            lambda_value=lambda_value,
                             k_values=k_values,
                         )
                         available_groups = sum(int(x["has_star_conflict"]) for x in infos)
                         for k in k_values:
-                            cr_key = ("primary_route_curve", metric, route_param, conflict_lambda, int(k))
+                            cr_key = ("primary_route_curve", metric, route_param, lambda_value, int(k))
                             q2_cr_head_outputs.setdefault(cr_key, [None] * hkv)[head_idx] = whole_eval.compressed_output(
                                 keep_idx=keep_idx, evict_idx=evict_idx, best_idx=view.best_idx,
                                 accepted_mask=accepted_by_k[int(k)], counts_1d=ones,
@@ -922,45 +935,6 @@ def main() -> None:
                             meta["actual_removed_sources"] += int(removed_by_k[int(k)])
                             meta["affected_star_groups"] += int(affected_groups_by_k[int(k)])
                             meta["available_conflict_groups"] += int(available_groups)
-
-                    # Optional OFAT conflict-threshold diagnostic at the primary
-                    # routing point and primary K.  It remains out of the main plot.
-                    if args.fig2_enable_hparam_sweep:
-                        primary_route = float(getattr(args, f"fig2_{metric}_route_lambda"))
-                        k_main = int(args.fig2_cr_num_removals)
-                        view = route_view(
-                            scores=scores, metric=metric,
-                            threshold=route_threshold(metric, primary_route, k_scale),
-                        )
-                        for conflict_alt in parse_float_list(args.fig2_conflict_grid):
-                            conflict_alt = float(conflict_alt)
-                            if abs(conflict_alt - conflict_lambda) < 1e-12:
-                                continue
-                            infos_alt = prepare_group_infos(
-                                view=view, routing_metric=metric,
-                                evict_global=evict_global, keep_global=keep_global,
-                                state=state, k_scale=k_scale, conflict_lambda=conflict_alt,
-                            )
-                            accepted_alt, removed_alt, groups_alt = per_star_group_counterfactual_curve(
-                                group_evaluator=group_eval,
-                                view=view,
-                                infos=infos_alt,
-                                conflict_lambda=conflict_alt,
-                                k_values=[k_main],
-                            )
-                            alt_key = (f"conflict_{conflict_alt:g}", metric, primary_route, conflict_alt, k_main)
-                            q2_cr_head_outputs.setdefault(alt_key, [None] * hkv)[head_idx] = whole_eval.compressed_output(
-                                keep_idx=keep_idx, evict_idx=evict_idx, best_idx=view.best_idx,
-                                accepted_mask=accepted_alt[k_main], counts_1d=ones,
-                            ).detach()
-                            meta = q2_cr_meta.setdefault(alt_key, {
-                                "actual_removed_sources": 0,
-                                "affected_star_groups": 0,
-                                "available_conflict_groups": 0,
-                            })
-                            meta["actual_removed_sources"] += int(removed_alt[k_main])
-                            meta["affected_star_groups"] += int(groups_alt[k_main])
-                            meta["available_conflict_groups"] += sum(int(x["has_star_conflict"]) for x in infos_alt)
 
                 del group_eval, whole_eval, scores
 
@@ -997,7 +971,7 @@ def main() -> None:
                 })
 
             for cr_key, comp_heads in q2_cr_head_outputs.items():
-                config_id, metric, route_param, conflict_lambda, k = cr_key
+                config_id, metric, route_param, lambda_value, k = cr_key
                 fcr = whole_layer_attention_relative_error(
                     full_head_outputs=full_head_outputs,
                     compressed_head_outputs=comp_heads,
@@ -1011,7 +985,7 @@ def main() -> None:
                     "is_primary": int(config_id == "primary_route_curve"),
                     "prefix_idx": prefix_idx, "layer_idx": layer_idx,
                     "routing_metric": metric, "route_param": float(route_param),
-                    "conflict_lambda": float(conflict_lambda),
+                    "lambda_value": float(lambda_value),
                     "cr_num_removals": int(k),
                     "evaluation_scope": "whole_layer_post_o_proj",
                     "num_kv_heads": hkv, "num_query_heads": hq,
@@ -1047,20 +1021,22 @@ def main() -> None:
         "evaluated_prefixes": len(starts),
         "figure1_routing_metrics": ["euclidean", "cosine"],
         "figure1_configs": fig1_configs,
-        "figure1_sweep_design": "OFAT: route, conflict threshold, or CR removal budget changes; never Cartesian product",
+        "figure1_sweep_design": "Euclidean: lambda controls both admission and conflicts; cosine: tau_cos controls routing, lambda controls Euclidean conflicts; optionally vary K",
         "figure1_design": "no clean matching; report Star-conflict prevalence and within-group counterfactual severe-conflict filtering gain across layer/head",
         "figure1_intervention": "identify the current most-severe K-space conflict pair; evaluate evict-u and evict-v; follow the lower-error filtering branch; repeat up to K times. This is an existence/potential diagnostic, not the Figure-3 selector",
         "figure2_routing_metrics": ["euclidean", "cosine"],
         "figure2_route_grids": fig2_route_grids,
-        "figure2_conflict_sweep_grid": parse_float_list(args.fig2_conflict_grid),
+        "figure2_lambda_grid": fig2_route_grids["euclidean"],
+        "figure2_cosine_tau_grid": fig2_route_grids["cosine"],
         "figure2_cr_num_removals_grid": parse_int_list(args.fig2_cr_num_removals_grid),
         "figure2_cr_grid_enabled": bool(args.fig2_enable_cr_grid),
-        "figure2_design": "routing threshold is the x-axis; at every routing point, each Star group independently resolves up to K severe conflicts using the same local counterfactual as Figure 1; all query-head outputs are then concatenated and passed through the real layer o_proj before computing one whole-layer relative error",
+        "figure2_design": "Euclidean sweep: one lambda simultaneously controls route and conflict Delta at each point; cosine sweep: tau_cos varies while Euclidean conflict Delta uses fixed lambda. Each Star group independently resolves up to K severe conflicts with a real-next-Q oracle; error is measured after the real o_proj",
         "figure2_error_scope": "whole attention-layer output after o_proj; one observation per prefix x layer x routing configuration; no macro-average of per-head relative errors",
         "calibration_scale_file": str(Path(args.calibration_scale_file).resolve()),
         "calibration_scale_shape": list(calibration_scales.shape),
-        "scale_protocol": "multiple independent calibration sequences; RMS-aggregated frozen per-(layer,KV-head) S_lh for all Euclidean routing/conflict decisions",
-        "conflict_definition": "||K_u-K_v||_2 / S_lh^calib > conflict_lambda; current-round K only",
+        "scale_protocol": "multiple independent calibration sequences; median-aggregated frozen per-(layer,KV-head) S_lh for all Euclidean routing/conflict decisions",
+        "conflict_definition": "||K_u-K_v||_2 > Delta_(l,h), Delta=lambda*S_lh^calib; current-round K only",
+        "unified_delta_protocol": "euclidean routing and conflicts share lambda per experiment point; cosine routing uses tau_cos but Euclidean conflicts use lambda",
         "query_protocol": "one natural next-token Q per frozen prefix; query token KV excluded",
         "torch": torch.__version__, "transformers": transformers.__version__,
         "python": platform.python_version(), "elapsed_seconds": time.time() - t0,

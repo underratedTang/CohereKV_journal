@@ -7,9 +7,9 @@ For each independent calibration sequence ``m`` and every layer x KV head:
 
     S_lh,m^2 = 2/(L-1) * sum_i ||K_i - mean(K)||_2^2.
 
-The operational frozen scale is the RMS across calibration sequences:
+The operational frozen scale is the median across calibration sequences:
 
-    S_lh^calib = sqrt(mean_m S_lh,m^2).
+    S_lh^calib = median_m S_lh,m.
 
 The full matrix ``S_lh^calib`` is written once and reused unchanged for every
 later prefix/compression round.  We additionally save the per-(layer, head)
@@ -179,7 +179,7 @@ def layer_head_scales_from_key_layers(key_layers: List[torch.Tensor]):
 
 
 def aggregate_sequence_scales(sequence_scales: Sequence[torch.Tensor]):
-    """Aggregate [M,L,H] sequence scales with RMS-of-squared-scales semantics."""
+    """Aggregate [M,L,H] per-sequence scales by statistical median."""
     if not sequence_scales:
         raise ValueError("need at least one calibration scale matrix")
     mats = [x.detach().double().cpu() for x in sequence_scales]
@@ -187,7 +187,7 @@ def aggregate_sequence_scales(sequence_scales: Sequence[torch.Tensor]):
     if len(shape) != 2 or any(tuple(x.shape) != shape for x in mats):
         raise ValueError("calibration scale matrices must have the same [layers,heads] shape")
     stack = torch.stack(mats, dim=0)
-    frozen = torch.sqrt((stack * stack).mean(dim=0).clamp_min(0.0))
+    frozen = torch.quantile(stack, 0.5, dim=0)
     mean = stack.mean(dim=0)
     std = stack.std(dim=0, unbiased=False)
     cv = std / mean.clamp_min(_EPS)
@@ -290,8 +290,8 @@ def main() -> None:
         "sequence_scale_std": seq_std.tolist(),
         "sequence_scale_cv": seq_cv.tolist(),
         "definition_per_sequence": "S_lh,m=sqrt(2*sum_i||K_i-mean(K)||^2/(L-1)+eps^2)",
-        "aggregation": "S_lh_calib=sqrt(mean_m(S_lh,m^2))",
-        "protocol": "multiple disjoint calibration sequences; freeze each layer/head RMS scale for all later prefixes and compression rounds",
+        "aggregation": "S_lh_calib=median_m(S_lh,m)",
+        "protocol": "multiple disjoint calibration sequences; freeze each layer/head median scale for all later prefixes and compression rounds",
         "summary_global_rms_scale": float(global_rms),
         "frozen": True,
         "model": args.model,

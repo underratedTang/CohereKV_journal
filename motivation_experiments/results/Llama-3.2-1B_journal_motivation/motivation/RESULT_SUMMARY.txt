@@ -1,0 +1,6 @@
+Focused CohereKV Motivation 1/2
+================================
+M1 euclidean: conflict prevalence=68.9%; CR gain=+4.0185pp; positive=62.0%
+M1 cosine: conflict prevalence=90.5%; CR gain=+4.6566pp; positive=73.0%
+M2 euclidean: best routing-only MA=16.1626% @route=0.4; best CR(K=1)=16.1619% @route=0.4; same-route CR gain=+0.0007pp
+M2 cosine: best routing-only MA=16.0593% @route=0.9; best CR(K=1)=16.0474% @route=0.9; same-route CR gain=+0.0119pp

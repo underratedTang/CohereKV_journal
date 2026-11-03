@@ -1,247 +1,132 @@
-# CohereKV diagnosis experiments: why can the original graph-MIS method approach Eviction-Only?
+# Dual Cosine/L2 Routing Sweep + Independent E–E MIS — Real-Q diagnosis
 
-This folder is deliberately separated from `motivation_experiments/`. It does **not** propose a new algorithm. It diagnoses the released/original CohereKV mechanism while preserving the production planner:
+**Only `diagnosis_experiments/` changes.** This is the Qwen2.5-3B/7B + Llama,
+low-VRAM native-MIS, low-memory-plot variant of the v3 three-arm diagnostic.
+All three arms share the same KeepKV retained partition, Routed Tokens, Value,
+Count, and original future Query for each routing setting:
 
+- `merge_all`: keep every routed original K.
+- `mis_to_anchor`: original CohereKV degree-priority **E–E** maximal independent
+  set; replace **only rejected routed Keys** by their retained Anchor Key.
+- `all_to_anchor`: replace all routed Keys by Anchor Key.
 
-the original retained/evicted selector → fixed request-local `S_ref` → `Delta = lambda * S_ref` → `C/R/D/Gamma` compatible routing → per-anchor conflict graph → degree-priority Parallel MIS → count-weighted merge.
+Rejected Values and represented-token multiplicities are never dropped.
+No extra R–E filtering is applied after either routing decision.
 
-The central hypothesis is **fixed-budget certificate saturation**: `Delta` stays frozen across rounds while propagated `R`/`D` consume an increasing fraction of the same budget. The remaining center-distance allowance
+## Routing modes and independently swept thresholds
 
-\[
-\frac{\Delta-\hat R_i-\hat R_j}{\Delta}
-\]
-
-can therefore shrink, candidate routing can fail, conflict graphs can become restrictive, and the method can recover so few evicted states that its behavior approaches Eviction-Only.
-
-## 1. Two complementary diagnoses
-
-### A. First-round budget sweep
-
-The first compression starts from singleton states (`C=1, R=0, D=0`). This isolates the **same-Delta routing/filtering geometry before certificate accumulation**.
-
-For each retained-KV budget and each `lambda`, the script compares:
-
-- **Eviction-Only**: retained states only;
-- **Compatible Merge-All**: every source satisfying the original source-anchor `Gamma <= Delta` test is merged, but source-source conflict filtering is disabled;
-- **Original CohereKV**: the same compatible routing followed by the original conflict graph and Parallel MIS.
-
-If Original CohereKV is already much closer to Eviction-Only than Compatible Merge-All in round 1, the initial conflict graph is already sacrificing substantial recovery.
-
-### B. Controlled repeated-compression diagnosis
-
-Starting from the same uncompressed prefix, the experiment repeatedly compresses the **actual Original CohereKV state**. This is a controlled mechanism diagnosis rather than a claim that every runtime request compresses at exactly this schedule.
-
-The production original state advances each round. Three same-state counterfactuals are evaluated but never alter the trajectory:
-
-1. **Compatible Merge-All** — same original routing, but accept all routed sources. This isolates source-source conflict/MIS filtering.
-2. **Fresh-Certificate shadow** — keep the same current representatives and the same fixed `Delta`, but set `R=D=0` only while building the diagnostic plan. If admission/recovery returns, accumulated certificates are a major cause.
-3. **Refreshed-Scale shadow** — keep accumulated `R,D`, but recompute `S_ref` from the current representatives before the diagnostic plan. This separates the frozen-reference-scale part of the fixed-global-Delta hypothesis from certificate accumulation.
-
-Neither shadow is proposed as the final method.
-
-## 2. Direct Eviction-Only degeneration test
-
-The experiment uses short future queries exactly as post-hoc probes. Probe queries never generate any mask.
-
-For any multi-round partition of original prefix tokens, it evaluates the same count-mean K/V + `log(C)` attention-mass construction used in `motivation_experiments`, generalized to the current partition. The main plot is:
-
-```text
-figures/original_coherekv_vs_eviction_only_attention_error_by_round.pdf
-```
-
-The title explicitly compares **Original CohereKV vs Compatible Merge-All vs matched Eviction-Only**. If Original CohereKV's error approaches Eviction-Only and its error reduction over Eviction-Only approaches zero while recovery also collapses, that is direct evidence of degeneration toward eviction behavior.
-
-## 3. Where are evicted states lost?
-
-For every round the script decomposes all evicted physical states into three mutually exclusive outcomes:
-
-- **routing rejection**: no retained anchor satisfies the original `Gamma <= Delta` certificate;
-- **MIS rejection**: routed into a candidate pool but removed by the source-source conflict graph / Parallel MIS;
-- **recovered**: selected and merged.
-
-The plot is:
-
-```text
-figures/evicted_state_loss_decomposition_by_round.pdf
-```
-
-This separates a collapse caused by compatible-routing scarcity from one caused primarily by dense candidate conflict graphs.
-
-## 4. Certificate saturation measurements
-
-For every physical state the experiment records the production effective radius
-
-\[
-\hat R_i = \min\left(R_i, \frac{C_i-1}{C_i}D_i\right)
-\]
-
-and diameter `D_i`, normalized by the same fixed `Delta`.
-
-It reports mean/median/P90/max values and plots:
-
-```text
-figures/certificate_saturation_rhat_and_diameter_over_delta.pdf
-```
-
-The experiment also reports the best radius-only center-distance budget available to each evicted state,
-
-\[
-\max_j \frac{\Delta-\hat R_i-\hat R_j}{\Delta}
-=\frac{\Delta-\hat R_i-\min_j \hat R_j}{\Delta},
-\]
-
-and plots its median/P10:
-
-```text
-figures/remaining_merge_slack_delta_minus_radii_by_round.pdf
-```
-
-A value at or below zero means that **even before considering center distance**, accumulated radii have consumed the entire fixed budget for that source.
-
-## 5. Exact best-anchor certificate pressure
-
-For diagnosis only, the script computes for every evicted physical state the minimum certificate over every retained anchor:
-
-\[
-\min_j \Gamma_{ij}
-=\min_j\max\left(D_i,D_j,\hat R_i+\|k_i-k_j\|_2+\hat R_j\right).
-\]
-
-It plots median and P90 `min_j Gamma_ij / Delta`:
-
-```text
-figures/minimum_anchor_gamma_over_delta_by_round.pdf
-```
-
-When this quantity moves above 1, even the best available retained anchor fails the original fixed-Delta admission rule.
-
-## 6. Conflict-graph diagnosis
-
-The experiment records:
-
-- candidate admission rate;
-- MIS survival among routed candidates;
-- overall recovered-entry and recovered-count-mass ratios;
-- candidate-pool size;
-- conflict edges;
-- conflict graph density = conflict edges / possible within-pool edges;
-- mean conflict degree;
-- MIS rounds.
-
-Two direct comparisons are produced:
-
-```text
-figures/mis_survival_original_vs_fresh_certificates_by_round.pdf
-figures/conflict_graph_density_original_vs_fresh_certificates.pdf
-```
-
-If graph density rises and MIS survival falls in the original trajectory but not in the fresh-certificate shadow, accumulated `R/D` are making the pair certificate increasingly restrictive.
-
-## 7. Frozen global Delta diagnosis
-
-The key figure is:
-
-```text
-figures/candidate_admission_fixed_delta_vs_diagnostic_shadows.pdf
-```
-
-It compares:
-
-- **Original: fixed Delta + accumulated R,D**;
-- **Same Delta, fresh R=D=0 shadow**;
-- **Accumulated R,D, refreshed S_ref/Delta shadow**.
-
-Interpretation:
-
-- fresh certificates help strongly, refreshed scale does little → accumulation of `R/D` is the dominant cause;
-- refreshed scale helps strongly → freezing `S_ref`/`Delta` is itself a significant cause;
-- neither helps → current representative geometry itself is outside the original compactness budget;
-- both help → both effects matter.
-
-## 8. QUICK configuration
-
-`run_diagnosis.sh` uses explicit literal values; experiment parameters are not read from environment variables.
-
-QUICK mode:
-
-- model: `meta-llama/Meta-Llama-3.1-8B`
-- dataset: WikiText-2
-- prefix length: 4096
-- probe tokens: 8
-- layers: `0,8,16,24`
-- KV heads: `0,2,4,6`
-- first-round retained budgets: `20%,40%,60%,80%`
-- `lambda`: `0.5,0.7,0.9`
-- repeated rounds: 5
-- per-round physical keep ratio: 0.8
-
-Full mode increases sequence length, sequences, layers/heads, and rounds.
-
-## 9. Run
+Edit **only** `diagnosis_experiments/run_cosine_mis.sh`, not environment variables:
 
 ```bash
+MODEL="Qwen/Qwen2.5-7B"      # or Qwen/Qwen2.5-3B / a supported Llama
+QUICK_MODE=1
+ROUTING_MODES=("cosine" "l2")  # one or both modes
+ROUTING_COSINE_THRESHOLDS=("0.80" "0.85")
+ROUTING_L2_LAMBDAS=("0.40" "0.60" "0.80")
+ROUTING_L2_DISTANCES=()       # optional physical L2 cutoff sweep
+MIS_EE_LAMBDAS=("0.40" "0.50" "0.60" "0.70")
+GRAPH_BACKEND="cpu_batched"  # memory-limited original native MIS on CPU
+```
+
+**Routing** is performed by Top-1 over retained Keys for every evicted Key:
+
+- Cosine: nearest by **maximum cosine**; accepted if `cos >= routing_cosine_threshold`.
+  No Euclidean gate. Zero-norm keys are unroutable (same as the prior v3).
+- L2: nearest by **minimum physical Euclidean distance**; accepted if
+  `distance <= routing_l2_cutoff`. No cosine gate.
+- For a calibrated L2 routing lambda,
+  `routing_l2_cutoff = lambda_route * S_calib[layer, KV_head]`.
+  The scale `S_calib` is frozen Median across independent **train** sequences.
+- For absolute distances (`ROUTING_L2_DISTANCES`), the cutoff is that literal
+  physical Key distance. Both kinds may be swept simultaneously. Empty arrays
+  are permitted if at least one L2 threshold set remains nonempty.
+
+**E–E MIS is independent from the R–E Routing choice:**
+
+`(i, j)` is a conflict iff `||K_i - K_j||_2 > lambda_EE * S_calib[layer, KV_head]`.
+All configurations in a given routing setting reuse the same Top-1 candidate
+pools across E–E lambda values. This preserves the original conflict definition
+and degree-priority/hash tie-breaking. No Query enters routing/MIS/fusion.
+
+For efficiency, each (layer, head, budget) computes Top-1 once per routing
+**mode**, then applies the acceptance threshold sweep to the cached scores.
+The three methods are paired **within** each routing setting only. The
+Routing sweep changes how many Evicted Tokens are represented; do not compare
+raw method errors across different Routing modes without also reporting coverage.
+
+## Run
+
+Upload the patch ZIP into `/home/tlxr/` and apply it **without deleting the
+existing shell script** (you may have edited its model/budget settings):
+
+```bash
+cd /home/tlxr
+unzip -o CohereKV_Dual_Routing_MIS_Qwen25_LowVRAM_patch.zip
 cd /home/tlxr/CohereKV
-bash diagnosis_experiments/run_diagnosis.sh
+python diagnosis_experiments/test_cosine_mis.py
+python diagnosis_experiments/test_qwen_capture.py
+python diagnosis_experiments/test_low_memory_mis.py
+python diagnosis_experiments/test_dual_routing.py
+bash diagnosis_experiments/run_cosine_mis.sh
 ```
 
-## 10. CSV outputs
+Note: the patch `unzip` command **replaces** the SH file. Back up your own
+custom settings first, then copy their values into the revised sweep arrays.
+
+`RUN_CALIBRATION=1` uses the existing Qwen/Llama independent train-set Median
+calibration; `RUN_CALIBRATION=0` requires a calibration JSON **inside the new
+output directory** matching model, dtype, dataset, seed and lengths. The runner
+cleans **only its own** result directory. Use the output directory printed by
+`[UPLOAD]`, not the old v3 directory.
+
+Quick result bundle examples:
 
 ```text
-single_round_budget_diagnosis_by_head.csv
-single_round_budget_diagnosis_overall.csv
-repeated_round_diagnosis_by_head.csv
-repeated_round_diagnosis_overall.csv
-figures/figure_statistics.csv
+/home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-3B/dual_routing_mis_median_realq_v4_quick/cosine_mis_median_results.zip
+/home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-7B/dual_routing_mis_median_realq_v4_quick/cosine_mis_median_results.zip
 ```
 
-## 11. Main figures with explicit comparisons
+Change `QUICK_MODE=0` for `_full` in the result directory. The ZIP includes
+`cosine_mis_by_config.csv`, `cosine_mis_overall.csv`, `cosine_mis_by_probe.csv`,
+`cosine_mis_by_group.csv`, `cosine_mis_rejected.csv`, actual Key NPZ examples,
+`run_config.json`, run log, frozen train-calibration JSON, and figures.
 
-```text
-figures/first_round_original_coherekv_vs_merge_all_vs_eviction.pdf
-```
-Original CohereKV vs Compatible Merge-All vs Eviction-Only before certificate accumulation.
+Every config and probe row has: `routing_mode`, `routing_parameter_type`,
+`routing_parameter`, `routing_l2_cutoff`, `ee_lambda`. In Cosine mode the
+`routing_l2_cutoff` column is 0 (not an extra gate); in L2 mode it is the
+actual physical cutoff for that layer/head. Existing `cosine_threshold` is
+filled **only for cosine routing**, blank for L2.
 
-```text
-figures/first_round_candidate_admission_vs_mis_recovery.pdf
-```
-Candidate admission vs MIS survival vs final recovery in the first round.
+## Publication figures and sweep presentation
 
-```text
-figures/original_coherekv_vs_eviction_only_attention_error_by_round.pdf
-```
-Original CohereKV vs Compatible Merge-All vs Eviction-Only across repeated compression rounds.
+`plot_cosine_mis.py` makes focus-routing comparisons; independent E–E
+lambda sensitivity; coverage/rejection; per-layer and per-Query summaries;
+**Routing-threshold sweep** (coverage, rejection, real-Q errors) and a 2D
+**Routing x E–E heatmap**. Real high-dimensional Key PCA examples include the
+routing mode, threshold type/value, the **actual L2 cutoff** when applicable,
+and the independent E–E λ in the title. PCA is for **illustration only**:
+all decisions use the actual original Key dimensions, not projected points.
 
-```text
-figures/fidelity_benefit_over_eviction_by_round.pdf
-```
-Attention-error reduction relative to Eviction-Only; values approaching zero indicate degeneration.
+The plotting script uses isolated subprocesses and streams potentially massive
+per-probe CSVs. It produces Times New Roman, **600 DPI PNG** and **vector PDF**
+without high-resolution Matplotlib Agg allocations; `pdftoppm` or `gs` is
+required for PNG. Strict Times New Roman rejects missing fonts rather than
+silently substituting. Numerics are packaged *before* plotting if a font is
+missing.
 
-```text
-figures/candidate_admission_fixed_delta_vs_diagnostic_shadows.pdf
-```
-Original accumulated certificates/fixed Delta vs fresh-certificate and refreshed-scale shadows.
+## Limitations and validation
 
-```text
-figures/evicted_state_loss_decomposition_by_round.pdf
-```
-Routing rejection vs MIS rejection vs successfully recovered states.
+The diagnostic evaluates actual post-RoPE real Q from the original uncompressed
+Llama or Qwen2.5 `eager` model via teacher-forced attention replay, **not PPL
+or compressed autoregressive rollout**. Qwen future Cache K is cross-checked.
+Original CohereKV common/source files remain untouched. CPU native MIS vs GPU
+could differ at nearly exact threshold ties due to FP32 arithmetic; default
+`cpu_batched` avoids padded GPU OOM. Tests need no model weights/CUDA; full
+Qwen model runs must be validated on your server with CUDA/model weights.
 
-```text
-figures/certificate_saturation_rhat_and_diameter_over_delta.pdf
-```
-Effective radius and diameter consumption of the same fixed Delta budget.
-
-```text
-figures/remaining_merge_slack_delta_minus_radii_by_round.pdf
-```
-Remaining normalized center-distance budget after certificate radii consume part of Delta.
-
-```text
-figures/minimum_anchor_gamma_over_delta_by_round.pdf
-```
-Best possible retained-anchor certificate relative to the fixed feasibility boundary.
-
-```text
-figures/final_round_recovery_vs_global_lambda.pdf
-```
-Whether a larger global compactness coefficient delays the late-round recovery collapse.
+To avoid too many 600-DPI PNGs during wide sweeps, one representative routing
+threshold per mode is used for detailed error / coverage / Layer / per-Query
+figures (`FOCUS_ROUTING_COSINE_THRESHOLD`, `FOCUS_ROUTING_L2_LAMBDA` in SH).
+**All routing parameter values** still appear in the routing-sweep charts and
+Routing × E–E heatmaps, and **all** numeric configurations are preserved in CSV.
+The PCA illustration shows a representative actual group for each mode.

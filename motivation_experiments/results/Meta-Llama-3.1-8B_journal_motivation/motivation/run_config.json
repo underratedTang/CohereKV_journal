@@ -1,0 +1,124 @@
+{
+  "model": "meta-llama/Meta-Llama-3.1-8B",
+  "dataset": "wikitext2",
+  "model_seqlen": 4096,
+  "max_eval_prefixes": 8,
+  "prefix_stride": 0,
+  "torch_dtype": "bfloat16",
+  "attn_implementation": "eager",
+  "device": "cuda:1",
+  "device_map": "none",
+  "trust_remote_code": false,
+  "use_fast_tokenizer": false,
+  "prefill_chunk_size": 256,
+  "keep_ratio": 0.1,
+  "routing_score_chunk_size": 1024,
+  "calibration_scale_file": "/home/tlxr/CohereKV/motivation_experiments/results/Meta-Llama-3.1-8B_journal_motivation/calibration/layer_head_scales.json",
+  "lambda_value": 0.5,
+  "fig1_cosine_tau": 0.8,
+  "fig1_enable_hparam_sweep": false,
+  "fig1_lambda_grid": "0.30,0.40,0.50,0.60,0.70",
+  "fig1_cosine_tau_grid": "0.60,0.70,0.80,0.90",
+  "fig1_cr_num_removals": 1,
+  "fig1_cr_num_removals_grid": "1,4,8",
+  "fig2_cosine_tau": 0.8,
+  "fig2_euclidean_lambda_grid": "0.30,0.40,0.50,0.60,0.70",
+  "fig2_cosine_tau_grid": "0.60,0.70,0.80,0.90",
+  "fig2_cr_num_removals": 1,
+  "fig2_enable_cr_grid": true,
+  "fig2_cr_num_removals_grid": "1,4,8",
+  "max_groups_per_head": 0,
+  "keepkv_sink_size": 4,
+  "keepkv_recent_protect_size": 32,
+  "keepkv_score_window": 32,
+  "keepkv_recency_beta": 1.0,
+  "layer_selection": "0,8,16,24,31",
+  "kv_head_selection": "all",
+  "prob_eps": 1e-30,
+  "output_norm_eps": 1e-20,
+  "progress_every_head": true,
+  "output_dir": "/home/tlxr/CohereKV/motivation_experiments/results/Meta-Llama-3.1-8B_journal_motivation/motivation",
+  "experiment": "coherekv_focused_motivation",
+  "evaluated_prefixes": 8,
+  "figure1_routing_metrics": [
+    "euclidean",
+    "cosine"
+  ],
+  "figure1_configs": {
+    "euclidean": [
+      {
+        "config_id": "primary",
+        "is_primary": 1,
+        "routing_metric": "euclidean",
+        "route_param": 0.5,
+        "lambda_value": 0.5,
+        "cr_num_removals": 1
+      }
+    ],
+    "cosine": [
+      {
+        "config_id": "primary",
+        "is_primary": 1,
+        "routing_metric": "cosine",
+        "route_param": 0.8,
+        "lambda_value": 0.5,
+        "cr_num_removals": 1
+      }
+    ]
+  },
+  "figure1_sweep_design": "Euclidean: lambda controls both admission and conflicts; cosine: tau_cos controls routing, lambda controls Euclidean conflicts; optionally vary K",
+  "figure1_design": "no clean matching; report Star-conflict prevalence and within-group counterfactual severe-conflict filtering gain across layer/head",
+  "figure1_intervention": "identify the current most-severe K-space conflict pair; evaluate evict-u and evict-v; follow the lower-error filtering branch; repeat up to K times. This is an existence/potential diagnostic, not the Figure-3 selector",
+  "figure2_routing_metrics": [
+    "euclidean",
+    "cosine"
+  ],
+  "figure2_route_grids": {
+    "euclidean": [
+      0.3,
+      0.4,
+      0.5,
+      0.6,
+      0.7
+    ],
+    "cosine": [
+      0.6,
+      0.7,
+      0.8,
+      0.9
+    ]
+  },
+  "figure2_lambda_grid": [
+    0.3,
+    0.4,
+    0.5,
+    0.6,
+    0.7
+  ],
+  "figure2_cosine_tau_grid": [
+    0.6,
+    0.7,
+    0.8,
+    0.9
+  ],
+  "figure2_cr_num_removals_grid": [
+    1,
+    4,
+    8
+  ],
+  "figure2_cr_grid_enabled": true,
+  "figure2_design": "Euclidean sweep: one lambda simultaneously controls route and conflict Delta at each point; cosine sweep: tau_cos varies while Euclidean conflict Delta uses fixed lambda. Each Star group independently resolves up to K severe conflicts with a real-next-Q oracle; error is measured after the real o_proj",
+  "figure2_error_scope": "whole attention-layer output after o_proj; one observation per prefix x layer x routing configuration; no macro-average of per-head relative errors",
+  "calibration_scale_shape": [
+    32,
+    8
+  ],
+  "scale_protocol": "multiple independent calibration sequences; median-aggregated frozen per-(layer,KV-head) S_lh for all Euclidean routing/conflict decisions",
+  "conflict_definition": "||K_u-K_v||_2 > Delta_(l,h), Delta=lambda*S_lh^calib; current-round K only",
+  "unified_delta_protocol": "euclidean routing and conflicts share lambda per experiment point; cosine routing uses tau_cos but Euclidean conflicts use lambda",
+  "query_protocol": "one natural next-token Q per frozen prefix; query token KV excluded",
+  "torch": "2.9.0+cu128",
+  "transformers": "4.46.3",
+  "python": "3.10.21",
+  "elapsed_seconds": 904.7382202148438
+}

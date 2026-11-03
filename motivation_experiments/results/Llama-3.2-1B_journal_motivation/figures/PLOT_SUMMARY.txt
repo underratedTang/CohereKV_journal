@@ -1,0 +1,5 @@
+font: Times New Roman
+M1 cosine: prevalence=90.5%; CR gain=+4.6566pp; positive=73.0%
+M1 euclidean: prevalence=68.9%; CR gain=+4.0185pp; positive=62.0%
+M2 euclidean: best routing-only MA=16.1626%; best plotted CR=16.1603%
+M2 cosine: best routing-only MA=16.0593%; best plotted CR=16.0474%

@@ -16,6 +16,9 @@ def load_calibration_scales(path: str, expected_model: Optional[str] = None) -> 
         raise ValueError(
             f"calibration-scale model mismatch: {payload.get('model')!r} != {expected_model!r}"
         )
+    # Do not silently mix historic RMS-calibrated results with Journal median S.
+    if payload.get("aggregation") not in (None, "S_lh_calib=median_m(S_lh,m)"):
+        raise ValueError(f"non-median calibration scale: {payload.get('aggregation')!r}; rerun calibration")
     rows = payload.get("layer_head_scales")
     if not isinstance(rows, list) or not rows or not all(isinstance(r, list) and r for r in rows):
         raise ValueError(f"missing/non-rectangular layer_head_scales in {path}")

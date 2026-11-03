@@ -1,8 +1,0 @@
-Focused CohereKV repository-style PPL
-=======================================
-seqlen=8192; step=32; compress_ratio=0.8
-[PRIMARY] full: PPL=5.682139; wall=33.67s; compressions=0
-[PRIMARY] eviction_only: PPL=6.108785; wall=58.21s; compressions=1004
-[PRIMARY] merge_all: PPL=6.093578; wall=78.19s; compressions=1004; accepted/routed=100.00%
-[PRIMARY] original_coherekv: PPL=6.105470; wall=166.60s; compressions=1004
-[PRIMARY] modified_coherekv: PPL=6.088277; wall=137.18s; compressions=1004; accepted/routed=96.59%

@@ -3,3 +3,4 @@ matplotlib
 torch
 transformers
 datasets
+accelerate

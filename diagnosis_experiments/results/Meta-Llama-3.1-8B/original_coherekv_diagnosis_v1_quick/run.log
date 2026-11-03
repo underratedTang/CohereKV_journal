@@ -1,62 +1,0 @@
-QUICK_MODE=1
-MODEL=meta-llama/Meta-Llama-3.1-8B
-MODEL_SEQLEN=4096
-SINGLE_ROUND_BUDGETS=0.2 0.4 0.6 0.8
-LAMBDA_VALUES=0.5 0.7 0.9
-REPEATED_ROUNDS=5
-ROUND_KEEP_RATIO=0.8
-LAYER_SELECTION=0,8,16,24
-KV_HEAD_SELECTION=0,2,4,6
-OUT_DIR=/home/tlxr/CohereKV/diagnosis_experiments/results/Meta-Llama-3.1-8B/original_coherekv_diagnosis_v1_quick
-
-Loading model: meta-llama/Meta-Llama-3.1-8B
-Transformers version: 4.46.3
-Original CohereKV lambda sweep: [0.5, 0.7, 0.9]
-Diagnosis: production C/R/D/Gamma routing + conflict graph + Parallel MIS; compare matched Eviction-Only, route-compatible Merge-All, fresh-certificate shadow, and refreshed-S_ref shadow. Repeated rounds advance only the original CohereKV trajectory.
-Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:03,  1.20s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:04<00:04,  2.41s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:08<00:02,  2.99s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:08<00:00,  1.89s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:08<00:00,  2.08s/it]
-Token indices sequence length is longer than the specified maximum sequence length for this model (289077 > 131072). Running this sequence through the model will result in indexing errors
-
-[SEQUENCE 0] prefix [0,4096), probe [4096,4104)
-We detected that you are passing `past_key_values` as a tuple of tuples. This is deprecated and will be removed in v4.47. Please convert your cache or use an appropriate `Cache` class (https://huggingface.co/docs/transformers/kv_cache#legacy-cache-format)
-  [HEAD] layer=0 kv_head=0
-  [HEAD] layer=0 kv_head=2
-  [HEAD] layer=0 kv_head=4
-  [HEAD] layer=0 kv_head=6
-  [HEAD] layer=8 kv_head=0
-  [HEAD] layer=8 kv_head=2
-  [HEAD] layer=8 kv_head=4
-  [HEAD] layer=8 kv_head=6
-  [HEAD] layer=16 kv_head=0
-  [HEAD] layer=16 kv_head=2
-  [HEAD] layer=16 kv_head=4
-  [HEAD] layer=16 kv_head=6
-  [HEAD] layer=24 kv_head=0
-  [HEAD] layer=24 kv_head=2
-  [HEAD] layer=24 kv_head=4
-  [HEAD] layer=24 kv_head=6
-
-Wrote diagnosis results to /home/tlxr/CohereKV/diagnosis_experiments/results/Meta-Llama-3.1-8B/original_coherekv_diagnosis_v1_quick
-Saved: /home/tlxr/CohereKV/diagnosis_experiments/results/Meta-Llama-3.1-8B/original_coherekv_diagnosis_v1_quick/figures/first_round_original_coherekv_vs_merge_all_vs_eviction.pdf
-Saved: /home/tlxr/CohereKV/diagnosis_experiments/results/Meta-Llama-3.1-8B/original_coherekv_diagnosis_v1_quick/figures/first_round_candidate_admission_vs_mis_recovery.pdf
-Saved: /home/tlxr/CohereKV/diagnosis_experiments/results/Meta-Llama-3.1-8B/original_coherekv_diagnosis_v1_quick/figures/original_coherekv_vs_eviction_only_attention_error_by_round.pdf
-Saved: /home/tlxr/CohereKV/diagnosis_experiments/results/Meta-Llama-3.1-8B/original_coherekv_diagnosis_v1_quick/figures/fidelity_benefit_over_eviction_by_round.pdf
-Saved: /home/tlxr/CohereKV/diagnosis_experiments/results/Meta-Llama-3.1-8B/original_coherekv_diagnosis_v1_quick/figures/candidate_admission_fixed_delta_vs_diagnostic_shadows.pdf
-Saved: /home/tlxr/CohereKV/diagnosis_experiments/results/Meta-Llama-3.1-8B/original_coherekv_diagnosis_v1_quick/figures/mis_survival_original_vs_fresh_certificates_by_round.pdf
-Saved: /home/tlxr/CohereKV/diagnosis_experiments/results/Meta-Llama-3.1-8B/original_coherekv_diagnosis_v1_quick/figures/conflict_graph_density_original_vs_fresh_certificates.pdf
-Saved: /home/tlxr/CohereKV/diagnosis_experiments/results/Meta-Llama-3.1-8B/original_coherekv_diagnosis_v1_quick/figures/evicted_state_loss_decomposition_by_round.pdf
-/home/tlxr/CohereKV/diagnosis_experiments/plot_original_coherekv_diagnosis.py:204: UserWarning: Glyph 770 (\N{COMBINING CIRCUMFLEX ACCENT}) missing from font(s) Times New Roman.
-  fig.tight_layout()
-/home/tlxr/CohereKV/diagnosis_experiments/plot_original_coherekv_diagnosis.py:41: UserWarning: Glyph 770 (\N{COMBINING CIRCUMFLEX ACCENT}) missing from font(s) Times New Roman.
-  fig.savefig(base.with_suffix(".pdf"), bbox_inches="tight")
-/home/tlxr/CohereKV/diagnosis_experiments/plot_original_coherekv_diagnosis.py:42: UserWarning: Glyph 770 (\N{COMBINING CIRCUMFLEX ACCENT}) missing from font(s) Times New Roman.
-  fig.savefig(base.with_suffix(".png"), dpi=dpi, bbox_inches="tight")
-Saved: /home/tlxr/CohereKV/diagnosis_experiments/results/Meta-Llama-3.1-8B/original_coherekv_diagnosis_v1_quick/figures/certificate_saturation_rhat_and_diameter_over_delta.pdf
-/home/tlxr/CohereKV/diagnosis_experiments/plot_original_coherekv_diagnosis.py:217: UserWarning: Glyph 770 (\N{COMBINING CIRCUMFLEX ACCENT}) missing from font(s) Times New Roman.
-  fig.tight_layout()
-Saved: /home/tlxr/CohereKV/diagnosis_experiments/results/Meta-Llama-3.1-8B/original_coherekv_diagnosis_v1_quick/figures/remaining_merge_slack_delta_minus_radii_by_round.pdf
-Saved: /home/tlxr/CohereKV/diagnosis_experiments/results/Meta-Llama-3.1-8B/original_coherekv_diagnosis_v1_quick/figures/minimum_anchor_gamma_over_delta_by_round.pdf
-Saved: /home/tlxr/CohereKV/diagnosis_experiments/results/Meta-Llama-3.1-8B/original_coherekv_diagnosis_v1_quick/figures/final_round_recovery_vs_global_lambda.pdf
-[DONE] /home/tlxr/CohereKV/diagnosis_experiments/results/Meta-Llama-3.1-8B/original_coherekv_diagnosis_v1_quick
-[CSV] /home/tlxr/CohereKV/diagnosis_experiments/results/Meta-Llama-3.1-8B/original_coherekv_diagnosis_v1_quick/single_round_budget_diagnosis_overall.csv
-[CSV] /home/tlxr/CohereKV/diagnosis_experiments/results/Meta-Llama-3.1-8B/original_coherekv_diagnosis_v1_quick/repeated_round_diagnosis_overall.csv
-[FIGURE] /home/tlxr/CohereKV/diagnosis_experiments/results/Meta-Llama-3.1-8B/original_coherekv_diagnosis_v1_quick/figures/original_coherekv_vs_eviction_only_attention_error_by_round.pdf

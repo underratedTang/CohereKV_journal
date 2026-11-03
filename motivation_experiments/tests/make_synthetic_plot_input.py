@@ -34,13 +34,13 @@ for mi,metric in enumerate(metrics):
             gain=.007-.0005*mi+.0004*((2*li+h)%5)
             prevs.append(prevalence); gains.append(gain)
             lh.append({
-                "routing_metric":metric,"config_id":"primary","is_primary":1,"route_param":route,"conflict_lambda":.10,"layer_idx":l,"kv_head_idx":h,
+                "routing_metric":metric,"config_id":"primary","is_primary":1,"route_param":route,"lambda_value":.40,"layer_idx":l,"kv_head_idx":h,
                 "prefix_observations":4,"candidate_groups":40,"conflict_groups":int(round(40*prevalence)),
                 "conflict_prevalence":prevalence,"intervention_groups":24,
                 "intervention_gain_mean":gain,"intervention_positive_fraction":.82,
             })
     overall.append({
-        "routing_metric":metric,"config_id":"primary","is_primary":1,"route_param":route,"conflict_lambda":.10,
+        "routing_metric":metric,"config_id":"primary","is_primary":1,"route_param":route,"lambda_value":.40,
         "candidate_groups":1600,"conflict_groups":1450,
         "conflict_prevalence":sum(prevs)/len(prevs),
         "conflict_reduced_gain":sum(gains)/len(gains),
@@ -69,7 +69,7 @@ for metric, grid in [
         for k in [1,2,4]:
             cr=e - (.0008*k) * (1.0 - 0.15*abs(p-mid))
             cr_rows.append({
-                "routing_metric":metric,"route_param":p,"conflict_lambda":.50,
+                "routing_metric":metric,"route_param":p,"lambda_value":(p if metric=="euclidean" else .40),
                 "cr_num_removals":k,"observations":160,
                 "conflict_reduced_output_rel_error":cr,
                 "merge_all_output_rel_error":e,
