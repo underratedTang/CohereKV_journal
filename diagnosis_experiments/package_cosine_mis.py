@@ -7,7 +7,7 @@ def main():
     p=argparse.ArgumentParser();p.add_argument('--input_dir',required=True);a=p.parse_args()
     root=Path(a.input_dir).resolve()
     if not root.is_dir():raise NotADirectoryError(root)
-    dest=root/'cosine_mis_median_results.zip'
+    dest=root/'journal_ia_mis_results.zip'  # stable upload filename
     with zipfile.ZipFile(dest,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=6) as out:
         for file in sorted(root.rglob('*')):
             if file.is_file() and file!=dest and not file.name.startswith('.'):

@@ -6,17 +6,19 @@ from experiment_utils import parse_float_csv
 
 def summarize(rows):
     grouped=defaultdict(list)
-    for r in rows:grouped[(r['routing_mode'],r['routing_parameter_type'],r['routing_parameter'],r['budget'],r['ee_lambda'],r['method'])].append(r)
+    for r in rows:grouped[(r['routing_mode'],r['routing_parameter_type'],r['routing_parameter'],r['budget'],r.get('ee_metric','l2'),r['ee_lambda'],r['method'])].append(r)
     out=[]
     for key,group in sorted(grouped.items()):
-        rec=dict(zip(('routing_mode','routing_parameter_type','routing_parameter','budget','ee_lambda','method'),key))
+        rec=dict(zip(('routing_mode','routing_parameter_type','routing_parameter','budget','ee_metric','ee_lambda','method'),key))
         rec['n_paired_configs']=len(group)
-        for field in ('routing_l2_cutoff','output_rel_error','output_rel_p90','output_abs_error','output_rmse',
+        for field in ('routing_l2_cutoff','output_rel_error','output_rel_squared_error','output_rel_p90','output_abs_error','output_rmse',
                       'delta_rel_from_merge_all','relative_improvement_pct','probe_win_fraction',
+                      'delta_rel_from_iw_merge_all','relative_improvement_iw_pct',
                       'n_routed','n_mis_accepted','n_mis_rejected','n_affected_groups',
                       'n_native_conflict_edges','reconstruction_sse_original_key',
                       'mean_anchor_drift','mean_routed_cosine'):
-            rec[field]=float(np.mean([r[field] for r in group]))
+            vals=[float(r[field]) for r in group if field in r]
+            rec[field]=float(np.mean(vals)) if vals else float('nan')
         rec['n_changed_configs']=sum(r['n_mis_rejected']>0 for r in group)
         out.append(rec)
     return out

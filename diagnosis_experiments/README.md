@@ -1,132 +1,110 @@
-# Dual Cosine/L2 Routing Sweep + Independent E–E MIS — Real-Q diagnosis
+# CohereKV — Euclidean vs Cosine E–E MIS ablation
 
-**Only `diagnosis_experiments/` changes.** This is the Qwen2.5-3B/7B + Llama,
-low-VRAM native-MIS, low-memory-plot variant of the v3 three-arm diagnostic.
-All three arms share the same KeepKV retained partition, Routed Tokens, Value,
-Count, and original future Query for each routing setting:
+This release modifies **only** `diagnosis_experiments/`. The target method is
+`k_only_importance_mis_drop` (Count × Importance D-first priority, Count Mean
+K/V fusion, rejected KV/Count Drop), but the ablation applies to every
+independently enabled MIS method (including sink-gated and I/IW fusion arms).
 
-- `merge_all`: keep every routed original K.
-- `mis_to_anchor`: original CohereKV degree-priority **E–E** maximal independent
-  set; replace **only rejected routed Keys** by their retained Anchor Key.
-- `all_to_anchor`: replace all routed Keys by Anchor Key.
+## What's changed
 
-Rejected Values and represented-token multiplicities are never dropped.
-No extra R–E filtering is applied after either routing decision.
+- **Removed:** `k_only_mis_drop_headcal`, `k_only_mis_drop_modelcal`, the corresponding
+  RUN switches, offline Head λ calibration, plotter, utility and unused test.
+  Train-based per-head **S** calibration is retained for the Euclidean baseline.
+- **Added:** paired `_cosee` methods for every enabled MIS arm, automatically
+  when `RUN_COSINE_EE_ABLATION=1`. For a sink-gated method, suffix order is
+  `_cosee_sink`. All other algorithmic behavior is held fixed.
+- **E–E conflict definition:**
 
-## Routing modes and independently swept thresholds
+  - Original Euclidean: `||K_i − K_j||_2 > lambda * S_ref[layer,head]`;
+    `PPL_EE_LAMBDAS` / `MIS_EE_LAMBDAS` configure λ.
+  - Cosine: `1 − cos(K_i,K_j) > delta`;
+    `PPL_COSINE_EE_THRESHOLDS` / `MIS_COSINE_EE_THRESHOLDS` configure δ.
+    The cosine graph **does not multiply by S_ref** and does not alter K/V.
+    Zero vectors use a stable zero-normalization convention.
 
-Edit **only** `diagnosis_experiments/run_cosine_mis.sh`, not environment variables:
+  The threshold scales are **not interchangeable**. E–A Routing remains
+  independent (`ROUTING_COSINE_THRESHOLDS` or `PPL_COSINE_THRESHOLDS`, e.g. 0.80).
 
-```bash
-MODEL="Qwen/Qwen2.5-7B"      # or Qwen/Qwen2.5-3B / a supported Llama
-QUICK_MODE=1
-ROUTING_MODES=("cosine" "l2")  # one or both modes
-ROUTING_COSINE_THRESHOLDS=("0.80" "0.85")
-ROUTING_L2_LAMBDAS=("0.40" "0.60" "0.80")
-ROUTING_L2_DISTANCES=()       # optional physical L2 cutoff sweep
-MIS_EE_LAMBDAS=("0.40" "0.50" "0.60" "0.70")
-GRAPH_BACKEND="cpu_batched"  # memory-limited original native MIS on CPU
-```
-
-**Routing** is performed by Top-1 over retained Keys for every evicted Key:
-
-- Cosine: nearest by **maximum cosine**; accepted if `cos >= routing_cosine_threshold`.
-  No Euclidean gate. Zero-norm keys are unroutable (same as the prior v3).
-- L2: nearest by **minimum physical Euclidean distance**; accepted if
-  `distance <= routing_l2_cutoff`. No cosine gate.
-- For a calibrated L2 routing lambda,
-  `routing_l2_cutoff = lambda_route * S_calib[layer, KV_head]`.
-  The scale `S_calib` is frozen Median across independent **train** sequences.
-- For absolute distances (`ROUTING_L2_DISTANCES`), the cutoff is that literal
-  physical Key distance. Both kinds may be swept simultaneously. Empty arrays
-  are permitted if at least one L2 threshold set remains nonempty.
-
-**E–E MIS is independent from the R–E Routing choice:**
-
-`(i, j)` is a conflict iff `||K_i - K_j||_2 > lambda_EE * S_calib[layer, KV_head]`.
-All configurations in a given routing setting reuse the same Top-1 candidate
-pools across E–E lambda values. This preserves the original conflict definition
-and degree-priority/hash tie-breaking. No Query enters routing/MIS/fusion.
-
-For efficiency, each (layer, head, budget) computes Top-1 once per routing
-**mode**, then applies the acceptance threshold sweep to the cached scores.
-The three methods are paired **within** each routing setting only. The
-Routing sweep changes how many Evicted Tokens are represented; do not compare
-raw method errors across different Routing modes without also reporting coverage.
+- **Unchanged:** Importance scoring; Retained/Evicted selection; R–E Routing;
+  each family's MIS node priority (including Importance D-first); Count Mean,
+  I Mean or C×I Mean as selected; Drop/AllCount and Count/log-count behavior;
+  uncompressed Prefix → one bulk compression → post-compression continuation PPL.
+- **Output identity:** `ee_metric` is `l2` or `cosine`, `ee_threshold` records the
+  numeric threshold, while legacy `ee_lambda` stores the same numeric sweep
+  coordinate for downstream plotting compatibility. PPL/resume keys include the
+  metric; baseline evaluations are explicitly reused across metrics.
+- **Plots:** separate `figures/l2/` and `figures/cosine/` subdirectories with
+  PDF and PNG outputs, plus `ppl_ee_metric_best_observed.csv` and a paired
+  best-*observed*-PPL plot. Minima on the PPL test sweep are **descriptive**:
+  they are not an independent validation of tuned thresholds.
 
 ## Run
 
-Upload the patch ZIP into `/home/tlxr/` and apply it **without deleting the
-existing shell script** (you may have edited its model/budget settings):
+Edit settings **inside** `diagnosis_experiments/run_cosine_mis.sh`; do not pass
+experiment settings as environment-variable overrides.
+
+The default is Importance-D MIS with L2 vs Cosine E–E pairs:
 
 ```bash
-cd /home/tlxr
-unzip -o CohereKV_Dual_Routing_MIS_Qwen25_LowVRAM_patch.zip
+RUN_K_ONLY_MIS_DROP=0
+RUN_K_ONLY_IMPORTANCE_MIS_DROP=1
+RUN_COSINE_EE_ABLATION=1
+RUN_CALIBRATION=1
+RUN_ANALYSIS=0
+RUN_PPL=1
+RUN_PLOT=1
+PPL_EE_LAMBDAS=("0.10" "0.30" "0.50" "0.70")
+PPL_COSINE_EE_THRESHOLDS=("0.01" "0.03" "0.05" "0.10" "0.20")
+```
+
+Specify the target model, dataset, context, budget and number of windows in
+that same shell (`MODEL`, `PPL_DATASET`, `PPL_CONTEXT_LEN`, `PPL_BUDGETS`,
+`PPL_MAX_SEQUENCES`). To switch from WikiText-2 to C4, change only
+`PPL_DATASET="c4"`; keep the calibration dataset (e.g. WikiText-2 Train)
+unchanged to test cross-dataset transfer of the same frozen scale S.
+
+```bash
 cd /home/tlxr/CohereKV
-python diagnosis_experiments/test_cosine_mis.py
-python diagnosis_experiments/test_qwen_capture.py
-python diagnosis_experiments/test_low_memory_mis.py
-python diagnosis_experiments/test_dual_routing.py
+python diagnosis_experiments/test_cosine_ee_mis.py
+python diagnosis_experiments/test_degree_anchor_priorities.py
+python diagnosis_experiments/test_konly_importance_mis.py
+python diagnosis_experiments/test_bulk_prefix_ppl.py
 bash diagnosis_experiments/run_cosine_mis.sh
 ```
 
-Note: the patch `unzip` command **replaces** the SH file. Back up your own
-custom settings first, then copy their values into the revised sweep arrays.
+For single-round historical/future-Query Attention Replay, set
+`RUN_ANALYSIS=1` and control the **independent** replay threshold arrays
+`MIS_EE_LAMBDAS` and `MIS_COSINE_EE_THRESHOLDS`. The experiment uses the same
+routed KV groups for both E–E metrics within each configuration.
 
-`RUN_CALIBRATION=1` uses the existing Qwen/Llama independent train-set Median
-calibration; `RUN_CALIBRATION=0` requires a calibration JSON **inside the new
-output directory** matching model, dtype, dataset, seed and lengths. The runner
-cleans **only its own** result directory. Use the output directory printed by
-`[UPLOAD]`, not the old v3 directory.
+### Result package to upload
 
-Quick result bundle examples:
+After the run, upload the ZIP named on the final `[UPLOAD]` line, normally:
 
-```text
-/home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-3B/dual_routing_mis_median_realq_v4_quick/cosine_mis_median_results.zip
-/home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-7B/dual_routing_mis_median_realq_v4_quick/cosine_mis_median_results.zip
+```
+diagnosis_experiments/results/<model>/<experiment>/journal_ia_mis_results.zip
 ```
 
-Change `QUICK_MODE=0` for `_full` in the result directory. The ZIP includes
-`cosine_mis_by_config.csv`, `cosine_mis_overall.csv`, `cosine_mis_by_probe.csv`,
-`cosine_mis_by_group.csv`, `cosine_mis_rejected.csv`, actual Key NPZ examples,
-`run_config.json`, run log, frozen train-calibration JSON, and figures.
+At minimum, the ZIP should contain:
 
-Every config and probe row has: `routing_mode`, `routing_parameter_type`,
-`routing_parameter`, `routing_l2_cutoff`, `ee_lambda`. In Cosine mode the
-`routing_l2_cutoff` column is 0 (not an extra gate); in L2 mode it is the
-actual physical cutoff for that layer/head. Existing `cosine_threshold` is
-filled **only for cosine routing**, blank for L2.
+- `calibration/median_reference.json`
+- `ppl_sweep/ppl_konly_importance_mis.csv`
+- `ppl_sweep/ppl_comparison_by_config.csv`
+- `ppl_sweep/ppl_routing_load_diagnostics.csv`
+- `ppl_sweep/ppl_run_config.json`
+- `ppl_sweep/ppl_ee_metric_best_observed.csv` (if plotting completed)
 
-## Publication figures and sweep presentation
+Plots enforce **Times New Roman** when `STRICT_TIMES_NEW_ROMAN=1` and are saved
+in vector PDF and high-resolution PNG (`PNG_DPI=600`). Times New Roman must
+already be installed on the machine. If not installed, plotting fails clearly;
+prior numeric ZIP packaging remains available. No font files are bundled.
 
-`plot_cosine_mis.py` makes focus-routing comparisons; independent E–E
-lambda sensitivity; coverage/rejection; per-layer and per-Query summaries;
-**Routing-threshold sweep** (coverage, rejection, real-Q errors) and a 2D
-**Routing x E–E heatmap**. Real high-dimensional Key PCA examples include the
-routing mode, threshold type/value, the **actual L2 cutoff** when applicable,
-and the independent E–E λ in the title. PCA is for **illustration only**:
-all decisions use the actual original Key dimensions, not projected points.
+### Validation and limitations
 
-The plotting script uses isolated subprocesses and streams potentially massive
-per-probe CSVs. It produces Times New Roman, **600 DPI PNG** and **vector PDF**
-without high-resolution Matplotlib Agg allocations; `pdftoppm` or `gs` is
-required for PNG. Strict Times New Roman rejects missing fonts rather than
-silently substituting. Numerics are packaged *before* plotting if a font is
-missing.
-
-## Limitations and validation
-
-The diagnostic evaluates actual post-RoPE real Q from the original uncompressed
-Llama or Qwen2.5 `eager` model via teacher-forced attention replay, **not PPL
-or compressed autoregressive rollout**. Qwen future Cache K is cross-checked.
-Original CohereKV common/source files remain untouched. CPU native MIS vs GPU
-could differ at nearly exact threshold ties due to FP32 arithmetic; default
-`cpu_batched` avoids padded GPU OOM. Tests need no model weights/CUDA; full
-Qwen model runs must be validated on your server with CUDA/model weights.
-
-To avoid too many 600-DPI PNGs during wide sweeps, one representative routing
-threshold per mode is used for detailed error / coverage / Layer / per-Query
-figures (`FOCUS_ROUTING_COSINE_THRESHOLD`, `FOCUS_ROUTING_L2_LAMBDA` in SH).
-**All routing parameter values** still appear in the routing-sweep charts and
-Routing × E–E heatmaps, and **all** numeric configurations are preserved in CSV.
-The PCA illustration shows a representative actual group for each mode.
+CPU regression tests verify cosine edge construction, positive key rescaling
+invariance, identical conflict graphs across MIS priorities, fusion selection,
+sink gating, and metric-safe grid/result merging. The bulk PPL test verifies
+that no prefix/warm-up losses are scored. GPU execution with a full model and
+runtime costs must still be validated in the target research environment.
+The default experiments use relatively few scored tokens; differences near
+0.01 PPL should be assessed across more independent windows.

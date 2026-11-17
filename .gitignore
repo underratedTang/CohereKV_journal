@@ -1,2 +1,4 @@
 *.npz
 /diagnosis_experiments/results/
+/diagnosis_experiments_v1/results/
+/diagnosis_experiments_v2/results/
