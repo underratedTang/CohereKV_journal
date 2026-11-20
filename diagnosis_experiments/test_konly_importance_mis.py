@@ -52,8 +52,7 @@ def main():
         else:raise AssertionError('Bad switch list accepted: '+repr(bad))
     for method in FAMILY_ALL_METHODS['k_only']+FAMILY_ALL_METHODS['k_only_importance']:
         assert family_for_method(method) in ('k_only','k_only_importance')
-        if method.endswith('_sink'):
-            assert is_sink_gated(method)
+        if is_sink_gated(method):
             assert effective_method(method,False)=='merge_all'
             assert effective_method(method,True)==original_method(method)
         else:
@@ -129,8 +128,7 @@ def main():
     # Both Drop and AllCount must share IDENTICAL K/V for the same input.
     counts=torch.tensor([2.,3.,5.,7.])
     for family,plan in [('k_only',old),('k_only_importance',new)]:
-        drop,allcount=(('k_only_mis_drop','k_only_mis_drop_allcount')
-                       if family=='k_only' else ('k_only_importance_mis_drop','k_only_importance_mis_drop_allcount'))
+        drop,allcount=FAMILY_METHODS[family]
         mk,mv,mc=fuse_weighted_slots(keys,vals,counts,keep,evict,best,routed,routed,'merge_all')
         kd,vd,cd=fuse_weighted_slots(keys,vals,counts,keep,evict,best,routed,plan.accepted,drop)
         ka,va,ca=fuse_weighted_slots(keys,vals,counts,keep,evict,best,routed,plan.accepted,allcount)

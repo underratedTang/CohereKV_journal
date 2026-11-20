@@ -46,16 +46,16 @@ def numeric_key(x):
     return f'{float(x):.12g}'
 
 
-def setting_key(mode,param,budget,ee,method,metric='l2'):
-    return (str(mode),numeric_key(param),numeric_key(budget),numeric_key(ee),str(method),str(metric))
+def setting_key(mode,param,budget,ee,method):
+    return (str(mode),numeric_key(param),numeric_key(budget),numeric_key(ee),str(method))
 
 
-def computation_key(mode,param,budget,ee,method,metric='l2'):
+def computation_key(mode,param,budget,ee,method):
     """Only MIS-dependent methods need re-evaluation per E-E cutoff."""
     if method=='full_cache':return ('full_cache',)
     if method in ('merge_all','importance_weighted_merge_all'):
         return (method,mode,numeric_key(param),numeric_key(budget))
-    return (method,mode,numeric_key(param),numeric_key(budget),str(metric),numeric_key(ee))
+    return (method,mode,numeric_key(param),numeric_key(budget),numeric_key(ee))
 
 
 def config_comparison_rows(rows,method_order=None):
@@ -64,31 +64,26 @@ def config_comparison_rows(rows,method_order=None):
     groups={}
     for r in rows:
         key=(r['routing_mode'],numeric_key(r['routing_parameter']),
-             numeric_key(r['budget']),r.get('ee_metric','l2'),numeric_key(r['ee_lambda']))
+             numeric_key(r['budget']),numeric_key(r['ee_lambda']))
         groups.setdefault(key,{})[r['method']]=r
     out=[]
-    for (mode,param,budget,metric,ee),group in sorted(groups.items()):
-        active_methods=tuple(m for m in methods if m in group)
-        if 'merge_all' not in group or 'full_cache' not in group:continue
+    for (mode,param,budget,ee),group in sorted(groups.items()):
+        if not all(m in group for m in methods):continue
         base=float(group['merge_all']['ppl'])
         iwbase=float(group['importance_weighted_merge_all']['ppl']) if 'importance_weighted_merge_all' in group else None
         reference=next(iter(group.values()))
         entry=dict(routing_mode=mode,routing_parameter=float(param),budget=float(budget),
-                   ee_lambda=float(ee),ee_metric=metric,sweep_id=int(reference.get('sweep_id',0)),
+                   ee_lambda=float(ee),sweep_id=int(reference.get('sweep_id',0)),
                    fixed_kv_budget_tokens=group['merge_all']['fixed_kv_budget_tokens'])
         entry['primary_baseline']='importance_weighted_merge_all' if iwbase is not None else 'merge_all'
-        # Rectangular CSV schema even though L2 and cosine methods have
-        # intentionally different threshold grids and different active arms.
-        for m in methods:
-            entry[m]=float(group[m]['ppl']) if m in group else ''
+        for m in methods:entry[m]=float(group[m]['ppl'])
         for m in methods:
             if m not in ('full_cache','merge_all'):
-                entry['delta_'+m]=(entry[m]-base if m in group else '')
-                entry['relative_delta_pct_'+m]=(100*(entry[m]-base)/base if m in group else '')
-            if 'importance_weighted_merge_all' in methods and m!='full_cache':
-                entry['delta_vs_iw_'+m]=(entry[m]-iwbase if iwbase is not None and m in group else '')
-                entry['relative_delta_pct_vs_iw_'+m]=(100*(entry[m]-iwbase)/max(iwbase,1e-12)
-                    if iwbase is not None and m in group else '')
+                entry['delta_'+m]=entry[m]-base
+                entry['relative_delta_pct_'+m]=100*(entry[m]-base)/base
+            if iwbase is not None and m!='full_cache':
+                entry['delta_vs_iw_'+m]=entry[m]-iwbase
+                entry['relative_delta_pct_vs_iw_'+m]=100*(entry[m]-iwbase)/max(iwbase,1e-12)
         out.append(entry)
     return out
 
@@ -138,13 +133,12 @@ def atomic_write_csv(path, rows):
     os.replace(temp,path)
 
 
-def formatted_ppl_summary(group,mode,param,budget,ee,method_order=None,ee_metric='l2'):
+def formatted_ppl_summary(group,mode,param,budget,ee,method_order=None):
     methods=tuple(method_order or group)
     vals={m:float(group[m]['ppl']) for m in methods}
     route=f'cos>={param:g}' if mode=='cosine' else f'L2lambda={param:g}'
     example=next(iter(group.values()))
-    sweep=(f'E-E-lambda={ee:g} (frozen TRAIN S_ref)' if ee_metric=='l2'
-           else f'E-E-cosine-distance={ee:g} (1 - cosine, no S_ref)')
+    sweep=f'E-E-lambda={ee:g} (frozen TRAIN S_ref)'
     control=('importance_weighted_merge_all' if 'importance_weighted_merge_all' in vals
              else 'merge_all')
     lines=[f'[PPL RESULT] B={budget:.0%} routing={route} {sweep} | PPL (lower better; Delta vs {control})',

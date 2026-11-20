@@ -18,9 +18,9 @@ RESULTS_ROOT="${DIAG_DIR}/results"
 # ============================================================
 # 1. Execution / model / evaluation workload
 # ============================================================
-# MODEL="meta-llama/Llama-3.2-1B"
+MODEL="meta-llama/Llama-3.2-1B"
 # MODEL="meta-llama/Meta-Llama-3.1-8B"
-MODEL="Qwen/Qwen2.5-3B"
+# MODEL="Qwen/Qwen2.5-3B"
 # MODEL="meta-llama/Llama-2-7b-hf"
 DATASET="wikitext2"
 TORCH_DTYPE="bfloat16"
@@ -189,8 +189,8 @@ QUERY_NORM_SAFETY_FACTOR=1.05
 # Same prefix, warm-up token and target stream across all methods and budgets.
 # ============================================================
 # PPL_DATASET="wikitext2"
-# PPL_DATASET="wikitext2"
-PPL_DATASET="c4"
+PPL_DATASET="wikitext2"
+# PPL_DATASET="c4"
 
 PPL_CONTEXT_LEN=16384
 PPL_CONTINUATION_LEN=256

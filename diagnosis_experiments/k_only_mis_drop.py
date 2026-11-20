@@ -10,7 +10,8 @@ from dataclasses import dataclass
 import math
 import torch
 
-from method_registry import FUSION_METHODS, fusion_is_importance_weighted, fusion_weight_mode
+from method_registry import (FUSION_METHODS, fusion_is_importance_weighted,
+                             fusion_weight_mode, without_ea_certificate)
 METHODS = FUSION_METHODS
 
 
@@ -60,8 +61,8 @@ def _neighbor_importance_delta(importance, conflict, valid):
 def _select_batched(k, physical, gamma, importance, valid, dk, priority,
                     relative=None, importance_aware=False, return_raw=False,
                     original_valid=None, *, anchor_weight=None,
-                    k_reference=None, ee_metric='l2'):
-    """Build the same K-only E-E conflict graph for all greedy priorities."""
+                    k_reference=None, certificate_centers=None, certificate_radii=None):
+    """Build the same p-certified E-E graph for all greedy priorities."""
     g, n, _ = k.shape
     if n == 0:
         return (torch.zeros((g, 0), dtype=torch.bool, device=k.device),
@@ -70,37 +71,32 @@ def _select_batched(k, physical, gamma, importance, valid, dk, priority,
     if priority not in ('degree', 'degree_anchor_product', 'anchor_first',
                         'importance_delta', 'importance_mass_delta'):
         raise ValueError('Unknown MIS priority')
-    if ee_metric not in ('l2','cosine'): raise ValueError('Unknown E-E distance metric')
     dk = torch.as_tensor(dk, dtype=torch.float32, device=k.device).reshape(g)
-
     if bool((dk <= 0).any()):
         raise ValueError('K-only threshold must be positive')
     pair = valid[:, :, None] & valid[:, None, :]
     kk = k.float()
+    centered = kk - kk.mean(dim=1, keepdim=True)
+    norm = centered.square().sum(-1)
+    k2 = (norm[:, :, None] + norm[:, None, :] -
+          2 * torch.bmm(centered, centered.transpose(1, 2))).clamp_min_(0)
+    tol = 8 * torch.finfo(torch.float32).eps * torch.maximum(dk.abs(), torch.ones_like(dk))
+    limit2=(dk-tol).clamp_min(0).square()[:,None,None]
+    if certificate_centers is not None:
+        if certificate_radii is None:raise ValueError('Missing certificate radii')
+        cent=certificate_centers.float()
+        rad=certificate_radii.float()
+        if cent.shape!=k.shape or rad.shape!=k.shape[:2]:
+            raise ValueError('Wrong p-certificate shapes')
+        # Same cross-cluster p-bound as E-A routing.  In the initial
+        # unmerged round all radii=0 and this is ordinary Key L2.
+        upper=torch.cdist(cent,cent,p=2)+rad[:,:,None]+rad[:,None,:]
+        k2=upper.square()
+    raw_conflict_eligible = pair & (k2 > limit2)
     original_pair=(original_valid[:, :, None]&original_valid[:, None, :]
                    if original_valid is not None else pair)
-    if ee_metric=='cosine':
-        # No Key norm information is removed from fusion or Attention: it is
-        # ignored ONLY in this alternate E-E conflict graph.
-        # Safe for zero vectors: normalize(0)=0 -> pair cosine=0.
-        unit=torch.nn.functional.normalize(kk, p=2, dim=-1, eps=1e-12)
-        cos=torch.bmm(unit,unit.transpose(1,2)).clamp(-1.,1.)
-        dcos=(1.-cos).clamp(0.,2.)
-        tol=8*torch.finfo(torch.float32).eps
-        condition=dcos > (dk[:,None,None]+tol)
-        k2=None;limit2=None
-    else:
-        centered = kk - kk.mean(dim=1, keepdim=True)
-        norm = centered.square().sum(-1)
-        k2 = (norm[:, :, None] + norm[:, None, :] -
-              2 * torch.bmm(centered, centered.transpose(1, 2))).clamp_min_(0)
-        tol = 8 * torch.finfo(torch.float32).eps * torch.maximum(dk.abs(), torch.ones_like(dk))
-        limit2=(dk-tol).clamp_min(0).square()[:,None,None]
-        condition=k2>limit2
-    raw_conflict_eligible = pair & condition
-    raw_conflict = original_pair & condition
+    raw_conflict = original_pair & (k2 > limit2)
     if importance_aware:
-        if ee_metric=='cosine':raise ValueError('Importance-aware L2 graph is not a cosine ablation')
         if relative is None:raise ValueError('IA graph requires relative effective weight')
         r=relative.double().clamp_min(0)
         ri,rj=r[:,:,None],r[:,None,:]
@@ -161,11 +157,77 @@ def _select_batched(k, physical, gamma, importance, valid, dk, priority,
 
 
 @torch.no_grad()
+def _select_streamed(centers, radii, physical, anchor_gamma, importance,
+                     threshold, priority, *, block_size=128):
+    """Memory-O(block*n) exact deterministic greedy MIS.
+
+    With a FIXED strict total priority, descending-priority greedy selection
+    produces the same selected mask as parallel local-maximum peeling: after
+    each local-maximum round those maxima would also be the first accepted
+    elements in descending order, and their neighbors are discarded. Graph
+    degrees and importance-neighbor sums are computed over the FULL graph.
+
+    This backend avoids dense [n,n] edge storage (critical for Qwen heads
+    routing >10K evicted slots to one anchor). Number of *parallel rounds* is
+    not computed; the resulting accepted set and CountMean fusion are exact.
+    """
+    n=int(centers.shape[0]);device=centers.device
+    chosen=torch.zeros(n,device=device,dtype=torch.bool)
+    if n==0:return chosen,0,-1
+    center=centers.float();radius=radii.float();dk=float(threshold)
+    tol=8*torch.finfo(torch.float32).eps*max(1.,abs(dk))
+    boundary=max(0.,dk-tol)
+    degrees=torch.zeros(n,device=device,dtype=torch.int32)
+    neighbor_mass=torch.zeros(n,device=device,dtype=torch.float64)
+    w=importance.double()
+    for start in range(0,n,block_size):
+        end=min(start+block_size,n)
+        dist=torch.cdist(center[start:end],center,p=2)
+        conflict=(dist+radius[start:end,None]+radius[None,:])>boundary
+        diag=torch.arange(start,end,device=device)
+        conflict[torch.arange(end-start,device=device),diag]=False
+        degrees[start:end]=conflict.sum(dim=1).int()
+        if priority in ('importance_delta','importance_mass_delta'):
+            neighbor_mass[start:end]=conflict.double().matmul(w)
+    edges=int(degrees.sum().item()//2)
+    degree_list=degrees.tolist()
+    gamma_list=anchor_gamma.float().tolist()
+    imp_list=(w-neighbor_mass).tolist() if priority in ('importance_delta','importance_mass_delta') else None
+    phys_list=physical.long().tolist()
+    def stable_hash(i):return (int(i)*2654435761+1013904223)&0xFFFFFFFF
+    def key(i):
+        d=degree_list[i];a=float(gamma_list[i]);h=stable_hash(phys_list[i])
+        if priority=='degree':return (d,a,h,phys_list[i])
+        if priority=='anchor_first':return (a*a,d,h,phys_list[i])
+        if priority=='degree_anchor_product':return ((d+1)*a*a,d,a,h,phys_list[i])
+        if priority in ('importance_delta','importance_mass_delta'):
+            return (-float(imp_list[i]),d,a,h,phys_list[i])
+        raise ValueError(priority)
+    order=sorted(range(n),key=key)
+    # Avoid n per-token GPU synchronizations merely to test removed[i].
+    # Transfer only conflict indices after accepting a non-isolated node.
+    removed_cpu=[False]*n
+    chosen_cpu=[False]*n
+    for i in order:
+        if removed_cpu[i]:continue
+        chosen_cpu[i]=True
+        removed_cpu[i]=True
+        if degree_list[i]==0:continue
+        dist=torch.linalg.vector_norm(center-center[i],dim=-1)
+        conflict=(dist+radius+radius[i])>boundary
+        conflict[i]=False
+        for j in torch.nonzero(conflict).flatten().tolist():
+            removed_cpu[j]=True
+    chosen=torch.tensor(chosen_cpu,device=device,dtype=torch.bool)
+    return chosen,edges,-1
+
+
+@torch.no_grad()
 def ee_mis(keys, values, keep, evict, best, routed, anchor_dist,
            k_reference, v_reference, ee_lambda, backend='gpu_batched',
            pair_budget=262144, *, counts=None, importance=None, priority='degree',
            importance_aware=False, importance_mode='count_importance',
-           ee_metric='l2'):
+           certificate_centers=None, certificate_radii=None):
     """One KV head [physical_slots,d]; graph/priority/importance mode explicit.
 
     `importance` is the already-computed KeepKV score for EACH physical slot.
@@ -180,12 +242,10 @@ def ee_mis(keys, values, keep, evict, best, routed, anchor_dist,
     if not all(math.isfinite(float(x)) and float(x) > 0
                for x in (k_reference, ee_lambda)):
         raise ValueError('Positive frozen TRAIN Key scale and lambda required')
-    if backend not in ('gpu_batched', 'cpu_batched', 'torch', 'cuda', 'auto'):
+    if backend not in ('gpu_batched', 'cpu_batched', 'torch', 'cuda', 'auto', 'streamed'):
         raise ValueError('Unknown graph backend ' + str(backend))
     device = keys.device
-    if ee_metric not in ('l2','cosine'):raise ValueError('Invalid E-E metric')
-    if ee_metric=='cosine' and ee_lambda>2:raise ValueError('Cosine E-E distance must be <=2')
-    dk = float(k_reference) * float(ee_lambda) if ee_metric=='l2' else float(ee_lambda)
+    dk = float(k_reference) * float(ee_lambda)
     keep = keep.long().reshape(-1)
     evict = evict.long().reshape(-1)
     best = best.long().reshape(-1)
@@ -246,6 +306,10 @@ def ee_mis(keys, values, keep, evict, best, routed, anchor_dist,
     eligible_edges_total=0
     raw_edges_by_group=torch.zeros_like(pools)
     src_keys = keys.detach().cpu() if backend == 'cpu_batched' else keys
+    src_centers=(certificate_centers.detach().to(src_keys.device)
+                 if certificate_centers is not None else None)
+    src_radii=(certificate_radii.detach().to(src_keys.device)
+               if certificate_radii is not None else None)
     b_cpu = best.detach().cpu()
     r_cpu = routed.detach().cpu()
     records = []
@@ -254,6 +318,31 @@ def ee_mis(keys, values, keep, evict, best, routed, anchor_dist,
         if ids.numel():
             records.append((int(owner), ids))
     records.sort(key=lambda item: (int(item[1].numel()), item[0]))
+    if backend == 'streamed':
+        if importance_aware:
+            raise ValueError('streamed graph intentionally supports geometric p-conflicts only')
+        for owner, ids in records:
+            local_ids=ids.to(device)
+            phys=evict[local_ids]
+            valid=eligible[local_ids]
+            source=phys[valid]
+            gam=anchor_dist[local_ids][valid]
+            im=(c[source]*importance[source] if priority=='importance_mass_delta'
+                else importance[source])
+            cent=(certificate_centers[source] if certificate_centers is not None else keys[source])
+            rad=(certificate_radii[source] if certificate_radii is not None
+                 else torch.zeros(len(source),device=device))
+            selected_local,edge_count,nrounds=_select_streamed(
+                cent,rad,source,gam,im,dk,priority)
+            chosen[local_ids[valid]]=selected_local
+            pools[owner]=int(len(ids))
+            accepts[owner]=int(selected_local.sum().item())
+            edges[owner]=edge_count
+            rounds[owner]=nrounds
+            raw_edges_by_group[owner]=edge_count
+            raw_edges_total+=edge_count
+            eligible_edges_total+=edge_count
+        records=[]  # Disable dense graph; bookkeeping continues below.
     cursor = 0
     while cursor < len(records):
         end = cursor + 1
@@ -280,6 +369,8 @@ def ee_mis(keys, values, keep, evict, best, routed, anchor_dist,
         phys = ev_src[indexes]
         gamma = anchor_dist.to(work_device)[indexes]
         local_k = src_keys[phys].float()
+        local_centers=src_centers[phys] if src_centers is not None else None
+        local_radii=src_radii[phys] if src_radii is not None else None
         # Count*I priority for every importance D-first method, including
         # K-only methods; geometric conflicts themselves remain unchanged.
         local_importance = ((c * importance).to(work_device)[phys].float()
@@ -293,7 +384,8 @@ def ee_mis(keys, values, keep, evict, best, routed, anchor_dist,
             local_k, phys, gamma, local_importance, local_valid,
             torch.full((g,), dk, device=work_device), priority,
             relative=local_relative, importance_aware=importance_aware,
-            return_raw=True,original_valid=mask,ee_metric=ee_metric)
+            return_raw=True,original_valid=mask,
+            certificate_centers=local_centers,certificate_radii=local_radii)
         raw_edges_total+=int(raw_edge_count.sum().item())
         eligible_edges_total+=int(eligible_edge_count.sum().item())
         selected = selected.to(device)
@@ -345,6 +437,8 @@ def fuse_weighted_slots(keys, values, counts, keep, evict, best, routed, accepte
     but never fuses their K/V. Unrouted slots are dropped in all modes.
     """
     if method not in METHODS:raise ValueError('Bad fusion arm '+str(method))
+    # The E-A-only ablation changes routing, never the selected fusion mode.
+    method=without_ea_certificate(method)
     if keys.ndim!=2 or keys.shape!=values.shape or counts.numel()!=len(keys):
         raise ValueError('Bad input shapes')
     keep=keep.long().reshape(-1);evict=evict.long().reshape(-1)
@@ -365,7 +459,7 @@ def fuse_weighted_slots(keys, values, counts, keep, evict, best, routed, accepte
     mode=fusion_weight_mode(method)
     mass=(c if mode=='count' else importance if mode=='importance_only'
           else c*importance)
-    members=(routed if method in ('merge_all','importance_weighted_merge_all')
+    members=(routed if method in ('merge_all','importance_weighted_merge_all','coherekv_wo_mis')
              else (routed&accepted))
     sources=torch.nonzero(members).flatten()
     denom=mass[keep].clone()
@@ -394,8 +488,7 @@ def fuse_weighted_slots(keys, values, counts, keep, evict, best, routed, accepte
                 kfallback[j]+=(keys[evict[ids]].float()*wc[:,None]).sum(0)
                 vfallback[j]+=(values[evict[ids]].float()*wc[:,None]).sum(0)
         denom[zero]=fallback;ksum[zero]=kfallback;vsum[zero]=vfallback
-    from method_registry import canonical_method
-    if canonical_method(method).endswith('_allcount'):
+    if method.endswith('_allcount'):
         reject=torch.nonzero(routed&~accepted).flatten()
         if reject.numel():c_out.index_add_(0,best[reject],c[evict[reject]])
     return ((ksum/denom[:,None]).to(keys.dtype),

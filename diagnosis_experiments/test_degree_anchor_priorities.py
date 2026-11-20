@@ -55,7 +55,7 @@ def case(anchor):
 def main():
     expected=('k_only_degree_anchor_mis_drop','k_only_anchor_first_mis_drop')
     assert all(x in METHODS for x in expected)
-    assert all(len(FAMILY_METHODS[f])==2 for f in ('k_only_degree_anchor','k_only_anchor_first'))
+    assert all(len(FAMILY_METHODS[f])==1 for f in ('k_only_degree_anchor','k_only_anchor_first'))
     assert selected_methods('k_only,k_only_degree_anchor,k_only_anchor_first',
         ','.join(('k_only_mis_drop',*expected))) == ('full_cache','merge_all','k_only_mis_drop',*expected)
     for method in expected:

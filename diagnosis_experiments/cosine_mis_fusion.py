@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import numpy as np
 
-from method_registry import FUSION_METHODS,FAMILY_METHODS,fusion_is_importance_weighted,canonical_method
+from method_registry import FUSION_METHODS,FAMILY_METHODS,fusion_is_importance_weighted
 METHODS=FUSION_METHODS
 
 @dataclass
@@ -30,9 +30,8 @@ def fuse_plan(keys,values,keep_idx,evict_idx,best_idx,routed,accepted,
               methods_to_compute=None):
     if mis_family not in FAMILY_METHODS:raise ValueError('Unknown MIS family')
     variants=FAMILY_METHODS[mis_family]
-    requested=tuple(methods_to_compute or variants)
-    drop_method=next((m for m in variants if m in requested and canonical_method(m).endswith('_drop')),None)
-    allcount_method=next((m for m in variants if m in requested and canonical_method(m).endswith('_allcount')),None)
+    drop_method=next(m for m in variants if m.endswith('_drop'))
+    allcount_method=next((m for m in variants if m.endswith('_allcount')),None)
     possible=('merge_all','importance_weighted_merge_all',*variants)
     family_methods=(possible if methods_to_compute is None else
                     tuple(x for x in possible if x in methods_to_compute))
@@ -83,7 +82,7 @@ def fuse_plan(keys,values,keep_idx,evict_idx,best_idx,routed,accepted,
     outk={};outv={};counts={}
     for method in family_methods:
         src=targets if method in ('merge_all','importance_weighted_merge_all') else included
-        outk[method],outv[method],counts[method]=make(src,fusion_is_importance_weighted(method),canonical_method(method).endswith('_allcount'))
+        outk[method],outv[method],counts[method]=make(src,fusion_is_importance_weighted(method),method.endswith('_allcount'))
     if drop_method in outk and allcount_method is not None and allcount_method in outk:
         if not np.array_equal(outk[drop_method],outk[allcount_method]):
             raise AssertionError('Drop and AllCount must have identical K')
