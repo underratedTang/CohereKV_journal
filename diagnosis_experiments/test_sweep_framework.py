@@ -13,7 +13,7 @@ import torch
 from conference_mis import conference_routes,conference_weights
 from sequence_windows import choose_indices
 from aggregate_continuous_sequences import aggregate,SUM_FIELDS,FLOAT_SUM_FIELDS
-from method_registry import METHODS,methods_for_p,select_methods,attention_for_method
+from method_registry import METHODS,methods_for_gamma,select_methods,attention_for_method
 
 class NativeCache:
     def __init__(self):self.key_cache=[]
@@ -80,20 +80,20 @@ class Tests(unittest.TestCase):
 
     def test_method_switches(self):
         self.assertEqual(len(METHODS),8)
-        self.assertEqual(len(methods_for_p(2)),8)
-        self.assertEqual(len(methods_for_p(math.inf)),6)
+        self.assertEqual(len(methods_for_gamma(2)),8)
+        self.assertEqual(len(methods_for_gamma(math.inf)),6)
         for m in METHODS:
-            self.assertEqual(methods_for_p(math.inf,select_methods(m)),(m,))
+            self.assertEqual(methods_for_gamma(math.inf,select_methods(m)),(m,))
         for bad in ('','unknown','full_cache,full_cache'):
             with self.assertRaises(ValueError):select_methods(bad)
         self.assertEqual(attention_for_method('coherekv_soft_mis_log_count'),'log_count')
         self.assertEqual(attention_for_method('coherekv_soft_mis_importance_log_count'),'log_count')
 
     def test_aggregate_pools_and_deduplicates(self):
-        self._check_aggregate(METHODS,16)
+        self._check_aggregate(METHODS,28)
 
     def test_aggregate_no_baselines(self):
-        self._check_aggregate(('coherekv_soft_mis_importance_log_count',),4)
+        self._check_aggregate(('coherekv_soft_mis_importance_log_count',),8)
 
     def test_aggregate_full_only(self):
         self._check_aggregate(('full_cache',),1)
@@ -108,26 +108,27 @@ class Tests(unittest.TestCase):
                 d=root/'sequences'/f'seq_{i}'/'ppl_continuous';d.mkdir(parents=True)
                 sha=hashlib.sha256(str(i).encode()).hexdigest()
                 cfg=dict(sequence_index=i,cycles=1,unscored_len=4,scored_len=2,token_start=i*6,token_end=(i+1)*6,
-                         scored_stream_sha256=sha,output_dir=str(d),methods=list(selected),methods_by_p={str(p):list(methods_for_p(p,selected)) for p in (2.,math.inf)},
+                         scored_stream_sha256=sha,output_dir=str(d),methods=list(selected),p_values='2,inf',gamma_values='2,inf',methods_by_gamma={str(g):list(methods_for_gamma(g,selected)) for g in (2.,math.inf)},
                          budgets='0.1',lambda_ea='0.5',lambda_ee='0.1,0.5',split='validation')
                 rows=[];cr=[]
                 for p in [2.,math.inf]:
-                    for ee in [.1,.5]:
-                        for m in methods_for_p(p,selected):
-                            candidate=m.startswith('coherekv_soft_mis');conf=m=='coherekv_conference';full=m=='full_cache'
-                            x=nll if full else nll+.1
-                            common=dict(method=m,p=p,budget=.1,lambda_ea=.5,lambda_ee=ee,
-                                        actual_p=p if candidate else math.inf if conf else '',actual_budget='' if full else .1,
-                                        actual_lambda_ea='' if m in ('full_cache','eviction_only') else .5,
-                                        actual_lambda_ee=ee if candidate else .5 if conf else '',
-                                        actual_reference_mode='online_first' if conf else 'none' if m in ('full_cache','eviction_only') else 'frozen_train',
-                                        sequence_index=i,token_start=i*6,token_end=(i+1)*6,stream_sha256=sha,scored_tokens=2)
-                            vals={k:0 for k in (*SUM_FIELDS,*FLOAT_SUM_FIELDS)}
-                            rows.append(dict(**common,ppl=math.exp(x),nll_per_token=x,nll_sum=2*x,compress_rounds=0 if full else 1,
-                                             **vals,importance_retention_rate='',max_before_len=6,max_after_len=6 if full else 1,seconds=1.,reused_baseline=False))
-                            cr.append(dict(**common,cycle=1,cycle_nll_sum=2*x,cycle_nll_per_token=x,cycle_ppl=math.exp(x),
-                                           cumulative_nll_per_token=x,cumulative_ppl=math.exp(x),compression_rounds=0 if full else 1,
-                                           **{k:v for k,v in vals.items() if k!='mis_conflict_edges'},physical_kv_len=6,importance_retention_rate=''))
+                    for gamma in [2.,math.inf]:
+                        for ee in [.1,.5]:
+                            for m in methods_for_gamma(gamma,selected):
+                                candidate=m.startswith('coherekv_soft_mis');conf=m=='coherekv_conference';full=m=='full_cache'
+                                x=nll if full else nll+.1
+                                common=dict(method=m,p=p,gamma=gamma,budget=.1,lambda_ea=.5,lambda_ee=ee,
+                                            actual_p=p if candidate else math.inf if conf else '',actual_gamma=gamma if candidate else math.inf if conf else '',actual_budget='' if full else .1,
+                                            actual_lambda_ea='' if m in ('full_cache','eviction_only') else .5,
+                                            actual_lambda_ee=ee if candidate else .5 if conf else '',
+                                            actual_reference_mode='online_first' if conf else 'none' if m in ('full_cache','eviction_only') else 'frozen_train',
+                                            sequence_index=i,token_start=i*6,token_end=(i+1)*6,stream_sha256=sha,scored_tokens=2)
+                                vals={k:0 for k in (*SUM_FIELDS,*FLOAT_SUM_FIELDS)}
+                                rows.append(dict(**common,ppl=math.exp(x),nll_per_token=x,nll_sum=2*x,compress_rounds=0 if full else 1,
+                                                 **vals,importance_retention_rate='',max_before_len=6,max_after_len=6 if full else 1,seconds=1.,reused_baseline=False))
+                                cr.append(dict(**common,cycle=1,cycle_nll_sum=2*x,cycle_nll_per_token=x,cycle_ppl=math.exp(x),
+                                               cumulative_nll_per_token=x,cumulative_ppl=math.exp(x),compression_rounds=0 if full else 1,
+                                               **{k:v for k,v in vals.items() if k!='mis_conflict_edges'},physical_kv_len=6,importance_retention_rate=''))
                 (d/'continuous_config.json').write_text(json.dumps(cfg))
                 (d/'continuous_run_complete.json').write_text(json.dumps(dict(config=cfg,n_results=len(rows),n_cycles=len(cr))))
                 save(d/'ppl_continuous.csv',rows);save(d/'ppl_continuous_cycles.csv',cr)
@@ -147,12 +148,14 @@ class Tests(unittest.TestCase):
                 self.assertTrue(all(r['delta_nll_vs_full']=='' for r in rows))
                 self.assertTrue(all(math.isclose(float(r['overall_ppl']),8.*math.exp(.1)) for r in rows))
             # Plot actual available arms (font requirement is tested on the server).
-            from plot_continuous_ppl import heatmaps,baseline_plot,best_plot,read_rows
+            from plot_continuous_ppl import heatmaps,baseline_plot,best_plot,pgamma_plot,read_rows
             agg=root/'aggregate';fig=agg/'figures'
             heatmaps(read_rows(agg/'ppl_continuous.csv'),fig,'ppl',40)
             heatmaps(read_rows(agg/'ppl_continuous.csv'),fig,'delta',40,field='delta_nll_vs_full')
             baseline_plot(rows,fig,40)
-            best_plot(read_rows(agg/'ppl_sweep_best_by_method_p.csv'),read_rows(agg/'ppl_continuous_paired_deltas.csv'),fig,40)
+            best_plot(read_rows(agg/'ppl_sweep_best_by_method_p_gamma.csv'),read_rows(agg/'ppl_continuous_paired_deltas.csv'),fig,40)
+            pgamma_plot(read_rows(agg/'ppl_sweep_best_by_method_p_gamma.csv'),fig,40)
+            if any(m.startswith('coherekv_soft_mis') for m in selected):self.assertTrue(list(fig.glob('best_p_gamma*.png')))
             self.assertTrue(list(fig.glob('best_ppl*.png')))
             self.assertTrue(list(fig.glob('best_ppl*.pdf')))
             if 'full_cache' not in selected:self.assertFalse(list(fig.glob('best_paired*.png')))

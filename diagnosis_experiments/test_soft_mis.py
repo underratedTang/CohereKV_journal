@@ -3,11 +3,41 @@
 import math
 import unittest
 import torch
-from soft_mis import (soft_anchor_routes,soft_mis_weights,fuse_soft_slots,
+from soft_mis import (soft_anchor_routes,soft_mis_weights as independent_weights,fuse_soft_slots,
                       merge_weighted_geometry)
 
 
+def soft_mis_weights(*args, **kwargs):
+    # Explicit legacy diagonal (p=gamma) for regression tests.
+    return independent_weights(*args,gamma=args[-1],**kwargs)
+
+
 class SoftMISTests(unittest.TestCase):
+    def test_decoupled_ee_decay(self):
+        k=torch.tensor([[0.],[-2.],[2.]],dtype=torch.float32)
+        z=torch.zeros(3,dtype=torch.float64)
+        keep=torch.tensor([0]);evict=torch.tensor([1,2])
+        best,routed,hard,cert,_=soft_anchor_routes(k,k.double(),z,z,keep,evict,3.,3.)
+        args=(k.double(),z,z,keep,evict,best,routed,hard,cert,3.,3.)
+        for p in (1.,2.,math.inf):
+            for g in (1.,2.,4.,math.inf):
+                weights=independent_weights(*args,p,gamma=g).weights
+                self.assertAlmostEqual(weights.max().item(),1.)
+                self.assertAlmostEqual(weights.min().item(),0. if math.isinf(g) else (.75)**g,places=7)
+
+    def test_decoupled_ea_decay(self):
+        k=torch.tensor([[0.],[.5]],dtype=torch.float32)
+        radii=torch.tensor([1.5,0.],dtype=torch.float64)
+        z=torch.zeros(2,dtype=torch.float64)
+        keep=torch.tensor([0]);evict=torch.tensor([1])
+        best,routed,hard,cert,_=soft_anchor_routes(k,k.double(),radii,z,keep,evict,1.,1.)
+        self.assertTrue(routed.item());self.assertFalse(hard.item())
+        args=(k.double(),radii,z,keep,evict,best,routed,hard,cert,1.,1.)
+        for p in (1.,2.,math.inf):
+            for g in (1.,2.,4.,math.inf):
+                self.assertAlmostEqual(independent_weights(*args,p,gamma=g).weights.item(),
+                                       0. if math.isinf(g) else .5**g,places=8)
+
     def test_two_conflicting_evicts_soft_vs_hard(self):
         # E1/E2 both near anchor, but E-E distance=4 > 3.
         k=torch.tensor([[0.],[-2.],[2.]],dtype=torch.float32)

@@ -8,23 +8,25 @@ cd "${ROOT_DIR}"
 # Runtime-only exports, same style as the original run_cosine_mis.sh.
 export PYTORCH_ALLOC_CONF=expandable_segments:True
 export HF_ENDPOINT=https://hf-mirror.com
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=1
 DIAG_DIR="${ROOT_DIR}/diagnosis_experiments"
 RESULTS_ROOT="${DIAG_DIR}/results"
 
 # ============================================================
 # 1. Model and priority comparison
 # ============================================================
-MODEL="Qwen/Qwen2.5-7B"
-# MODEL="meta-llama/Llama-3.2-3B"
+# MODEL="Qwen/Qwen2.5-7B"
+MODEL="meta-llama/Llama-3.2-3B"
+# MODEL="meta-llama/Llama-3.2-1B"
+
 TORCH_DTYPE="bfloat16"
 DEVICE="cuda"
 DEVICE_MAP="auto"
 ATTN_IMPL="eager"
 TRUST_REMOTE_CODE=0
 USE_FAST_TOKENIZER=0
-RUN_CALIBRATION=0
-RUN_PPL=0
+RUN_CALIBRATION=1
+RUN_PPL=1
 RUN_PLOT=1
 
 # Method switches: 1=enabled, 0=disabled. All enabled by default.
@@ -56,15 +58,16 @@ fi
 # ============================================================
 PPL_DATASET="wikitext2"
 PPL_SPLIT="validation" # change to test only after freezing parameters
-PPL_CYCLES=24
+PPL_CYCLES=8
 PPL_UNSCORED_LEN=256
 PPL_SCORED_LEN=32
-PPL_SEQUENCE_INDICES=("0" "1" "2" "3" "4" "5" "6" "7")
+PPL_SEQUENCE_INDICES=("0" "2" "4" "6")
 PPL_PREFILL_CHUNK_SIZE=128
 PPL_BUDGETS=("0.10")
-PPL_P_VALUES=("2" "4" "8" "inf")
-PPL_LAMBDA_EA=("0.10" "0.30" "0.50" "0.70")
-PPL_LAMBDA_EE=("0.10" "0.30" "0.50" "0.70")
+PPL_P_VALUES=("1" "2" "inf")
+PPL_GAMMA_VALUES=("1" "2" "4" "inf")
+PPL_LAMBDA_EA=("0.10" "0.30" "0.50")
+PPL_LAMBDA_EE=("0.10" "0.30" "0.50")
 PPL_REFERENCE_MODE="frozen_train"
 KEEPKV_SINK_SIZE=4
 KEEPKV_RECENT_PROTECT_SIZE=8
@@ -88,7 +91,7 @@ QUERY_NORM_SAFETY_FACTOR=1.05
 # ============================================================
 # 4. Output, plotting style (PNG + PDF; strict Times New Roman)
 # ============================================================
-EXPERIMENT_NAME="journal_soft_mis_sweep_v8_${PPL_SPLIT}"
+EXPERIMENT_NAME="journal_soft_mis_sweep_v9_${PPL_SPLIT}"
 MODEL_BASENAME="${MODEL%/}"; MODEL_BASENAME="${MODEL_BASENAME##*/}"
 MODEL_DIR_NAME="$(printf '%s' "${MODEL_BASENAME}" | sed 's/[^A-Za-z0-9._-]/_/g')"
 OUT_DIR="${RESULTS_ROOT}/${MODEL_DIR_NAME}/${EXPERIMENT_NAME}"
@@ -99,6 +102,7 @@ join_csv() { local IFS=,; echo "$*"; }
 METHODS_CSV="$(join_csv "${ENABLED_METHODS[@]}")"
 PPL_BUDGETS_CSV="$(join_csv "${PPL_BUDGETS[@]}")"
 PPL_P_VALUES_CSV="$(join_csv "${PPL_P_VALUES[@]}")"
+PPL_GAMMA_VALUES_CSV="$(join_csv "${PPL_GAMMA_VALUES[@]}")"
 PPL_LAMBDA_EA_CSV="$(join_csv "${PPL_LAMBDA_EA[@]}")"
 PPL_LAMBDA_EE_CSV="$(join_csv "${PPL_LAMBDA_EE[@]}")"
 SEQUENCES_CSV="$(join_csv "${PPL_SEQUENCE_INDICES[@]}")"
@@ -116,7 +120,7 @@ for i in "${!PPL_SEQUENCE_INDICES[@]}"; do
     fi
   done
 done
-if [[ "${RUN_CALIBRATION}" -eq 1 && -d "${OUT_DIR}" ]]; then
+if [[ "${RUN_CALIBRATION}" -eq 1 && "${RUN_PPL}" -eq 1 && "${NEED_CALIBRATION}" -eq 1 && -d "${OUT_DIR}" ]]; then
   echo "[CLEAN] Removing this experiment's old output: ${OUT_DIR}"
   rm -rf -- "${OUT_DIR}"
 fi
@@ -141,7 +145,7 @@ run_stage() {
   echo "MODEL=${MODEL} CYCLES=${PPL_CYCLES} U=${PPL_UNSCORED_LEN} S=${PPL_SCORED_LEN} SEQUENCES=${SEQUENCES_CSV}"
   echo "METHODS=${METHODS_CSV}"
   echo "SPLIT=${PPL_SPLIT}"
-  echo "BUDGETS=${PPL_BUDGETS_CSV} P=${PPL_P_VALUES_CSV} EA=${PPL_LAMBDA_EA_CSV} EE=${PPL_LAMBDA_EE_CSV}"
+  echo "BUDGETS=${PPL_BUDGETS_CSV} P=${PPL_P_VALUES_CSV} GAMMA=${PPL_GAMMA_VALUES_CSV} EA=${PPL_LAMBDA_EA_CSV} EE=${PPL_LAMBDA_EE_CSV}"
   echo "REFERENCE=${PPL_REFERENCE_MODE} FONT=${FONT_FAMILY} PNG_DPI=${PNG_DPI}"
   echo "RESULTS=${OUT_DIR}"
 } | tee -a "${RUN_LOG}"
@@ -200,6 +204,7 @@ if [[ "${RUN_PPL}" -eq 1 ]]; then
       --prefill_chunk_size "${PPL_PREFILL_CHUNK_SIZE}"
       --budgets "${PPL_BUDGETS_CSV}"
       --p_values "${PPL_P_VALUES_CSV}"
+      --gamma_values "${PPL_GAMMA_VALUES_CSV}"
       --lambda_ea "${PPL_LAMBDA_EA_CSV}"
       --lambda_ee "${PPL_LAMBDA_EE_CSV}"
       --reference_mode "${PPL_REFERENCE_MODE}"

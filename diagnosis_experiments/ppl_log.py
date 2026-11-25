@@ -5,9 +5,9 @@ PREFIX = '[PPL TABLE] '
 def setting(v):
     return '-' if v is None or v == '' else f'{float(v):g}'
 def base_header():
-    return f'{"Method":<{WIDTH}} {"B":>6} {"p":>5} {"EA":>7} {"EE":>7}'
+    return f'{"Method":<{WIDTH}} {"B":>6} {"p":>5} {"Gamma":>7} {"EA":>7} {"EE":>7}'
 def base_row(r):
-    return f'{r["method"]:<{WIDTH}} {setting(r["actual_budget"]):>6} {setting(r["actual_p"]):>5} {setting(r["actual_lambda_ea"]):>7} {setting(r["actual_lambda_ee"]):>7}'
+    return f'{r["method"]:<{WIDTH}} {setting(r["actual_budget"]):>6} {setting(r["actual_p"]):>5} {setting(r["actual_gamma"]):>7} {setting(r["actual_lambda_ea"]):>7} {setting(r["actual_lambda_ee"]):>7}'
 def number(v):
     return f'{float(v):12.6f}' if v is not None and v != '' else f'{"-":>12}'
 def emit_sequence_header():

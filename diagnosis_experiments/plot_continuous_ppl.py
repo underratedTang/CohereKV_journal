@@ -44,29 +44,32 @@ def heatmaps(rows,out,stem,dpi,field='ppl'):
         data=[r for r in rows if float(r['budget'])==budget and r['method'] in CANDIDATES and r.get(field,'')!='']
         if not data:continue
         ea=sorted({float(r['lambda_ea']) for r in data});ee=sorted({float(r['lambda_ee']) for r in data})
-        ps=sorted({float(r['p']) for r in data});n=len(ps)
-        vals=[float(r[field]) for r in data];lo=min(vals);hi=max(vals)
-        if hi==lo:hi=lo+1e-10
-        active=[m for m in CANDIDATES if any(r['method']==m for r in data)]
-        fig,axes=plt.subplots(len(active),n,squeeze=False,figsize=(3.6*n+0.6,3.1*len(active)),layout='constrained')
-        for i,m in enumerate(active):
-            for j,p in enumerate(ps):
-                ax=axes[i,j];selected=[r for r in data if r['method']==m and float(r['p'])==p]
-                if not selected:
-                    ax.set_axis_off();continue
-                matrix=grid_matrix(selected,ea,ee,field)
-                im=ax.imshow(matrix,vmin=lo,vmax=hi,cmap='viridis_r',aspect='auto',origin='lower')
-                for y,x in np.ndindex(matrix.shape):
-                    val=matrix[y,x]
-                    if np.isfinite(val):ax.text(x,y,f'{val:.3f}',ha='center',va='center',fontsize=8,color='white' if (val-lo)/(hi-lo)>.55 else 'black')
-                if np.isfinite(matrix).any():
-                    y,x=np.unravel_index(np.nanargmin(matrix),matrix.shape)
-                    ax.add_patch(plt.Rectangle((x-.49,y-.49),.98,.98,fill=False,edgecolor='red',linewidth=1.5))
-                ax.set_xticks(range(len(ea)),[fmt(x) for x in ea]);ax.set_yticks(range(len(ee)),[fmt(x) for x in ee])
-                ax.set_xlabel(r'$\lambda_{EA}$');ax.set_ylabel(r'$\lambda_{EE}$')
-                ax.set_title(f'{LABELS[m]} | p={fmt(p)}')
-        fig.colorbar(im,ax=axes.ravel().tolist(),label='PPL' if field=='ppl' else 'NLL difference vs Full Cache',shrink=.85)
-        write(fig,out,f'{stem}_B{fmt(budget)}'.replace('.','p'),dpi)
+        all_data=data
+        for gamma in sorted({float(r['gamma']) for r in all_data}):
+            data=[r for r in all_data if float(r['gamma'])==gamma]
+            ps=sorted({float(r['p']) for r in data});n=len(ps)
+            vals=[float(r[field]) for r in all_data];lo=min(vals);hi=max(vals)
+            if hi==lo:hi=lo+1e-10
+            active=[m for m in CANDIDATES if any(r['method']==m for r in data)]
+            fig,axes=plt.subplots(len(active),n,squeeze=False,figsize=(3.6*n+0.6,3.1*len(active)),layout='constrained')
+            for i,m in enumerate(active):
+                for j,p in enumerate(ps):
+                    ax=axes[i,j];selected=[r for r in data if r['method']==m and float(r['p'])==p]
+                    if not selected:
+                        ax.set_axis_off();continue
+                    matrix=grid_matrix(selected,ea,ee,field)
+                    im=ax.imshow(matrix,vmin=lo,vmax=hi,cmap='viridis_r',aspect='auto',origin='lower')
+                    for y,x in np.ndindex(matrix.shape):
+                        val=matrix[y,x]
+                        if np.isfinite(val):ax.text(x,y,f'{val:.3f}',ha='center',va='center',fontsize=8,color='white' if (val-lo)/(hi-lo)>.55 else 'black')
+                    if np.isfinite(matrix).any():
+                        y,x=np.unravel_index(np.nanargmin(matrix),matrix.shape)
+                        ax.add_patch(plt.Rectangle((x-.49,y-.49),.98,.98,fill=False,edgecolor='red',linewidth=1.5))
+                    ax.set_xticks(range(len(ea)),[fmt(x) for x in ea]);ax.set_yticks(range(len(ee)),[fmt(x) for x in ee])
+                    ax.set_xlabel(r'$\lambda_{EA}$');ax.set_ylabel(r'$\lambda_{EE}$')
+                    ax.set_title(f'{LABELS[m]} | p={fmt(p)}, gamma={fmt(gamma)}')
+            fig.colorbar(im,ax=axes.ravel().tolist(),label='PPL' if field=='ppl' else 'NLL difference vs Full Cache',shrink=.85)
+            write(fig,out,f'{stem}_B{fmt(budget)}_G{fmt(gamma)}'.replace('.','p'),dpi)
 
 def baseline_plot(unique,out,dpi):
     budgets=sorted({float(r['actual_budget']) for r in unique if r['actual_budget']!=''}) or [None]
@@ -89,22 +92,49 @@ def best_plot(best,paired,out,dpi):
         labels=[];vals=[];samples=[]
         for r in rows:
             m=r['method'];label=LABELS[m]
-            if m in CANDIDATES:label+=' p='+fmt(r['actual_p'])
+            if m in CANDIDATES:label+=' p='+fmt(r['actual_p'])+' g='+fmt(r['actual_gamma'])
             labels.append(label);vals.append(float(r['ppl']))
             match=[x for x in paired if x['method']==m and (budget is None or float(x['budget'])==budget)]
-            if r['actual_p']!='' and m in CANDIDATES:match=[x for x in match if float(x['p'])==float(r['actual_p'])]
+            if m in CANDIDATES:match=[x for x in match if float(x['p'])==float(r['actual_p']) and float(x['gamma'])==float(r['actual_gamma'])]
             if r['actual_lambda_ea']!='':match=[x for x in match if float(x['lambda_ea'])==float(r['actual_lambda_ea'])]
             if m in CANDIDATES:match=[x for x in match if float(x['lambda_ee'])==float(r['actual_lambda_ee'])]
             seen={x['sequence_index']:float(x['delta_nll_vs_full']) for x in match if x.get('delta_nll_vs_full','')!=''}
             samples.append(list(seen.values()))
-        fig,ax=plt.subplots(figsize=(8,4.5),layout='constrained');ax.bar(range(len(vals)),vals)
-        ax.set_xticks(range(len(vals)),labels,rotation=30,ha='right');ax.set_ylabel('Overall PPL');ax.set_title('Best grid setting per method / p');ax.grid(axis='y',alpha=.2)
+        fig,ax=plt.subplots(figsize=(max(8,0.48*len(labels)),5.5),layout='constrained');ax.bar(range(len(vals)),vals)
+        ax.set_xticks(range(len(vals)),labels,rotation=30,ha='right');ax.set_ylabel('Overall PPL');ax.set_title('Best grid setting per method / p / gamma');ax.grid(axis='y',alpha=.2)
         write(fig,out,('best_ppl_full_only' if budget is None else f'best_ppl_B{fmt(budget)}'.replace('.','p')),dpi)
         if all(samples):
-            fig,ax=plt.subplots(figsize=(8,4.5),layout='constrained');ax.boxplot(samples,showmeans=True)
+            fig,ax=plt.subplots(figsize=(max(8,0.48*len(labels)),5.5),layout='constrained');ax.boxplot(samples,showmeans=True)
             ax.set_xticks(range(1,len(labels)+1),labels,rotation=30,ha='right');ax.axhline(0,linestyle='--',color='black',linewidth=.8)
             ax.set_ylabel('Paired NLL difference vs Full Cache');ax.set_title('Sequence variation at selected settings');ax.grid(axis='y',alpha=.2)
             write(fig,out,('best_paired_nll_full_only' if budget is None else f'best_paired_nll_B{fmt(budget)}'.replace('.','p')),dpi)
+
+
+def pgamma_plot(best,out,dpi):
+    """Best validation Lambda pair for each actual p/gamma, not test selection."""
+    budgets=sorted({float(r['actual_budget']) for r in best if r['method'] in CANDIDATES})
+    for budget in budgets:
+        data=[r for r in best if r['method'] in CANDIDATES and float(r['actual_budget'])==budget]
+        ps=sorted({float(r['actual_p']) for r in data})
+        gs=sorted({float(r['actual_gamma']) for r in data})
+        active=[m for m in CANDIDATES if any(r['method']==m for r in data)]
+        lo=min(float(r['ppl']) for r in data);hi=max(float(r['ppl']) for r in data)
+        if hi==lo:hi=lo+1e-10
+        fig,axes=plt.subplots(1,len(active),squeeze=False,figsize=(3.8*len(active)+.6,3.5),layout='constrained')
+        for i,m in enumerate(active):
+            ax=axes[0,i]
+            lookup={(float(r['actual_p']),float(r['actual_gamma'])):float(r['ppl']) for r in data if r['method']==m}
+            matrix=np.array([[lookup.get((p,g),np.nan) for g in gs] for p in ps])
+            im=ax.imshow(matrix,vmin=lo,vmax=hi,cmap='viridis_r',aspect='auto',origin='lower')
+            for y,x in np.ndindex(matrix.shape):
+                val=matrix[y,x]
+                if np.isfinite(val):ax.text(x,y,f'{val:.3f}',ha='center',va='center',fontsize=8,color='white' if (val-lo)/(hi-lo)>.55 else 'black')
+            ax.set_xticks(range(len(gs)),[fmt(x) for x in gs])
+            ax.set_yticks(range(len(ps)),[fmt(x) for x in ps])
+            ax.set_xlabel('Decay gamma');ax.set_ylabel('Geometry p');ax.set_title(LABELS[m])
+        fig.colorbar(im,ax=axes.ravel().tolist(),label='Best Overall PPL over Lambda grid',shrink=.85)
+        write(fig,out,f'best_p_gamma_B{fmt(budget)}'.replace('.','p'),dpi)
+
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('--input_dir',required=True);p.add_argument('--font_family',default='Times New Roman');p.add_argument('--png_dpi',type=int,default=600);a=p.parse_args()
@@ -115,7 +145,9 @@ def main():
     for idx in sorted({int(r['sequence_index']) for r in seq}):
         heatmaps([r for r in seq if int(r['sequence_index'])==idx],out/'per_sequence',f'seq_{idx}_ppl_heatmap',a.png_dpi)
     baseline_plot(read_rows(root/'ppl_sweep_unique.csv'),out,a.png_dpi)
-    best_plot(read_rows(root/'ppl_sweep_best_by_method_p.csv'),read_rows(root/'ppl_continuous_paired_deltas.csv'),out,a.png_dpi)
+    best=read_rows(root/'ppl_sweep_best_by_method_p_gamma.csv')
+    best_plot(best,read_rows(root/'ppl_continuous_paired_deltas.csv'),out,a.png_dpi)
+    pgamma_plot(best,out,a.png_dpi)
     print('[PLOT]',out,flush=True)
 
 if __name__=='__main__':main()

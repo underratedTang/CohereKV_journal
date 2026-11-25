@@ -37,7 +37,7 @@ from continuous_model_support import prepare_model_for_new_sequence,load_frozen_
 from keepkv_split import select_split
 from soft_mis import (soft_anchor_routes,soft_mis_weights,fuse_soft_slots,
                       merge_weighted_geometry)
-from method_registry import METHODS,family_for_method,methods_for_p,priority_for_method,attention_for_method,select_methods
+from method_registry import METHODS,family_for_method,methods_for_gamma,priority_for_method,attention_for_method,select_methods
 from models.common.mymethod_common import recent_window_importance,reference_scale_from_original_keys
 from p_geometry import physical_l2_routes,parse_p
 from ppl_log import emit_sequence_header,emit_sequence_result
@@ -178,7 +178,7 @@ class ContinuousPCache(KVCompressingDynamicCache):
     def __init__(self,*,model,method,budget,p,lambda_ea,lambda_ee,reference,sink_gate,
                  unscored_len,scored_len,reference_mode='online_first',score_window=128,
                  sink_size=4,recent_protect_size=128,recency_beta=1.0,chunk_size=256,
-                 stats=None):
+                 stats=None,gamma=2.):
         if not (0<float(budget)<1):raise ValueError('Budget ratio in (0,1)')
         self.budget_slots=max(1,round((int(unscored_len)-1)*float(budget)))
         super().__init__(model=model,method='mymethod',family='p_certificate',
@@ -191,6 +191,7 @@ class ContinuousPCache(KVCompressingDynamicCache):
         self.strategy=method
         self.attention_mode=attention_for_method(method)
         self.p=math.inf if method=='coherekv_conference' else parse_p(p)
+        self.gamma=math.inf if method=='coherekv_conference' else parse_p(gamma)
         self.lambda_ea=float(lambda_ea)
         self.lambda_ee=float(lambda_ea if method=='coherekv_conference' else lambda_ee)
         self.reference=np.asarray(reference,dtype=np.float64)
@@ -368,7 +369,7 @@ class ContinuousPCache(KVCompressingDynamicCache):
                         chunk_size=self.chunk_size)
                     plan=weight_fn(centers,rads,diams,kk,ee,best,routed,
                         hard,gamma,delta_ea,delta_ee,self.p,pair_chunk=self.chunk_size,
-                        priority=mis_priority,counts=cnt,importance=importance)
+                        priority=mis_priority,counts=cnt,importance=importance,gamma=self.gamma)
                     g=plan.weights
                     kf,vf,cf,round_denom=fuse_soft_slots(
                         k,v,cnt,kk,ee,best,g)
@@ -449,7 +450,7 @@ class ContinuousPCache(KVCompressingDynamicCache):
                         temporary_total,M_new,R_new,D_new=merge_weighted_geometry(
                             w,centers[ids],rads[ids],diams[ids],self.p,
                             block_size=self.chunk_size)
-                        if math.isinf(self.p):
+                        if math.isinf(self.p) and math.isinf(self.gamma):
                             # Every positive hard-limit weight is exactly 1:
                             # the current denominator equals actual Count.
                             R_new=torch.minimum(R_new,((temporary_total-1.)/
@@ -569,6 +570,7 @@ def args_parser():
     p.add_argument('--unscored_len',type=int,default=16384)
     p.add_argument('--scored_len',type=int,default=256)
     p.add_argument('--p_values',default='2')
+    p.add_argument('--gamma_values',default='2',help='Shared EA/EE decay exponent, independent of p; >=1 or inf')
     p.add_argument('--lambda_ea',default='0.5')
     p.add_argument('--lambda_ee',default='0.5')
     p.add_argument('--budgets',default='0.1')
@@ -599,12 +601,13 @@ def main():
     if a.device!='cuda' and a.torch_dtype in ('float16','bfloat16'):
         raise ValueError('Use float32 for CPU')
     ps=_csv_floats(a.p_values,'p',p=True)
+    gammas=_csv_floats(a.gamma_values,'gamma',p=True)
     lambda_eas=_csv_floats(a.lambda_ea,'lambda_ea')
     lambda_ees=_csv_floats(a.lambda_ee,'lambda_ee')
     budgets=_csv_floats(a.budgets,'budget')
     if any(not 0<b<1 for b in budgets):raise ValueError('Budget fractions must be strictly between 0 and 1')
     methods=select_methods(a.methods)
-    methods_by_p={str(p):list(methods_for_p(p,methods)) for p in ps}
+    methods_by_gamma={str(gamma):list(methods_for_gamma(gamma,methods)) for gamma in gammas}
     compressed=any(m!='full_cache' for m in methods)
     total_length=a.cycles*(a.unscored_len+a.scored_len)
     cfg=AutoConfig.from_pretrained(a.model,trust_remote_code=a.trust_remote_code)
@@ -626,8 +629,8 @@ def main():
     (out/'continuous_run_complete.json').unlink(missing_ok=True)
     signature=dict(vars(a),total_logical_tokens=total_length,methods=methods,
                    reference_sha256=hashlib.sha256(Path(a.calibration).read_bytes()).hexdigest() if compressed else None,
-                   implementation='journal_soft_mis_sweep_v8',
-                   methods_by_p=methods_by_p,
+                   implementation='journal_soft_mis_sweep_v9',
+                   methods_by_gamma=methods_by_gamma,
                    token_start=a.sequence_index*total_length,
                    token_end=(a.sequence_index+1)*total_length)
     (out/'continuous_config.json').write_text(json.dumps(signature,indent=2),encoding='utf8')
@@ -670,106 +673,108 @@ def main():
     full_accounted=False
     for budget in budgets:
         for p in ps:
-            for lambda_ea in lambda_eas:
-                for lambda_ee in lambda_ees:
-                    for method in methods_by_p[str(p)]:
-                        stats={};t0=time.time()
-                        baseline_key=(
-                            ('full_cache',) if method=='full_cache' else
-                            ('coherekv_conference',budget,lambda_ea) if method=='coherekv_conference' else
-                            ('eviction_only',budget) if method=='eviction_only' else
-                            ('merge_all',budget,lambda_ea,a.reference_mode)
-                            if method=='merge_all' else None)
-                        reused_baseline=baseline_key is not None and baseline_key in baseline_cache
-                        if reused_baseline:
-                            ppl,cycles,stats=copy.deepcopy(baseline_cache[baseline_key])
-                            # Lambda_EE and p are metadata only for the baselines.
-                            for hrow in stats.get('head_rounds',[]):
-                                if method=='coherekv_conference':continue
-                                hrow['p']=p
-                                # Compute the scale from the stored lambda,
-                                # not the NEW sweep lambda (which may differ).
-                                refscale=float(hrow['delta_ea'])/float(hrow['lambda_ea'])
-                                hrow['lambda_ea']=lambda_ea
-                                hrow['delta_ea']=lambda_ea*refscale
-                                hrow['lambda_ee']=lambda_ee
-                                hrow['delta_ee']=lambda_ee*refscale
-                                hrow['delta_cert']=max(hrow['delta_ea'],hrow['delta_ee'])
-                        else:
-                            prepare_model_for_new_sequence(model,a.score_window,a.prefill_chunk_size)
-                            def factory():
-                                return ContinuousPCache(model=model,method=method,budget=budget,
-                                    p=p,lambda_ea=lambda_ea,lambda_ee=lambda_ee,
-                                    reference=reference,sink_gate=gate,
-                                    reference_mode=a.reference_mode,
-                                    unscored_len=a.unscored_len,scored_len=a.scored_len,
-                                    score_window=a.score_window,
-                                    sink_size=a.sink_size,recent_protect_size=a.recent_protect_size,
-                                    recency_beta=a.recency_beta,chunk_size=a.distance_chunk_size,
-                                    stats=stats)
-                            print(f'[CONTINUOUS] {method} p={p} lambda_ea={lambda_ea} lambda_ee={lambda_ee} B={budget} '
-                                  f'cycles={a.cycles} U={a.unscored_len} S={a.scored_len}',flush=True)
-                            with force_attn_hidden_and_compress(model):
-                                ppl,cycles=evaluate_continuous(model,ids,a.cycles,a.unscored_len,a.scored_len,device,
-                                    cache_factory=factory,prefill_chunk_size=a.prefill_chunk_size,
-                                    score_window=a.score_window,amp_dtype=parse_dtype(a.torch_dtype) if device.type=='cuda' else None)
-                            if stats.get('compress_rounds')!=a.cycles:
-                                raise RuntimeError(f'Wrong number of compressions: {stats.get("compress_rounds")}')
-                            if baseline_key is not None:
-                                baseline_cache[baseline_key]=copy.deepcopy((ppl,cycles,stats))
-                        if method=='full_cache' and not full_accounted:
-                            print(f'[NATIVE FULL CACHE] ppl={ppl:.6f}',flush=True)
-                        elif reused_baseline:
-                            print(f'[REUSED BASELINE] {method} p={p} lambda_ea={lambda_ea} lambda_ee={lambda_ee}',flush=True)
-                        common=dict(model=a.model,dataset=a.dataset,split=a.split,method=method,
-                                    actual_p=(math.inf if method=='coherekv_conference' else p if method.startswith('coherekv_soft_mis') else ''),
-                                    actual_lambda_ea=(lambda_ea if method not in ('full_cache','eviction_only') else ''),
-                                    actual_lambda_ee=(lambda_ea if method=='coherekv_conference' else lambda_ee if method.startswith('coherekv_soft_mis') else ''),
-                                    actual_budget=('' if method=='full_cache' else budget),
-                                    actual_reference_mode=('online_first' if method=='coherekv_conference' else a.reference_mode if method not in ('full_cache','eviction_only') else 'none'),
-                                    sequence_index=a.sequence_index,
-                                    token_start=token_start,token_end=token_end,
-                                    stream_sha256=signature['scored_stream_sha256'],
-                                    mis_family=family_for_method(method),p=p,
-                                    priority=priority_for_method(method),attention_mode=attention_for_method(method),
-                                    lambda_ea=lambda_ea,lambda_ee=lambda_ee,
-                                    budget=budget,unscored_len=a.unscored_len,
-                                    scored_len=a.scored_len,cycles=a.cycles)
-                        for record in cycles:all_cycles.append(dict(**common,**record))
-                        if not reused_baseline:
-                            for record in stats.get('head_rounds',[]):
-                                per_heads.append({**common,**record})
-                        result=dict(**common,scored_tokens=a.cycles*a.scored_len,
-                                    ppl=ppl,nll_sum=sum(r['cycle_nll_sum'] for r in cycles),nll_per_token=math.log(ppl),
-                                    compress_rounds=stats.get('compress_rounds',0),
-                                    accepted_slots=stats.get('accepted_slots',0),
-                                    routed_slots=stats.get('routed_slots',0),
-                                    rejected_slots=stats.get('rejected_slots',0),
-                                    dropped_slots=stats.get('dropped_slots',0),
-                                    mis_conflict_edges=stats.get('mis_conflict_edges',0),
-                                    geometry_over_delta=stats.get('geometry_over_delta',0),
-                                    soft_positive_slots=stats.get('soft_positive_slots',0),
-                                    soft_fractional_slots=stats.get('soft_fractional_slots',0),
-                                    soft_ea_slots=stats.get('soft_ea_slots',0),
-                                    soft_ee_slots=stats.get('soft_ee_slots',0),
-                                    soft_weight_sum=stats.get('soft_weight_sum',0),
-                                    soft_ea_weight_sum=stats.get('soft_ea_weight_sum',0),
-                                    soft_ee_weight_sum=stats.get('soft_ee_weight_sum',0),
-                                    soft_parallel_rounds=stats.get('soft_parallel_rounds',0),
-                                    routed_importance_mass=stats.get('routed_importance_mass',0.),
-                                    contributed_importance_mass=stats.get('contributed_importance_mass',0.),
-                                    importance_retention_rate=(stats['contributed_importance_mass']/stats['routed_importance_mass'] if stats.get('routed_importance_mass',0)>0 else ''),
-                                    max_before_len=stats.get('max_before_len',0),
-                                    max_after_len=stats.get('max_after_len',0),
-                                    seconds=(full_seconds if method=='full_cache' and not full_accounted else 0.0 if reused_baseline else time.time()-t0),
-                                    reused_baseline=bool(reused_baseline and not (method=='full_cache' and not full_accounted)))
-                        if method=='full_cache':full_accounted=True
-                        all_results.append(result)
-                        _save_csv(out/'ppl_continuous.csv',all_results)
-                        _save_csv(out/'ppl_continuous_cycles.csv',all_cycles)
-                        print(f'[PPL] method={method} p={p} lambda_ea={lambda_ea} lambda_ee={lambda_ee} ppl={ppl:.6f} '
-                              f'compressions={result["compress_rounds"]}',flush=True)
-                        emit_sequence_result(result)
+            for gamma in gammas:
+                for lambda_ea in lambda_eas:
+                    for lambda_ee in lambda_ees:
+                        for method in methods_by_gamma[str(gamma)]:
+                            stats={};t0=time.time()
+                            baseline_key=(
+                                ('full_cache',) if method=='full_cache' else
+                                ('coherekv_conference',budget,lambda_ea) if method=='coherekv_conference' else
+                                ('eviction_only',budget) if method=='eviction_only' else
+                                ('merge_all',budget,lambda_ea,a.reference_mode)
+                                if method=='merge_all' else None)
+                            reused_baseline=baseline_key is not None and baseline_key in baseline_cache
+                            if reused_baseline:
+                                ppl,cycles,stats=copy.deepcopy(baseline_cache[baseline_key])
+                                # Lambda_EE and p are metadata only for the baselines.
+                                for hrow in stats.get('head_rounds',[]):
+                                    if method=='coherekv_conference':continue
+                                    hrow['p']=p
+                                    # Compute the scale from the stored lambda,
+                                    # not the NEW sweep lambda (which may differ).
+                                    refscale=float(hrow['delta_ea'])/float(hrow['lambda_ea'])
+                                    hrow['lambda_ea']=lambda_ea
+                                    hrow['delta_ea']=lambda_ea*refscale
+                                    hrow['lambda_ee']=lambda_ee
+                                    hrow['delta_ee']=lambda_ee*refscale
+                                    hrow['delta_cert']=max(hrow['delta_ea'],hrow['delta_ee'])
+                            else:
+                                prepare_model_for_new_sequence(model,a.score_window,a.prefill_chunk_size)
+                                def factory():
+                                    return ContinuousPCache(model=model,method=method,budget=budget,
+                                        p=p,gamma=gamma,lambda_ea=lambda_ea,lambda_ee=lambda_ee,
+                                        reference=reference,sink_gate=gate,
+                                        reference_mode=a.reference_mode,
+                                        unscored_len=a.unscored_len,scored_len=a.scored_len,
+                                        score_window=a.score_window,
+                                        sink_size=a.sink_size,recent_protect_size=a.recent_protect_size,
+                                        recency_beta=a.recency_beta,chunk_size=a.distance_chunk_size,
+                                        stats=stats)
+                                print(f'[CONTINUOUS] {method} p={p} gamma={gamma} lambda_ea={lambda_ea} lambda_ee={lambda_ee} B={budget} '
+                                      f'cycles={a.cycles} U={a.unscored_len} S={a.scored_len}',flush=True)
+                                with force_attn_hidden_and_compress(model):
+                                    ppl,cycles=evaluate_continuous(model,ids,a.cycles,a.unscored_len,a.scored_len,device,
+                                        cache_factory=factory,prefill_chunk_size=a.prefill_chunk_size,
+                                        score_window=a.score_window,amp_dtype=parse_dtype(a.torch_dtype) if device.type=='cuda' else None)
+                                if stats.get('compress_rounds')!=a.cycles:
+                                    raise RuntimeError(f'Wrong number of compressions: {stats.get("compress_rounds")}')
+                                if baseline_key is not None:
+                                    baseline_cache[baseline_key]=copy.deepcopy((ppl,cycles,stats))
+                            if method=='full_cache' and not full_accounted:
+                                print(f'[NATIVE FULL CACHE] ppl={ppl:.6f}',flush=True)
+                            elif reused_baseline:
+                                print(f'[REUSED BASELINE] {method} p={p} gamma={gamma} lambda_ea={lambda_ea} lambda_ee={lambda_ee}',flush=True)
+                            common=dict(model=a.model,dataset=a.dataset,split=a.split,method=method,
+                                        actual_p=(math.inf if method=='coherekv_conference' else p if method.startswith('coherekv_soft_mis') else ''),
+                                        actual_gamma=(math.inf if method=='coherekv_conference' else gamma if method.startswith('coherekv_soft_mis') else ''),
+                                        actual_lambda_ea=(lambda_ea if method not in ('full_cache','eviction_only') else ''),
+                                        actual_lambda_ee=(lambda_ea if method=='coherekv_conference' else lambda_ee if method.startswith('coherekv_soft_mis') else ''),
+                                        actual_budget=('' if method=='full_cache' else budget),
+                                        actual_reference_mode=('online_first' if method=='coherekv_conference' else a.reference_mode if method not in ('full_cache','eviction_only') else 'none'),
+                                        sequence_index=a.sequence_index,
+                                        token_start=token_start,token_end=token_end,
+                                        stream_sha256=signature['scored_stream_sha256'],
+                                        mis_family=family_for_method(method),p=p,gamma=gamma,
+                                        priority=priority_for_method(method),attention_mode=attention_for_method(method),
+                                        lambda_ea=lambda_ea,lambda_ee=lambda_ee,
+                                        budget=budget,unscored_len=a.unscored_len,
+                                        scored_len=a.scored_len,cycles=a.cycles)
+                            for record in cycles:all_cycles.append(dict(**common,**record))
+                            if not reused_baseline:
+                                for record in stats.get('head_rounds',[]):
+                                    per_heads.append({**common,**record})
+                            result=dict(**common,scored_tokens=a.cycles*a.scored_len,
+                                        ppl=ppl,nll_sum=sum(r['cycle_nll_sum'] for r in cycles),nll_per_token=math.log(ppl),
+                                        compress_rounds=stats.get('compress_rounds',0),
+                                        accepted_slots=stats.get('accepted_slots',0),
+                                        routed_slots=stats.get('routed_slots',0),
+                                        rejected_slots=stats.get('rejected_slots',0),
+                                        dropped_slots=stats.get('dropped_slots',0),
+                                        mis_conflict_edges=stats.get('mis_conflict_edges',0),
+                                        geometry_over_delta=stats.get('geometry_over_delta',0),
+                                        soft_positive_slots=stats.get('soft_positive_slots',0),
+                                        soft_fractional_slots=stats.get('soft_fractional_slots',0),
+                                        soft_ea_slots=stats.get('soft_ea_slots',0),
+                                        soft_ee_slots=stats.get('soft_ee_slots',0),
+                                        soft_weight_sum=stats.get('soft_weight_sum',0),
+                                        soft_ea_weight_sum=stats.get('soft_ea_weight_sum',0),
+                                        soft_ee_weight_sum=stats.get('soft_ee_weight_sum',0),
+                                        soft_parallel_rounds=stats.get('soft_parallel_rounds',0),
+                                        routed_importance_mass=stats.get('routed_importance_mass',0.),
+                                        contributed_importance_mass=stats.get('contributed_importance_mass',0.),
+                                        importance_retention_rate=(stats['contributed_importance_mass']/stats['routed_importance_mass'] if stats.get('routed_importance_mass',0)>0 else ''),
+                                        max_before_len=stats.get('max_before_len',0),
+                                        max_after_len=stats.get('max_after_len',0),
+                                        seconds=(full_seconds if method=='full_cache' and not full_accounted else 0.0 if reused_baseline else time.time()-t0),
+                                        reused_baseline=bool(reused_baseline and not (method=='full_cache' and not full_accounted)))
+                            if method=='full_cache':full_accounted=True
+                            all_results.append(result)
+                            _save_csv(out/'ppl_continuous.csv',all_results)
+                            _save_csv(out/'ppl_continuous_cycles.csv',all_cycles)
+                            print(f'[PPL] method={method} p={p} gamma={gamma} lambda_ea={lambda_ea} lambda_ee={lambda_ee} ppl={ppl:.6f} '
+                                  f'compressions={result["compress_rounds"]}',flush=True)
+                            emit_sequence_result(result)
     (out/'ppl_continuous_head_rounds.csv').unlink(missing_ok=True)
     _save_csv(out/'ppl_continuous_head_rounds.csv',per_heads)
     (out/'continuous_run_complete.json').write_text(json.dumps(dict(config=signature,

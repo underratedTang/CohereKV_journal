@@ -7,7 +7,7 @@ retain the last merge denominator.  R_p and D_p describe the recursively
 renormalized within-group geometry, not an exact globally weighted list
 of original token vectors.  This is an
 experimental heuristic, NOT a certified worst-case compactness algorithm for
-finite p.  Its hard p->inf limit matches fixed-priority greedy MIS on the
+finite p or finite decay gamma. Its hard gamma->inf limit matches fixed-priority greedy MIS on the
 conference E-E graph when input histories satisfy the conference invariant.
 """
 from __future__ import annotations
@@ -21,12 +21,12 @@ import torch
 from p_geometry import parse_p, _lp_mean
 
 
-def _compatibility(gamma, delta, p):
-    """Smooth geometric membership in [0,1]; conference threshold as p=inf."""
-    if math.isinf(p):
+def _compatibility(distance, delta, gamma):
+    """Smooth membership; gamma controls decay independently of geometry p."""
+    if math.isinf(gamma):
         # Finite tolerance matches the conference certificate comparison.
-        return (gamma <= delta+1e-5).to(gamma.dtype)
-    return (float(delta) / gamma.clamp_min(torch.finfo(gamma.dtype).tiny)).clamp(max=1).pow(p)
+        return (distance <= delta+1e-5).to(distance.dtype)
+    return (float(delta) / distance.clamp_min(torch.finfo(distance.dtype).tiny)).clamp(max=1).pow(gamma)
 
 
 @torch.no_grad()
@@ -104,7 +104,7 @@ class SoftPlan:
 @torch.no_grad()
 def soft_mis_weights(centers, radii, diameters, keep, evict, best,
                      routed, hard, gamma_ea, delta_ea, delta_ee, p,
-                     *, history_limit=None, pair_chunk=256, priority='degree',
+                     *, gamma, history_limit=None, pair_chunk=256, priority='degree',
                      counts=None, importance=None):
     """Parallel evaluation of a fixed priority DAG, once per owner group.
 
@@ -112,15 +112,15 @@ def soft_mis_weights(centers, radii, diameters, keep, evict, best,
     or descending continuous importance-mass delta q_i - sum_j c_ij*q_j on the same graph,
     then degree, historical E-A distance, stable hash, physical index.  Soft-only candidates
     follow that pool so their weights vanish without perturbing the hard
-    selection when p=inf, *for the fixed physical routing*.  This does NOT
+    selection when gamma=inf, *for the fixed physical routing*.  This does NOT
     imply equivalence with the conference's history-compatible owner routing.
 
     Graph edges: original conference E-E cross certificate
       ||mean_i-mean_j|| + R_i + R_j > delta_ee.
-    Soft suppression along an edge: c_ij=1-min(1,(delta_ee/cross)^p).
+    Soft suppression along an edge: c_ij=1-min(1,(delta_ee/cross)^gamma).
     All nodes in one dependency layer are processed simultaneously on-device.
     """
-    p=parse_p(p); dev=centers.device
+    p=parse_p(p); gamma=parse_p(gamma); dev=centers.device
     if priority not in ('degree','importance_mass_delta'):
         raise ValueError('Unknown Soft MIS priority')
     node_mass=None
@@ -173,12 +173,12 @@ def soft_mis_weights(centers, radii, diameters, keep, evict, best,
         physical_ids=phys.tolist()
         # Keep the v4 hard-EA priority pool and reference adjacency fixed.
         # Continuous importance costs use the SAME c_ij as weight evaluation.
-        # For p=inf, unit q restores the degree-first ordering exactly.
+        # For gamma=inf, unit q restores the degree-first ordering exactly.
         if node_mass is None:
             net=1.-degree.astype(np.float64)
         else:
             q=node_mass[phys]
-            if math.isinf(p):
+            if math.isinf(gamma):
                 qc=q.cpu().numpy()
                 net=np.array([qc[i]-qc[original[i]].sum(dtype=np.float64)
                               for i in range(n)],dtype=np.float64)
@@ -187,7 +187,7 @@ def soft_mis_weights(centers, radii, diameters, keep, evict, best,
                 for st in range(0,n,int(pair_chunk)):
                     en=min(n,st+int(pair_chunk))
                     cross=torch.cdist(cent[st:en],cent,p=2)+radius[st:en,None]+radius[None,:]
-                    c=1.-_compatibility(cross,delta_ee,p)
+                    c=1.-_compatibility(cross,delta_ee,gamma)
                     mask=torch.as_tensor(original[st:en],device=dev)
                     net[st:en]-=(c.double()*mask*q[None,:]).sum(dim=1)
                 net=net.cpu().numpy()
@@ -210,16 +210,16 @@ def soft_mis_weights(centers, radii, diameters, keep, evict, best,
                 if active.size:levels[i]=int(levels[active].max())+1
         # E-A certificates have TWO gates in conference CohereKV:
         # cross(E,A)<=Delta_EA AND D_i,D_A<=history_limit.
-        # One continuous normalized risk is their max; the p=inf limit
+        # One continuous normalized risk is their max; the gamma=inf limit
         # reproduces both gates, even when EA and EE cutoffs differ.
         ea_risk=torch.maximum(
             gamma_ea[loc]/float(delta_ea),
             torch.maximum(diameters[phys].double(),diameters[keep[int(owner)]].double())
                 /float(history_limit))
-        a=_compatibility(ea_risk,1.,p)
+        a=_compatibility(ea_risk,1.,gamma)
         # In the hard limit hard-ineligible candidates must have exactly zero
         # contribution, even if they have a fallback physical owner.
-        if math.isinf(p):a=torch.where(eligible,a,torch.zeros_like(a))
+        if math.isinf(gamma):a=eligible.to(a.dtype)
         local_w=torch.zeros(n,device=dev,dtype=torch.float64)
         for layer in range(int(levels.max())+1):
             ready=np.nonzero(levels==layer)[0]
@@ -229,7 +229,11 @@ def soft_mis_weights(centers, radii, diameters, keep, evict, best,
             ready_t=torch.as_tensor(ready,device=dev,dtype=torch.long)
             cross=(torch.cdist(cent[ready_t],cent,p=2)+
                    radius[ready_t,None]+radius[None,:])
-            conflict_strength=1.-_compatibility(cross,delta_ee,p)
+            edge_mask=torch.as_tensor(edge_cpu[ready],device=dev)
+            if math.isinf(gamma):
+                conflict_strength=edge_mask.to(cross.dtype)
+            else:
+                conflict_strength=(1.-_compatibility(cross,delta_ee,gamma))*edge_mask
             factors=(1.-conflict_strength*local_w[None,:]).clamp(0.,1.)
             value=a[ready_t]*torch.prod(factors,dim=1)
             local_w[ready_t]=value

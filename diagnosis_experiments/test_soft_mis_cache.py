@@ -10,7 +10,7 @@ import numpy as np
 import torch
 from conference_mis import conference_routes,conference_weights
 from p_geometry import parse_p,physical_l2_routes
-from method_registry import METHODS,priority_for_method,attention_for_method,methods_for_p
+from method_registry import METHODS,priority_for_method,attention_for_method,methods_for_gamma
 from soft_mis import (soft_anchor_routes,soft_mis_weights,fuse_soft_slots,
                       merge_weighted_geometry)
 
@@ -60,7 +60,7 @@ class CacheTests(unittest.TestCase):
         for method in METHODS:
             if method=='full_cache':continue
             model=SimpleNamespace(model=SimpleNamespace(layers=[SimpleNamespace(self_attn=SimpleNamespace())]))
-            obj=klass(model=model,method=method,budget=.5,p=2,lambda_ea=10.,lambda_ee=10.,
+            obj=klass(model=model,method=method,budget=.5,p=2,gamma=2.,lambda_ea=10.,lambda_ee=10.,
                       reference=np.array([[10.]]),sink_gate=np.array([[True]]),
                       unscored_len=7,scored_len=2,reference_mode='online_first',
                       sink_size=0,recent_protect_size=0)
@@ -99,7 +99,7 @@ class CacheTests(unittest.TestCase):
     def test_hard_limit_cache_two_rounds(self):
         klass=load_cache()
         model=SimpleNamespace(model=SimpleNamespace(layers=[SimpleNamespace(self_attn=SimpleNamespace())]))
-        obj=klass(model=model,method='coherekv_soft_mis',budget=.5,p=math.inf,
+        obj=klass(model=model,method='coherekv_soft_mis',budget=.5,p=math.inf,gamma=math.inf,
                   lambda_ea=10.,lambda_ee=10.,
                   reference=np.array([[10.]]),sink_gate=np.array([[True]]),
                   unscored_len=7,scored_len=2,reference_mode='online_first',
@@ -124,7 +124,7 @@ class CacheTests(unittest.TestCase):
     def test_fractional_history_persists(self):
         klass=load_cache()
         model=SimpleNamespace(model=SimpleNamespace(layers=[SimpleNamespace(self_attn=SimpleNamespace())]))
-        obj=klass(model=model,method='coherekv_soft_mis',budget=.5,p=2,
+        obj=klass(model=model,method='coherekv_soft_mis',budget=.5,p=2,gamma=2.,
                   lambda_ea=.1,lambda_ee=.01,
                   reference=np.array([[10.]]),sink_gate=np.array([[True]]),
                   unscored_len=7,scored_len=2,reference_mode='online_first',
@@ -147,10 +147,56 @@ class CacheTests(unittest.TestCase):
         # In round two one Evict is outside the physical E-A cutoff.
         self.assertEqual(int(obj.counts[0].sum().item()),14)
 
+    def test_max_geometry_soft_decay_two_rounds(self):
+        klass=load_cache()
+        for gamma in (1.,2.,4.):
+            model=SimpleNamespace(model=SimpleNamespace(layers=[SimpleNamespace(self_attn=SimpleNamespace())]))
+            obj=klass(model=model,method='coherekv_soft_mis',budget=.5,p=math.inf,gamma=gamma,
+                      lambda_ea=.1,lambda_ee=.01,reference=np.array([[10.]]),sink_gate=np.array([[True]]),
+                      unscored_len=7,scored_len=2,reference_mode='online_first',sink_size=0,recent_protect_size=0)
+            first=torch.arange(6,dtype=torch.float32).view(1,1,6,1)*.1
+            obj.key_cache=[first];obj.value_cache=[first.clone()];obj._ppl_logical_seen_tokens=6
+            obj.maybe_compress((torch.ones(1,1,2,6),),None)
+            self.assertGreater(obj._stats['soft_fractional_slots'],0)
+            self.assertTrue(bool((obj.counts[0]>obj.contributions[0]).any()))
+            # All three evicts are routed to last anchor (index 2).
+            # Even tiny positive weights require the radius to bound every member.
+            mu=obj.geom_means[0][0,0,2,0]
+            R=obj.geom_radii[0][0,0,2]
+            D=obj.geom_diameters[0][0,0,2]
+            self.assertGreaterEqual(float(R)+1e-7,float((first[0,0,2:,0].double()-mu).abs().max()))
+            self.assertGreaterEqual(float(D)+1e-7,float(first[0,0,5,0]-first[0,0,2,0]))
+            second=torch.arange(6,15,dtype=torch.float32).view(1,1,9,1)*.1
+            obj.key_cache=[torch.cat((obj.key_cache[0],second),dim=-2)]
+            obj.value_cache=[obj.key_cache[0].clone()];obj._ppl_logical_seen_tokens=15
+            obj.maybe_compress((torch.ones(1,1,2,12),),None)
+            self.assertEqual(obj.compress_rounds,2)
+            self.assertTrue(torch.isfinite(obj.geom_radii[0]).all())
+
+    def test_finite_geometry_hard_decay_attention_equivalence(self):
+        klass=load_cache()
+        for p in (1.,2.):
+            for stem in ('coherekv_soft_mis','coherekv_soft_mis_importance'):
+                outputs=[]
+                for method in (stem,stem+'_log_count'):
+                    model=SimpleNamespace(model=SimpleNamespace(layers=[SimpleNamespace(self_attn=SimpleNamespace())]))
+                    obj=klass(model=model,method=method,budget=.5,p=p,gamma=math.inf,
+                              lambda_ea=.1,lambda_ee=.01,reference=np.array([[10.]]),sink_gate=np.array([[True]]),
+                              unscored_len=7,scored_len=2,reference_mode='online_first',sink_size=0,recent_protect_size=0)
+                    for rnd in range(2):
+                        block=torch.arange(6 if rnd==0 else 9,dtype=torch.float32).view(1,1,-1,1)*.1
+                        raw=block if rnd==0 else torch.cat((obj.key_cache[0],block),dim=-2)
+                        obj.key_cache=[raw];obj.value_cache=[raw.clone()];obj._ppl_logical_seen_tokens=6+9*rnd
+                        obj.maybe_compress((torch.ones(1,1,2,raw.shape[-2]),),None)
+                        self.assertEqual(obj._stats['soft_fractional_slots'],0)
+                        torch.testing.assert_close(obj.contributions[0],obj.counts[0],rtol=0,atol=0)
+                    outputs.append([obj.key_cache[0],obj.value_cache[0],obj.counts[0],obj.geom_radii[0],obj.geom_diameters[0]])
+                for a,b in zip(*outputs):torch.testing.assert_close(a,b,rtol=0,atol=0)
+
     def test_scheme_a_preserve_and_recompute_from_real_count(self):
         klass=load_cache()
         model=SimpleNamespace(model=SimpleNamespace(layers=[SimpleNamespace(self_attn=SimpleNamespace())]))
-        obj=klass(model=model,method='coherekv_soft_mis_importance',budget=.5,p=2,
+        obj=klass(model=model,method='coherekv_soft_mis_importance',budget=.5,p=2,gamma=2.,
                   lambda_ea=.1,lambda_ee=.01,reference=np.array([[10.]]),sink_gate=np.array([[True]]),
                   unscored_len=7,scored_len=2,reference_mode='online_first',sink_size=0,recent_protect_size=0)
         def compress(raw,logical):
@@ -176,12 +222,12 @@ class CacheTests(unittest.TestCase):
         self.assertGreater(obj.contributions[0][0,0,index].item(),m[0,0,index].item()+1.)
 
     def test_hard_importance_available_and_attention_equals_count(self):
-        self.assertIn('coherekv_soft_mis_importance',methods_for_p(math.inf))
-        self.assertNotIn('coherekv_soft_mis_importance_log_count',methods_for_p(math.inf))
+        self.assertIn('coherekv_soft_mis_importance',methods_for_gamma(math.inf))
+        self.assertNotIn('coherekv_soft_mis_importance_log_count',methods_for_gamma(math.inf))
         klass=load_cache()
         for method in ('coherekv_soft_mis','coherekv_soft_mis_importance'):
             model=SimpleNamespace(model=SimpleNamespace(layers=[SimpleNamespace(self_attn=SimpleNamespace())]))
-            obj=klass(model=model,method=method,budget=.5,p=math.inf,lambda_ea=.1,lambda_ee=.01,
+            obj=klass(model=model,method=method,budget=.5,p=math.inf,gamma=math.inf,lambda_ea=.1,lambda_ee=.01,
                       reference=np.array([[10.]]),sink_gate=np.array([[True]]),unscored_len=7,scored_len=2,
                       reference_mode='online_first',sink_size=0,recent_protect_size=0)
             for rnd in range(2):

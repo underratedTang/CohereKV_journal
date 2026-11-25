@@ -15,7 +15,7 @@ from collections import defaultdict
 from pathlib import Path
 from ppl_log import emit_final_summary
 
-KEYS=('method','p','budget','lambda_ea','lambda_ee')
+KEYS=('method','p','gamma','budget','lambda_ea','lambda_ee')
 SEQ_KEYS={'sequence_index','token_start','token_end','scored_stream_sha256','output_dir'}
 SUM_FIELDS=('routed_slots','accepted_slots','rejected_slots','dropped_slots',
             'mis_conflict_edges','geometry_over_delta',
@@ -88,12 +88,13 @@ def validate_window(root,index):
     expected_methods=set(cfg['methods'])
     if not expected_methods:
         raise RuntimeError(f'No methods declared in seq {index}')
-    expected_keys={(method,float(p),float(b),float(ea),float(ee))
-                   for p,methods in cfg['methods_by_p'].items() for method in methods
+    expected_keys={(method,float(p),float(gamma),float(b),float(ea),float(ee))
+                   for p in str(cfg['p_values']).split(',')
+                   for gamma,methods in cfg['methods_by_gamma'].items() for method in methods
                    for b in str(cfg['budgets']).split(',')
                    for ea in str(cfg['lambda_ea']).split(',')
                    for ee in str(cfg['lambda_ee']).split(',')}
-    actual_keys={(r['method'],float(r['p']),float(r['budget']),float(r['lambda_ea']),float(r['lambda_ee'])) for r in rows}
+    actual_keys={(r['method'],float(r['p']),float(r['gamma']),float(r['budget']),float(r['lambda_ea']),float(r['lambda_ee'])) for r in rows}
     if len(rows)!=len(expected_keys) or actual_keys!=expected_keys:
         raise RuntimeError(f'Incomplete configured method/settings coverage in seq {index}')
     by_key={}
@@ -169,7 +170,7 @@ def aggregate(root,indices):
                 return fnum(row['nll_per_token'])-fnum(arms[baseline]['nll_per_token']) if baseline in arms else ''
             for method,row in arms.items():
                 deltas.append(dict(sequence_index=idx,method=method,
-                    p=setting[0],budget=setting[1],lambda_ea=setting[2],lambda_ee=setting[3],
+                    p=setting[0],gamma=setting[1],budget=setting[2],lambda_ea=setting[3],lambda_ee=setting[4],
                     nll_per_token=fnum(row['nll_per_token']),
                     delta_nll_vs_eviction=delta(row,'eviction_only'),
                     delta_nll_vs_merge_all=delta(row,'merge_all'),
@@ -249,26 +250,26 @@ def aggregate(root,indices):
     # Deduplicate display-grid baseline replicas; rank using pooled token NLL only.
     unique={}
     for row in pooled:
-        k=tuple(str(row[x]) for x in ('method','actual_budget','actual_p','actual_lambda_ea','actual_lambda_ee','actual_reference_mode'))
+        k=tuple(str(row[x]) for x in ('method','actual_budget','actual_p','actual_gamma','actual_lambda_ea','actual_lambda_ee','actual_reference_mode'))
         if k in unique:
             check_close(fnum(row['nll_per_token']),fnum(unique[k]['nll_per_token']),f'Baseline reuse {k}')
             if unique[k]['reused_baseline'] and not row['reused_baseline']:unique[k]=dict(row)
         else:unique[k]=dict(row)
     ranked=sorted(unique.values(),key=lambda r:(r['method'],fnum(r['nll_per_token'])))
     for row in ranked:
-        for name in ('budget','p','lambda_ea','lambda_ee'):row.pop(name,None)
+        for name in ('budget','p','gamma','lambda_ea','lambda_ee'):row.pop(name,None)
     save_csv(out/'ppl_sweep_unique.csv',ranked)
     best=[]
     for method in sorted({r['method'] for r in ranked}):
         groups=defaultdict(list)
         for r in ranked:
-            if r['method']==method:groups[(r['actual_budget'],r['actual_p'])].append(r)
+            if r['method']==method:groups[(r['actual_budget'],r['actual_p'],r['actual_gamma'])].append(r)
         for group in groups.values():best.append(min(group,key=lambda r:fnum(r['nll_per_token'])))
-    save_csv(out/'ppl_sweep_best_by_method_p.csv',best)
+    save_csv(out/'ppl_sweep_best_by_method_p_gamma.csv',best)
     save_csv(out/'ppl_continuous_cycles.csv',pooled_cycles)
     save_csv(out/'ppl_continuous_per_sequence.csv',per_sequence)
     save_csv(out/'ppl_continuous_paired_deltas.csv',deltas)
-    manifest=dict(implementation='journal_soft_mis_sweep_multiseq_v8',sequence_indices=indices,
+    manifest=dict(implementation='journal_soft_mis_sweep_multiseq_v9',sequence_indices=indices,
                   token_spans=[dict(sequence_index=i,start=s[0],end=s[1],stream_sha256=h)
                                for i,s,h in zip(indices,spans,hashes)],
                   common_configuration=master_cfg,

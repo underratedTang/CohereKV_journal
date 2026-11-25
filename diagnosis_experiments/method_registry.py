@@ -12,9 +12,9 @@ def select_methods(csv):
         raise ValueError('Select at least one unique known method from '+','.join(METHODS))
     return tuple(m for m in METHODS if m in selected)
 
-def methods_for_p(p,selected=METHODS):
+def methods_for_gamma(gamma,selected=METHODS):
     # Skip a hard log-Count arm only if its equivalent Contribution arm runs.
-    return tuple(m for m in selected if not (math.isinf(float(p)) and
+    return tuple(m for m in selected if not (math.isinf(float(gamma)) and
         m.endswith('_log_count') and m.removesuffix('_log_count') in selected))
 
 def family_for_method(method):
