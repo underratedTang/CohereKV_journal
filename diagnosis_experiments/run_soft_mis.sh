@@ -15,16 +15,16 @@ RESULTS_ROOT="${DIAG_DIR}/results"
 # ============================================================
 # 1. Model and priority comparison
 # ============================================================
-# MODEL="Qwen/Qwen2.5-7B"
-MODEL="meta-llama/Llama-3.2-3B"
+MODEL="Qwen/Qwen2.5-7B"
+# MODEL="meta-llama/Llama-3.2-3B"
 TORCH_DTYPE="bfloat16"
 DEVICE="cuda"
 DEVICE_MAP="auto"
 ATTN_IMPL="eager"
 TRUST_REMOTE_CODE=0
 USE_FAST_TOKENIZER=0
-RUN_CALIBRATION=1
-RUN_PPL=1
+RUN_CALIBRATION=0
+RUN_PPL=0
 RUN_PLOT=1
 
 # Method switches: 1=enabled, 0=disabled. All enabled by default.
@@ -59,10 +59,10 @@ PPL_SPLIT="validation" # change to test only after freezing parameters
 PPL_CYCLES=24
 PPL_UNSCORED_LEN=256
 PPL_SCORED_LEN=32
-PPL_SEQUENCE_INDICES=("0" "1" "2" "3")
+PPL_SEQUENCE_INDICES=("0" "1" "2" "3" "4" "5" "6" "7")
 PPL_PREFILL_CHUNK_SIZE=128
 PPL_BUDGETS=("0.10")
-PPL_P_VALUES=("2" "4" "8" "inf")
+PPL_P_VALUES=("2" "inf")
 PPL_LAMBDA_EA=("0.10" "0.30" "0.50" "0.70")
 PPL_LAMBDA_EE=("0.10" "0.30" "0.50" "0.70")
 PPL_REFERENCE_MODE="frozen_train"
