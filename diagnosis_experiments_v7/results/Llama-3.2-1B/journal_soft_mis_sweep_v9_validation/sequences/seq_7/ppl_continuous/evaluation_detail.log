@@ -1,0 +1,68 @@
+Token indices sequence length is longer than the specified maximum sequence length for this model (252853 > 131072). Running this sequence through the model will result in indexing errors
+[SEQUENCE] id=7 positions=[16128,18432) sha256=d0cd006deb26ed01
+[PPL TABLE] Method                                          B     p   Gamma      EA      EE      Seq PPL   Tokens    Seconds
+[PPL TABLE] ----------------------------------------------------------------------------------------------------------------
+[NATIVE FULL CACHE] ppl=8.711685
+[PPL] method=full_cache p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.7 ppl=8.711685 compressions=0
+[PPL TABLE] full_cache                                      -     -       -       -       -     8.711685      256       0.50
+[CONTINUOUS] eviction_only p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.7 B=0.1 cycles=8 U=256 S=32
+[PPL] method=eviction_only p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.7 ppl=12.522506 compressions=8
+[PPL TABLE] eviction_only                                 0.1     -       -       -       -    12.522506      256       0.60
+[CONTINUOUS] merge_all p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.7 B=0.1 cycles=8 U=256 S=32
+[PPL] method=merge_all p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.7 ppl=12.219412 compressions=8
+[PPL TABLE] merge_all                                     0.1     -       -     0.5       -    12.219412      256       1.48
+[CONTINUOUS] coherekv_conference p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.7 B=0.1 cycles=8 U=256 S=32
+[PPL] method=coherekv_conference p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.7 ppl=12.537645 compressions=8
+[PPL TABLE] coherekv_conference                           0.1   inf     inf     0.5     0.5    12.537645      256       9.39
+[CONTINUOUS] coherekv_soft_mis p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.7 B=0.1 cycles=8 U=256 S=32
+[PPL] method=coherekv_soft_mis p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.7 ppl=12.228506 compressions=8
+[PPL TABLE] coherekv_soft_mis                             0.1   inf       1     0.5     0.7    12.228506      256      12.45
+[CONTINUOUS] coherekv_soft_mis_importance p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.7 B=0.1 cycles=8 U=256 S=32
+[PPL] method=coherekv_soft_mis_importance p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.7 ppl=12.077880 compressions=8
+[PPL TABLE] coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.7    12.077880      256      13.38
+[CONTINUOUS] coherekv_soft_mis_log_count p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.7 B=0.1 cycles=8 U=256 S=32
+[PPL] method=coherekv_soft_mis_log_count p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.7 ppl=12.223931 compressions=8
+[PPL TABLE] coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.7    12.223931      256      12.38
+[CONTINUOUS] coherekv_soft_mis_importance_log_count p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.7 B=0.1 cycles=8 U=256 S=32
+[PPL] method=coherekv_soft_mis_importance_log_count p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.7 ppl=12.230902 compressions=8
+[PPL TABLE] coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.7    12.230902      256      13.34
+[REUSED BASELINE] full_cache p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.9
+[PPL] method=full_cache p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.9 ppl=8.711685 compressions=0
+[REUSED BASELINE] eviction_only p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.9
+[PPL] method=eviction_only p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.9 ppl=12.522506 compressions=8
+[REUSED BASELINE] merge_all p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.9
+[PPL] method=merge_all p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.9 ppl=12.219412 compressions=8
+[REUSED BASELINE] coherekv_conference p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.9
+[PPL] method=coherekv_conference p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.9 ppl=12.537645 compressions=8
+[CONTINUOUS] coherekv_soft_mis p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.9 B=0.1 cycles=8 U=256 S=32
+[PPL] method=coherekv_soft_mis p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.9 ppl=12.184869 compressions=8
+[PPL TABLE] coherekv_soft_mis                             0.1   inf       1     0.5     0.9    12.184869      256      12.42
+[CONTINUOUS] coherekv_soft_mis_importance p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.9 B=0.1 cycles=8 U=256 S=32
+[PPL] method=coherekv_soft_mis_importance p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.9 ppl=12.213098 compressions=8
+[PPL TABLE] coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.9    12.213098      256      13.34
+[CONTINUOUS] coherekv_soft_mis_log_count p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.9 B=0.1 cycles=8 U=256 S=32
+[PPL] method=coherekv_soft_mis_log_count p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.9 ppl=12.274177 compressions=8
+[PPL TABLE] coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.9    12.274177      256      12.35
+[CONTINUOUS] coherekv_soft_mis_importance_log_count p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.9 B=0.1 cycles=8 U=256 S=32
+[PPL] method=coherekv_soft_mis_importance_log_count p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=0.9 ppl=12.247589 compressions=8
+[PPL TABLE] coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.9    12.247589      256      13.29
+[REUSED BASELINE] full_cache p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=1.1
+[PPL] method=full_cache p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=1.1 ppl=8.711685 compressions=0
+[REUSED BASELINE] eviction_only p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=1.1
+[PPL] method=eviction_only p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=1.1 ppl=12.522506 compressions=8
+[REUSED BASELINE] merge_all p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=1.1
+[PPL] method=merge_all p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=1.1 ppl=12.219412 compressions=8
+[REUSED BASELINE] coherekv_conference p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=1.1
+[PPL] method=coherekv_conference p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=1.1 ppl=12.537645 compressions=8
+[CONTINUOUS] coherekv_soft_mis p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=1.1 B=0.1 cycles=8 U=256 S=32
+[PPL] method=coherekv_soft_mis p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=1.1 ppl=12.183514 compressions=8
+[PPL TABLE] coherekv_soft_mis                             0.1   inf       1     0.5     1.1    12.183514      256      12.43
+[CONTINUOUS] coherekv_soft_mis_importance p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=1.1 B=0.1 cycles=8 U=256 S=32
+[PPL] method=coherekv_soft_mis_importance p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=1.1 ppl=12.232962 compressions=8
+[PPL TABLE] coherekv_soft_mis_importance                  0.1   inf       1     0.5     1.1    12.232962      256      13.30
+[CONTINUOUS] coherekv_soft_mis_log_count p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=1.1 B=0.1 cycles=8 U=256 S=32
+[PPL] method=coherekv_soft_mis_log_count p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=1.1 ppl=12.223183 compressions=8
+[PPL TABLE] coherekv_soft_mis_log_count                   0.1   inf       1     0.5     1.1    12.223183      256      12.33
+[CONTINUOUS] coherekv_soft_mis_importance_log_count p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=1.1 B=0.1 cycles=8 U=256 S=32
+[PPL] method=coherekv_soft_mis_importance_log_count p=inf gamma=1.0 lambda_ea=0.5 lambda_ee=1.1 ppl=12.226987 compressions=8
+[PPL TABLE] coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     1.1    12.226987      256      13.28

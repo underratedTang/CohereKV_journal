@@ -1,0 +1,9 @@
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:01,  2.10it/s]Loading checkpoint shards:  50%|█████     | 2/4 [00:00<00:00,  2.13it/s]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:01<00:00,  2.10it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:01<00:00,  2.45it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:01<00:00,  2.31it/s]
+Token indices sequence length is longer than the specified maximum sequence length for this model (2518423 > 131072). Running this sequence through the model will result in indexing errors
+[CALIBRATION] model=Qwen/Qwen2.5-7B source=wikitext2/train M=4 L=4096 aggregation=MEDIAN
+We detected that you are passing `past_key_values` as a tuple of tuples. This is deprecated and will be removed in v4.47. Please convert your cache or use an appropriate `Cache` class (https://huggingface.co/docs/transformers/kv_cache#legacy-cache-format)
+[CALIB] 1/4, offset=116739
+[CALIB] 2/4, offset=655830
+[CALIB] 3/4, offset=1547600
+[CALIB] 4/4, offset=2145604
+[CALIBRATION COMPLETE] /home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-7B/journal_soft_mis_sweep_v9_validation/calibration/median_reference.json shape=(28, 4) sink_heads=95/112 Q_train_max_diagnostic=256.85

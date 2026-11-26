@@ -1,0 +1,61 @@
+{
+  "config": {
+    "model": "meta-llama/Llama-3.2-3B",
+    "calibration": "/home/tlxr/CohereKV/diagnosis_experiments/results/Llama-3.2-3B/journal_soft_mis_sweep_v9_validation/calibration/median_reference.json",
+    "methods": [
+      "full_cache",
+      "eviction_only",
+      "merge_all",
+      "coherekv_conference",
+      "coherekv_soft_mis",
+      "coherekv_soft_mis_importance",
+      "coherekv_soft_mis_log_count",
+      "coherekv_soft_mis_importance_log_count"
+    ],
+    "output_dir": "/home/tlxr/CohereKV/diagnosis_experiments/results/Llama-3.2-3B/journal_soft_mis_sweep_v9_validation/sequences/seq_7/ppl_continuous",
+    "dataset": "wikitext2",
+    "split": "validation",
+    "sequence_index": 7,
+    "cycles": 8,
+    "unscored_len": 256,
+    "scored_len": 32,
+    "p_values": "inf",
+    "gamma_values": "1",
+    "lambda_ea": "0.50",
+    "lambda_ee": "0.50",
+    "budgets": "0.10",
+    "reference_mode": "frozen_train",
+    "score_window": 8,
+    "sink_size": 4,
+    "recent_protect_size": 8,
+    "recency_beta": 1.0,
+    "prefill_chunk_size": 128,
+    "distance_chunk_size": 256,
+    "torch_dtype": "bfloat16",
+    "attn_implementation": "eager",
+    "device": "cuda",
+    "device_map": "auto",
+    "trust_remote_code": false,
+    "use_fast_tokenizer": false,
+    "total_logical_tokens": 2304,
+    "reference_sha256": "ded5c020ed41f1c8065d946ad5cb7cb9ec2c8f7850aad41e16d760ecb7dcfd64",
+    "implementation": "journal_soft_mis_sweep_v9",
+    "methods_by_gamma": {
+      "1.0": [
+        "full_cache",
+        "eviction_only",
+        "merge_all",
+        "coherekv_conference",
+        "coherekv_soft_mis",
+        "coherekv_soft_mis_importance",
+        "coherekv_soft_mis_log_count",
+        "coherekv_soft_mis_importance_log_count"
+      ]
+    },
+    "token_start": 16128,
+    "token_end": 18432,
+    "scored_stream_sha256": "d0cd006deb26ed0186a066d8930c09a671e5da8075c2c9e7f49a46386a424c42"
+  },
+  "n_results": 8,
+  "n_cycles": 64
+}

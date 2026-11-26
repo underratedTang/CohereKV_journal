@@ -1,0 +1,21 @@
+{
+  "model": "meta-llama/Llama-3.2-3B",
+  "dataset": "wikitext2",
+  "split": "validation",
+  "total_tokens": 252853,
+  "window_length": 2304,
+  "complete_windows": 109,
+  "requested_indices": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "selected_indices": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "excluded_indices": []
+}

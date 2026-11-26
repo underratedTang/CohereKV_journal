@@ -1,0 +1,11 @@
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:17<00:17, 17.40s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:27<00:00, 12.88s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:27<00:00, 13.56s/it]
+Using the latest cached version of the dataset since wikitext couldn't be found on the Hugging Face Hub
+Found the latest cached dataset configuration 'wikitext-2-raw-v1' at /home/tlxr/.cache/huggingface/datasets/wikitext/wikitext-2-raw-v1/0.0.0/b08601e04326c79dfdd32d625aee71d232d685c3 (last modified on Tue Oct 14 14:53:41 2025).
+Token indices sequence length is longer than the specified maximum sequence length for this model (2518423 > 131072). Running this sequence through the model will result in indexing errors
+[CALIBRATION] model=Qwen/Qwen2.5-3B source=wikitext2/train M=4 L=4096 aggregation=MEDIAN
+We detected that you are passing `past_key_values` as a tuple of tuples. This is deprecated and will be removed in v4.47. Please convert your cache or use an appropriate `Cache` class (https://huggingface.co/docs/transformers/kv_cache#legacy-cache-format)
+[CALIB] 1/4, offset=116739
+[CALIB] 2/4, offset=655830
+[CALIB] 3/4, offset=1547600
+[CALIB] 4/4, offset=2145604
+[CALIBRATION COMPLETE] /home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-3B/journal_soft_mis_sweep_v9_validation/calibration/median_reference.json shape=(36, 2) sink_heads=56/72 Q_train_max_diagnostic=246.56

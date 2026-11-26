@@ -1,0 +1,177 @@
+MODEL=meta-llama/Llama-3.2-1B CYCLES=8 U=256 S=32 SEQUENCES=0,1,2,3,4,5,6,7
+METHODS=full_cache,eviction_only,merge_all,coherekv_conference,coherekv_soft_mis,coherekv_soft_mis_importance,coherekv_soft_mis_log_count,coherekv_soft_mis_importance_log_count
+SPLIT=validation
+BUDGETS=0.10 P=2,inf GAMMA=1 EA=0.30,0.50 EE=0.30,0.50
+REFERENCE=frozen_train FONT=Times New Roman PNG_DPI=600
+RESULTS=/home/tlxr/CohereKV/diagnosis_experiments/results/Llama-3.2-1B/journal_soft_mis_sweep_v9_validation
+[WINDOWS] started (details: /home/tlxr/CohereKV/diagnosis_experiments/results/Llama-3.2-1B/journal_soft_mis_sweep_v9_validation/logs/windows.log)
+[WINDOWS] complete
+[ACTUAL SEQUENCES] 0,1,2,3,4,5,6,7
+[CALIBRATION] started (details: /home/tlxr/CohereKV/diagnosis_experiments/results/Llama-3.2-1B/journal_soft_mis_sweep_v9_validation/logs/calibration.log)
+[CALIBRATION] complete
+
+======================================================================
+SEQUENCE 1/8 | index=0 | 256 scored tokens
+One row per actual evaluation; repeated baselines omitted.
+Method                                          B     p   Gamma      EA      EE      Seq PPL   Tokens    Seconds
+----------------------------------------------------------------------------------------------------------------
+full_cache                                      -     -       -       -       -     5.688028      256       0.71
+eviction_only                                 0.1     -       -       -       -     7.554859      256       0.87
+merge_all                                     0.1     -       -     0.3       -     7.535989      256       1.44
+coherekv_conference                           0.1   inf     inf     0.3     0.3     7.577044      256      16.80
+coherekv_soft_mis                             0.1     2       1     0.3     0.3     7.511467      256      14.20
+coherekv_soft_mis_importance                  0.1     2       1     0.3     0.3     7.538718      256      27.52
+coherekv_soft_mis_log_count                   0.1     2       1     0.3     0.3     7.523768      256      26.57
+coherekv_soft_mis_importance_log_count        0.1     2       1     0.3     0.3     7.515653      256      27.70
+coherekv_soft_mis                             0.1     2       1     0.3     0.5     7.536802      256      27.11
+coherekv_soft_mis_importance                  0.1     2       1     0.3     0.5     7.536802      256      28.15
+coherekv_soft_mis_log_count                   0.1     2       1     0.3     0.5     7.519350      256      26.87
+coherekv_soft_mis_importance_log_count        0.1     2       1     0.3     0.5     7.519350      256      28.04
+merge_all                                     0.1     -       -     0.5       -     7.159219      256       5.10
+coherekv_conference                           0.1   inf     inf     0.5     0.5     7.410872      256      44.94
+coherekv_soft_mis                             0.1     2       1     0.5     0.3     7.201342      256      52.35
+coherekv_soft_mis_importance                  0.1     2       1     0.5     0.3     7.203753      256      56.87
+coherekv_soft_mis_log_count                   0.1     2       1     0.5     0.3     7.152422      256      52.37
+coherekv_soft_mis_importance_log_count        0.1     2       1     0.5     0.3     7.141147      256      56.30
+coherekv_soft_mis                             0.1     2       1     0.5     0.5     7.216345      256      49.73
+coherekv_soft_mis_importance                  0.1     2       1     0.5     0.5     7.167825      256      54.04
+coherekv_soft_mis_log_count                   0.1     2       1     0.5     0.5     7.221354      256      80.04
+coherekv_soft_mis_importance_log_count        0.1     2       1     0.5     0.5     7.227975      256      54.88
+coherekv_soft_mis                             0.1   inf       1     0.3     0.3     7.467557      256      40.36
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.3     7.545700      256      41.26
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.3     7.528237      256      40.07
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.3     7.554941      256      40.68
+coherekv_soft_mis                             0.1   inf       1     0.3     0.5     7.541621      256      40.11
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.5     7.541621      256      41.16
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.5     7.526710      256      40.03
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.5     7.526710      256      40.96
+coherekv_soft_mis                             0.1   inf       1     0.5     0.3     7.244894      256      66.79
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.3     7.208854      256      70.51
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.3     7.185287      256      65.95
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.3     7.164593      256      70.03
+coherekv_soft_mis                             0.1   inf       1     0.5     0.5     7.191669      256      64.30
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.5     7.143075      256      68.00
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.5     7.177119      256      64.00
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.5     7.251949      256      68.07
+[SEQUENCE 1/8] complete (details: /home/tlxr/CohereKV/diagnosis_experiments/results/Llama-3.2-1B/journal_soft_mis_sweep_v9_validation/sequences/seq_0/ppl_continuous/evaluation_detail.log)
+
+======================================================================
+SEQUENCE 2/8 | index=1 | 256 scored tokens
+One row per actual evaluation; repeated baselines omitted.
+Method                                          B     p   Gamma      EA      EE      Seq PPL   Tokens    Seconds
+----------------------------------------------------------------------------------------------------------------
+full_cache                                      -     -       -       -       -     8.901274      256       0.53
+eviction_only                                 0.1     -       -       -       -    12.128763      256       0.94
+merge_all                                     0.1     -       -     0.3       -    11.983519      256       4.83
+coherekv_conference                           0.1   inf     inf     0.3     0.3    12.052399      256      36.96
+coherekv_soft_mis                             0.1     2       1     0.3     0.3    11.931341      256      26.04
+coherekv_soft_mis_importance                  0.1     2       1     0.3     0.3    12.018716      256      27.64
+coherekv_soft_mis_log_count                   0.1     2       1     0.3     0.3    11.758806      256      26.33
+coherekv_soft_mis_importance_log_count        0.1     2       1     0.3     0.3    12.022280      256      27.39
+coherekv_soft_mis                             0.1     2       1     0.3     0.5    12.007795      256      26.42
+coherekv_soft_mis_importance                  0.1     2       1     0.3     0.5    12.007795      256      27.58
+coherekv_soft_mis_log_count                   0.1     2       1     0.3     0.5    12.040235      256      26.33
+coherekv_soft_mis_importance_log_count        0.1     2       1     0.3     0.5    12.040235      256      27.40
+merge_all                                     0.1     -       -     0.5       -    11.933972      256       4.94
+coherekv_conference                           0.1   inf     inf     0.5     0.5    11.943212      256      44.12
+coherekv_soft_mis                             0.1     2       1     0.5     0.3    12.151650      256      51.41
+coherekv_soft_mis_importance                  0.1     2       1     0.5     0.3    11.983637      256      55.70
+coherekv_soft_mis_log_count                   0.1     2       1     0.5     0.3    12.046209      256      50.89
+coherekv_soft_mis_importance_log_count        0.1     2       1     0.5     0.3    11.893667      256      54.68
+coherekv_soft_mis                             0.1     2       1     0.5     0.5    11.961825      256      49.43
+coherekv_soft_mis_importance                  0.1     2       1     0.5     0.5    11.879312      256      53.76
+coherekv_soft_mis_log_count                   0.1     2       1     0.5     0.5    11.911869      256      49.22
+coherekv_soft_mis_importance_log_count        0.1     2       1     0.5     0.5    11.771730      256      53.49
+coherekv_soft_mis                             0.1   inf       1     0.3     0.3    11.931341      256      39.83
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.3    12.018716      256      40.87
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.3    11.758806      256      39.62
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.3    12.022280      256      24.45
+coherekv_soft_mis                             0.1   inf       1     0.3     0.5    12.007795      256       7.92
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.5    12.007795      256      38.25
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.5    12.040235      256      40.29
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.5    12.040235      256      42.10
+coherekv_soft_mis                             0.1   inf       1     0.5     0.3    12.137130      256      67.82
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.3    11.940055      256      71.79
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.3    11.948217      256      67.32
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.3    11.923883      256      71.54
+coherekv_soft_mis                             0.1   inf       1     0.5     0.5    12.070656      256      65.52
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.5    11.832580      256      69.16
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.5    11.781880      256      64.66
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.5    11.874336      256      69.03
+[SEQUENCE 2/8] complete (details: /home/tlxr/CohereKV/diagnosis_experiments/results/Llama-3.2-1B/journal_soft_mis_sweep_v9_validation/sequences/seq_1/ppl_continuous/evaluation_detail.log)
+
+======================================================================
+SEQUENCE 3/8 | index=2 | 256 scored tokens
+One row per actual evaluation; repeated baselines omitted.
+Method                                          B     p   Gamma      EA      EE      Seq PPL   Tokens    Seconds
+----------------------------------------------------------------------------------------------------------------
+full_cache                                      -     -       -       -       -     7.653805      256       0.53
+eviction_only                                 0.1     -       -       -       -    14.017391      256       1.01
+merge_all                                     0.1     -       -     0.3       -    13.974239      256       4.80
+coherekv_conference                           0.1   inf     inf     0.3     0.3    14.193561      256      37.17
+coherekv_soft_mis                             0.1     2       1     0.3     0.3    14.005189      256      26.44
+coherekv_soft_mis_importance                  0.1     2       1     0.3     0.3    14.018064      256      27.56
+coherekv_soft_mis_log_count                   0.1     2       1     0.3     0.3    14.105086      256      25.86
+coherekv_soft_mis_importance_log_count        0.1     2       1     0.3     0.3    14.062190      256      27.34
+coherekv_soft_mis                             0.1     2       1     0.3     0.5    13.977992      256      26.36
+coherekv_soft_mis_importance                  0.1     2       1     0.3     0.5    13.977992      256      27.45
+coherekv_soft_mis_log_count                   0.1     2       1     0.3     0.5    14.102668      256      26.44
+coherekv_soft_mis_importance_log_count        0.1     2       1     0.3     0.5    14.102668      256      25.89
+merge_all                                     0.1     -       -     0.5       -    14.068008      256       5.02
+coherekv_conference                           0.1   inf     inf     0.5     0.5    14.833917      256      43.27
+coherekv_soft_mis                             0.1     2       1     0.5     0.3    14.107916      256      50.42
+coherekv_soft_mis_importance                  0.1     2       1     0.5     0.3    13.912590      256      54.22
+coherekv_soft_mis_log_count                   0.1     2       1     0.5     0.3    14.272780      256      49.40
+coherekv_soft_mis_importance_log_count        0.1     2       1     0.5     0.3    14.055038      256      53.51
+coherekv_soft_mis                             0.1     2       1     0.5     0.5    14.191911      256      48.01
+coherekv_soft_mis_importance                  0.1     2       1     0.5     0.5    13.880209      256      51.91
+coherekv_soft_mis_log_count                   0.1     2       1     0.5     0.5    14.016804      256      47.88
+coherekv_soft_mis_importance_log_count        0.1     2       1     0.5     0.5    13.903080      256      51.31
+coherekv_soft_mis                             0.1   inf       1     0.3     0.3    14.010156      256      39.55
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.3    14.032106      256      40.60
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.3    14.105086      256      39.38
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.3    14.062190      256      40.47
+coherekv_soft_mis                             0.1   inf       1     0.3     0.5    13.977992      256      39.47
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.5    13.977992      256      40.65
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.5    14.110489      256      38.83
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.5    14.110489      256      40.31
+coherekv_soft_mis                             0.1   inf       1     0.5     0.3    14.039267      256      64.27
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.3    13.881327      256      68.31
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.3    14.112152      256      64.07
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.3    14.093212      256      68.07
+coherekv_soft_mis                             0.1   inf       1     0.5     0.5    14.033867      256      62.61
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.5    14.102146      256      65.99
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.5    13.894947      256      62.27
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.5    14.170644      256      66.32
+[SEQUENCE 3/8] complete (details: /home/tlxr/CohereKV/diagnosis_experiments/results/Llama-3.2-1B/journal_soft_mis_sweep_v9_validation/sequences/seq_2/ppl_continuous/evaluation_detail.log)
+
+======================================================================
+SEQUENCE 4/8 | index=3 | 256 scored tokens
+One row per actual evaluation; repeated baselines omitted.
+Method                                          B     p   Gamma      EA      EE      Seq PPL   Tokens    Seconds
+----------------------------------------------------------------------------------------------------------------
+full_cache                                      -     -       -       -       -     8.219350      256       0.53
+eviction_only                                 0.1     -       -       -       -    10.920002      256       0.94
+merge_all                                     0.1     -       -     0.3       -    10.994473      256       4.83
+coherekv_conference                           0.1   inf     inf     0.3     0.3    10.942000      256      36.90
+coherekv_soft_mis                             0.1     2       1     0.3     0.3    10.984668      256      26.37
+coherekv_soft_mis_importance                  0.1     2       1     0.3     0.3    10.925512      256      27.51
+coherekv_soft_mis_log_count                   0.1     2       1     0.3     0.3    10.998122      256      26.31
+coherekv_soft_mis_importance_log_count        0.1     2       1     0.3     0.3    10.919639      256      27.35
+coherekv_soft_mis                             0.1     2       1     0.3     0.5    10.947939      256      21.82
+coherekv_soft_mis_importance                  0.1     2       1     0.3     0.5    10.926754      256       6.10
+coherekv_soft_mis_log_count                   0.1     2       1     0.3     0.5    10.932909      256      10.34
+coherekv_soft_mis_importance_log_count        0.1     2       1     0.3     0.5    10.946061      256      27.93
+merge_all                                     0.1     -       -     0.5       -    11.026722      256       5.09
+coherekv_conference                           0.1   inf     inf     0.5     0.5    11.157220      256      44.41
+coherekv_soft_mis                             0.1     2       1     0.5     0.3    11.053366      256      50.85
+coherekv_soft_mis_importance                  0.1     2       1     0.5     0.3    11.006454      256      54.96
+coherekv_soft_mis_log_count                   0.1     2       1     0.5     0.3    11.155690      256      50.47
+coherekv_soft_mis_importance_log_count        0.1     2       1     0.5     0.3    11.101782      256      54.23
+coherekv_soft_mis                             0.1     2       1     0.5     0.5    11.030077      256      49.08
+coherekv_soft_mis_importance                  0.1     2       1     0.5     0.5    11.047095      256      53.05
+coherekv_soft_mis_log_count                   0.1     2       1     0.5     0.5    11.122633      256      49.07
+coherekv_soft_mis_importance_log_count        0.1     2       1     0.5     0.5    11.082347      256      51.96
+coherekv_soft_mis                             0.1   inf       1     0.3     0.3    10.964220      256      40.12
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.3    10.970805      256      41.36
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.3    11.035898      256      40.01

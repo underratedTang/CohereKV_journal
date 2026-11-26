@@ -1,0 +1,9 @@
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:46<00:46, 46.35s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:57<00:00, 25.53s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:57<00:00, 28.66s/it]
+Token indices sequence length is longer than the specified maximum sequence length for this model (2436214 > 131072). Running this sequence through the model will result in indexing errors
+[CALIBRATION] model=meta-llama/Llama-3.2-3B source=wikitext2/train M=4 L=4096 aggregation=MEDIAN
+We detected that you are passing `past_key_values` as a tuple of tuples. This is deprecated and will be removed in v4.47. Please convert your cache or use an appropriate `Cache` class (https://huggingface.co/docs/transformers/kv_cache#legacy-cache-format)
+[CALIB] 1/4, offset=116739
+[CALIB] 2/4, offset=635278
+[CALIB] 3/4, offset=1506496
+[CALIB] 4/4, offset=2083947
+[CALIBRATION COMPLETE] /home/tlxr/CohereKV/diagnosis_experiments/results/Llama-3.2-3B/journal_soft_mis_sweep_v9_validation/calibration/median_reference.json shape=(28, 8) sink_heads=211/224 Q_train_max_diagnostic=41.316

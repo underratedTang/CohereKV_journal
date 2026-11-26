@@ -1,0 +1,279 @@
+MODEL=Qwen/Qwen2.5-3B CYCLES=8 U=256 S=32 SEQUENCES=0,1,2,3,4,5,6,7
+METHODS=full_cache,eviction_only,merge_all,coherekv_conference,coherekv_soft_mis,coherekv_soft_mis_importance,coherekv_soft_mis_log_count,coherekv_soft_mis_importance_log_count
+SPLIT=validation
+BUDGETS=0.10 P=inf GAMMA=1 EA=0.30,0.50 EE=0.30,0.50
+REFERENCE=frozen_train FONT=Times New Roman PNG_DPI=600
+RESULTS=/home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-3B/journal_soft_mis_sweep_v9_validation
+[WINDOWS] started (details: /home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-3B/journal_soft_mis_sweep_v9_validation/logs/windows.log)
+[WINDOWS] complete
+[ACTUAL SEQUENCES] 0,1,2,3,4,5,6,7
+[CALIBRATION] started (details: /home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-3B/journal_soft_mis_sweep_v9_validation/logs/calibration.log)
+[CALIBRATION] complete
+
+======================================================================
+SEQUENCE 1/8 | index=0 | 256 scored tokens
+One row per actual evaluation; repeated baselines omitted.
+Method                                          B     p   Gamma      EA      EE      Seq PPL   Tokens    Seconds
+----------------------------------------------------------------------------------------------------------------
+full_cache                                      -     -       -       -       -     6.168805      256       0.93
+eviction_only                                 0.1     -       -       -       -    10.966305      256       1.03
+merge_all                                     0.1     -       -     0.3       -    11.008417      256       1.41
+coherekv_conference                           0.1   inf     inf     0.3     0.3    10.975168      256       5.08
+coherekv_soft_mis                             0.1   inf       1     0.3     0.3    10.948919      256       5.00
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.3    10.937452      256       5.09
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.3    10.945448      256       4.96
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.3    11.023912      256       5.07
+coherekv_soft_mis                             0.1   inf       1     0.3     0.5    10.998585      256       4.99
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.5    10.998585      256       5.07
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.5    10.994266      256       4.97
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.5    10.994266      256       5.06
+merge_all                                     0.1     -       -     0.5       -    11.006564      256       1.48
+coherekv_conference                           0.1   inf     inf     0.5     0.5    10.767127      256       5.67
+coherekv_soft_mis                             0.1   inf       1     0.5     0.3    10.900217      256       7.58
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.3    10.898141      256       8.04
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.3    10.838656      256       7.57
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.3    10.845445      256       8.09
+coherekv_soft_mis                             0.1   inf       1     0.5     0.5    10.848350      256       7.39
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.5    11.060547      256       7.97
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.5    10.943596      256       7.38
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.5    10.935905      256       7.81
+[SEQUENCE 1/8] complete (details: /home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-3B/journal_soft_mis_sweep_v9_validation/sequences/seq_0/ppl_continuous/evaluation_detail.log)
+
+======================================================================
+SEQUENCE 2/8 | index=1 | 256 scored tokens
+One row per actual evaluation; repeated baselines omitted.
+Method                                          B     p   Gamma      EA      EE      Seq PPL   Tokens    Seconds
+----------------------------------------------------------------------------------------------------------------
+full_cache                                      -     -       -       -       -     5.683098      256       0.87
+eviction_only                                 0.1     -       -       -       -    12.557384      256       1.03
+merge_all                                     0.1     -       -     0.3       -    12.330434      256       1.42
+coherekv_conference                           0.1   inf     inf     0.3     0.3    12.451571      256       5.09
+coherekv_soft_mis                             0.1   inf       1     0.3     0.3    12.370701      256       4.97
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.3    12.625914      256       5.06
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.3    12.406536      256       4.93
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.3    12.560464      256       5.04
+coherekv_soft_mis                             0.1   inf       1     0.3     0.5    12.315389      256       4.96
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.5    12.315389      256       5.05
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.5    12.345168      256       4.94
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.5    12.345168      256       5.04
+merge_all                                     0.1     -       -     0.5       -    11.735936      256       1.48
+coherekv_conference                           0.1   inf     inf     0.5     0.5    12.126260      256       5.63
+coherekv_soft_mis                             0.1   inf       1     0.5     0.3    11.882424      256       7.68
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.3    11.857012      256       8.12
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.3    12.113904      256       7.61
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.3    12.009398      256       8.10
+coherekv_soft_mis                             0.1   inf       1     0.5     0.5    11.714998      256       7.47
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.5    11.667035      256       7.93
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.5    12.204689      256       7.44
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.5    11.632910      256       7.90
+[SEQUENCE 2/8] complete (details: /home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-3B/journal_soft_mis_sweep_v9_validation/sequences/seq_1/ppl_continuous/evaluation_detail.log)
+
+======================================================================
+SEQUENCE 3/8 | index=2 | 256 scored tokens
+One row per actual evaluation; repeated baselines omitted.
+Method                                          B     p   Gamma      EA      EE      Seq PPL   Tokens    Seconds
+----------------------------------------------------------------------------------------------------------------
+full_cache                                      -     -       -       -       -     5.435833      256       0.89
+eviction_only                                 0.1     -       -       -       -    11.153385      256       1.04
+merge_all                                     0.1     -       -     0.3       -    11.143172      256       1.43
+coherekv_conference                           0.1   inf     inf     0.3     0.3    11.174344      256       5.11
+coherekv_soft_mis                             0.1   inf       1     0.3     0.3    11.212971      256       4.99
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.3    11.132913      256       5.05
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.3    11.232114      256       4.96
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.3    11.306284      256       5.06
+coherekv_soft_mis                             0.1   inf       1     0.3     0.5    11.141026      256       4.96
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.5    11.141026      256       5.06
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.5    11.142301      256       4.94
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.5    11.142301      256       5.04
+merge_all                                     0.1     -       -     0.5       -    11.097186      256       1.48
+coherekv_conference                           0.1   inf     inf     0.5     0.5    11.316202      256       5.63
+coherekv_soft_mis                             0.1   inf       1     0.5     0.3    11.167132      256       7.56
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.3    11.186865      256       8.00
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.3    11.170501      256       7.53
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.3    11.195472      256       7.98
+coherekv_soft_mis                             0.1   inf       1     0.5     0.5    11.209587      256       7.35
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.5    11.258916      256       7.84
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.5    11.196772      256       7.33
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.5    11.147929      256       7.77
+[SEQUENCE 3/8] complete (details: /home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-3B/journal_soft_mis_sweep_v9_validation/sequences/seq_2/ppl_continuous/evaluation_detail.log)
+
+======================================================================
+SEQUENCE 4/8 | index=3 | 256 scored tokens
+One row per actual evaluation; repeated baselines omitted.
+Method                                          B     p   Gamma      EA      EE      Seq PPL   Tokens    Seconds
+----------------------------------------------------------------------------------------------------------------
+full_cache                                      -     -       -       -       -     6.524037      256       0.88
+eviction_only                                 0.1     -       -       -       -     9.490487      256       1.03
+merge_all                                     0.1     -       -     0.3       -     9.536888      256       1.42
+coherekv_conference                           0.1   inf     inf     0.3     0.3     9.567790      256       5.11
+coherekv_soft_mis                             0.1   inf       1     0.3     0.3     9.452879      256       5.08
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.3     9.530410      256       5.15
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.3     9.498794      256       5.03
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.3     9.533435      256       5.09
+coherekv_soft_mis                             0.1   inf       1     0.3     0.5     9.541858      256       5.01
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.5     9.541858      256       5.10
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.5     9.490895      256       4.97
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.5     9.490895      256       5.07
+merge_all                                     0.1     -       -     0.5       -     9.226303      256       1.48
+coherekv_conference                           0.1   inf     inf     0.5     0.5     9.522468      256       5.67
+coherekv_soft_mis                             0.1   inf       1     0.5     0.3     9.227673      256       7.48
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.3     9.191921      256       7.93
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.3     9.231706      256       7.47
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.3     9.315209      256       7.91
+coherekv_soft_mis                             0.1   inf       1     0.5     0.5     9.210163      256       7.30
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.5     9.238659      256       7.75
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.5     9.130133      256       7.26
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.5     9.345646      256       7.74
+[SEQUENCE 4/8] complete (details: /home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-3B/journal_soft_mis_sweep_v9_validation/sequences/seq_3/ppl_continuous/evaluation_detail.log)
+
+======================================================================
+SEQUENCE 5/8 | index=4 | 256 scored tokens
+One row per actual evaluation; repeated baselines omitted.
+Method                                          B     p   Gamma      EA      EE      Seq PPL   Tokens    Seconds
+----------------------------------------------------------------------------------------------------------------
+full_cache                                      -     -       -       -       -     6.765996      256       0.87
+eviction_only                                 0.1     -       -       -       -    11.049931      256       1.03
+merge_all                                     0.1     -       -     0.3       -    11.400395      256       1.41
+coherekv_conference                           0.1   inf     inf     0.3     0.3    11.015968      256       5.08
+coherekv_soft_mis                             0.1   inf       1     0.3     0.3    11.103415      256       5.00
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.3    11.106695      256       5.10
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.3    11.114420      256       4.98
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.3    11.053327      256       5.09
+coherekv_soft_mis                             0.1   inf       1     0.3     0.5    11.356609      256       5.01
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.5    11.356609      256       5.09
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.5    11.381324      256       4.98
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.5    11.381324      256       5.08
+merge_all                                     0.1     -       -     0.5       -    10.729264      256       1.48
+coherekv_conference                           0.1   inf     inf     0.5     0.5    11.155639      256       5.67
+coherekv_soft_mis                             0.1   inf       1     0.5     0.3    10.948566      256       7.50
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.3    10.926850      256       7.95
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.3    10.896226      256       7.46
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.3    11.068368      256       7.95
+coherekv_soft_mis                             0.1   inf       1     0.5     0.5    10.898742      256       7.36
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.5    11.105595      256       7.74
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.5    10.894772      256       7.26
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.5    10.943470      256       7.72
+[SEQUENCE 5/8] complete (details: /home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-3B/journal_soft_mis_sweep_v9_validation/sequences/seq_4/ppl_continuous/evaluation_detail.log)
+
+======================================================================
+SEQUENCE 6/8 | index=5 | 256 scored tokens
+One row per actual evaluation; repeated baselines omitted.
+Method                                          B     p   Gamma      EA      EE      Seq PPL   Tokens    Seconds
+----------------------------------------------------------------------------------------------------------------
+full_cache                                      -     -       -       -       -     5.600269      256       0.88
+eviction_only                                 0.1     -       -       -       -     9.529113      256       1.04
+merge_all                                     0.1     -       -     0.3       -     9.589367      256       1.43
+coherekv_conference                           0.1   inf     inf     0.3     0.3     9.705806      256       5.13
+coherekv_soft_mis                             0.1   inf       1     0.3     0.3     9.515346      256       5.04
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.3     9.519522      256       5.13
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.3     9.675843      256       5.00
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.3     9.532375      256       5.17
+coherekv_soft_mis                             0.1   inf       1     0.3     0.5     9.593704      256       5.07
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.5     9.593704      256       5.16
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.5     9.574698      256       5.03
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.5     9.574698      256       5.11
+merge_all                                     0.1     -       -     0.5       -     8.932357      256       1.49
+coherekv_conference                           0.1   inf     inf     0.5     0.5     9.395669      256       5.74
+coherekv_soft_mis                             0.1   inf       1     0.5     0.3     9.306423      256       7.70
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.3     9.044152      256       8.13
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.3     9.102012      256       7.65
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.3     8.942888      256       8.11
+coherekv_soft_mis                             0.1   inf       1     0.5     0.5     9.140368      256       7.48
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.5     9.112847      256       7.95
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.5     9.180756      256       7.44
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.5     8.921797      256       7.91
+[SEQUENCE 6/8] complete (details: /home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-3B/journal_soft_mis_sweep_v9_validation/sequences/seq_5/ppl_continuous/evaluation_detail.log)
+
+======================================================================
+SEQUENCE 7/8 | index=6 | 256 scored tokens
+One row per actual evaluation; repeated baselines omitted.
+Method                                          B     p   Gamma      EA      EE      Seq PPL   Tokens    Seconds
+----------------------------------------------------------------------------------------------------------------
+full_cache                                      -     -       -       -       -     3.298586      256       0.88
+eviction_only                                 0.1     -       -       -       -     4.902174      256       1.03
+merge_all                                     0.1     -       -     0.3       -     4.919667      256       1.42
+coherekv_conference                           0.1   inf     inf     0.3     0.3     4.867508      256       5.11
+coherekv_soft_mis                             0.1   inf       1     0.3     0.3     4.874935      256       5.00
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.3     4.871302      256       5.11
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.3     4.832178      256       4.94
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.3     4.855860      256       5.02
+coherekv_soft_mis                             0.1   inf       1     0.3     0.5     4.919667      256       4.93
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.5     4.919667      256       5.03
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.5     4.919667      256       4.92
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.5     4.919667      256       5.03
+merge_all                                     0.1     -       -     0.5       -     4.662029      256       1.47
+coherekv_conference                           0.1   inf     inf     0.5     0.5     4.958885      256       5.62
+coherekv_soft_mis                             0.1   inf       1     0.5     0.3     4.803670      256       7.37
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.3     4.782869      256       7.80
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.3     4.801969      256       7.32
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.3     4.780095      256       7.77
+coherekv_soft_mis                             0.1   inf       1     0.5     0.5     4.759267      256       7.21
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.5     4.767150      256       7.62
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.5     4.760258      256       7.17
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.5     4.807170      256       7.60
+[SEQUENCE 7/8] complete (details: /home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-3B/journal_soft_mis_sweep_v9_validation/sequences/seq_6/ppl_continuous/evaluation_detail.log)
+
+======================================================================
+SEQUENCE 8/8 | index=7 | 256 scored tokens
+One row per actual evaluation; repeated baselines omitted.
+Method                                          B     p   Gamma      EA      EE      Seq PPL   Tokens    Seconds
+----------------------------------------------------------------------------------------------------------------
+full_cache                                      -     -       -       -       -    10.219907      256       0.87
+eviction_only                                 0.1     -       -       -       -    13.763726      256       1.03
+merge_all                                     0.1     -       -     0.3       -    13.799761      256       1.41
+coherekv_conference                           0.1   inf     inf     0.3     0.3    13.850357      256       5.07
+coherekv_soft_mis                             0.1   inf       1     0.3     0.3    13.863063      256       5.02
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.3    13.915095      256       5.12
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.3    13.899868      256       4.98
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.3    13.800921      256       5.10
+coherekv_soft_mis                             0.1   inf       1     0.3     0.5    13.807170      256       5.00
+coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.5    13.807170      256       5.10
+coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.5    13.810099      256       4.98
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.5    13.810099      256       5.08
+merge_all                                     0.1     -       -     0.5       -    13.876106      256       1.48
+coherekv_conference                           0.1   inf     inf     0.5     0.5    13.729771      256       5.70
+coherekv_soft_mis                             0.1   inf       1     0.5     0.3    13.738128      256       7.47
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.3    13.873119      256       7.92
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.3    13.839433      256       7.47
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.3    13.836359      256       7.89
+coherekv_soft_mis                             0.1   inf       1     0.5     0.5    13.859301      256       7.31
+coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.5    13.794389      256       7.76
+coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.5    13.958048      256       7.28
+coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.5    13.787274      256       7.73
+[SEQUENCE 8/8] complete (details: /home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-3B/journal_soft_mis_sweep_v9_validation/sequences/seq_7/ppl_continuous/evaluation_detail.log)
+[AGGREGATE] complete windows=[0, 1, 2, 3, 4, 5, 6, 7], methods=['coherekv_conference', 'coherekv_soft_mis', 'coherekv_soft_mis_importance', 'coherekv_soft_mis_importance_log_count', 'coherekv_soft_mis_log_count', 'eviction_only', 'full_cache', 'merge_all'], rows=32, scored_tokens/method=2048
+
+===========================================================================================================================
+FINAL SUMMARY | 8 sequences | indices=0,1,2,3,4,5,6,7 | 2048 scored tokens/config
+Overall PPL = exp(total NLL / total scored tokens); Mean PPL = arithmetic mean; Std PPL = sample SD.
+Ranked by Overall PPL (ascending); unused settings and undefined SD are shown as -.
+Rank Method                                          B     p   Gamma      EA      EE  Overall PPL     Mean PPL      Std PPL
+---------------------------------------------------------------------------------------------------------------------------
+   1 full_cache                                      -     -       -       -       -     5.958137     6.212066     1.935157
+   2 merge_all                                     0.1     -       -     0.5       -     9.754917    10.158218     2.694402
+   3 coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.5     9.809915    10.190262     2.628422
+   4 coherekv_soft_mis                             0.1   inf       1     0.5     0.5     9.816305    10.205097     2.654310
+   5 coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.3     9.829263    10.220116     2.670511
+   6 coherekv_soft_mis_importance_log_count        0.1   inf       1     0.5     0.3     9.854348    10.249154     2.682693
+   7 coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.3     9.858723    10.249301     2.672758
+   8 coherekv_soft_mis_importance                  0.1   inf       1     0.5     0.5     9.859956    10.250642     2.655323
+   9 coherekv_soft_mis                             0.1   inf       1     0.5     0.3     9.865676    10.246779     2.623566
+  10 coherekv_soft_mis_log_count                   0.1   inf       1     0.5     0.5     9.879297    10.283628     2.722636
+  11 coherekv_conference                           0.1   inf     inf     0.5     0.5    10.005028    10.371503     2.590933
+  12 coherekv_soft_mis                             0.1   inf       1     0.3     0.3    10.031016    10.417779     2.660208
+  13 eviction_only                                 0.1     -       -       -       -    10.043820    10.426563     2.648066
+  14 coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.3    10.056987    10.450650     2.675078
+  15 coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.3    10.061294    10.454913     2.691516
+  16 coherekv_conference                           0.1   inf     inf     0.3     0.3    10.064944    10.451064     2.650764
+  17 coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.3    10.065779    10.458322     2.674892
+  18 coherekv_soft_mis_importance_log_count        0.1   inf       1     0.3     0.5    10.076262    10.457302     2.640211
+  19 coherekv_soft_mis_log_count                   0.1   inf       1     0.3     0.5    10.076262    10.457302     2.640211
+  20 coherekv_soft_mis                             0.1   inf       1     0.3     0.5    10.079809    10.459251     2.632015
+  21 coherekv_soft_mis_importance                  0.1   inf       1     0.3     0.5    10.079809    10.459251     2.632015
+  22 merge_all                                     0.1     -       -     0.3       -    10.085664    10.466013     2.635188
+===========================================================================================================================
+[UPLOAD] /home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-3B/journal_soft_mis_sweep_v9_validation/cohere_p_continuous_results.zip size_MB 8.417
+[PLOT] started (details: /home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-3B/journal_soft_mis_sweep_v9_validation/logs/plot.log)
+[PLOT] complete
+[UPLOAD] /home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-3B/journal_soft_mis_sweep_v9_validation/cohere_p_continuous_results.zip size_MB 13.294
+[UPLOAD] /home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-3B/journal_soft_mis_sweep_v9_validation/cohere_p_continuous_results.zip

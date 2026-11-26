@@ -1,0 +1,128 @@
+{
+  "implementation": "journal_soft_mis_sweep_multiseq_v9",
+  "sequence_indices": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "token_spans": [
+    {
+      "sequence_index": 0,
+      "start": 0,
+      "end": 2304,
+      "stream_sha256": "c85e8f66020818be331e03389423992f5da1827f9968163038ba87a4d3ee7916"
+    },
+    {
+      "sequence_index": 1,
+      "start": 2304,
+      "end": 4608,
+      "stream_sha256": "4a3d16308113e3f9c7d7115aade4e8fa744aeb3c13593ae90ddeb14bdd2e667b"
+    },
+    {
+      "sequence_index": 2,
+      "start": 4608,
+      "end": 6912,
+      "stream_sha256": "77c8030552c3633821fb7f276c96112f3d6e2b649ca256e661cd88941c6117fd"
+    },
+    {
+      "sequence_index": 3,
+      "start": 6912,
+      "end": 9216,
+      "stream_sha256": "a0045753752a208c9e253a4fdd8414f601bb20b1a5454f6546846b1393f0cf51"
+    },
+    {
+      "sequence_index": 4,
+      "start": 9216,
+      "end": 11520,
+      "stream_sha256": "8a358c7825e90c404bead2d6f0794e44495f893367d2b0dfa25110150abc010c"
+    },
+    {
+      "sequence_index": 5,
+      "start": 11520,
+      "end": 13824,
+      "stream_sha256": "4fe0642addb5949b322b5eb07af8fbf7967067704bc3958ddec004c02e469a00"
+    },
+    {
+      "sequence_index": 6,
+      "start": 13824,
+      "end": 16128,
+      "stream_sha256": "60c68a98c099be81a49c8fa5201dd25b045b2292dd084d48d6bd07b4ac4da97b"
+    },
+    {
+      "sequence_index": 7,
+      "start": 16128,
+      "end": 18432,
+      "stream_sha256": "19b15b6cf9d560a3a869fabc40d2bdac3d720890c6c919e1ffc773798171793c"
+    }
+  ],
+  "common_configuration": {
+    "model": "Qwen/Qwen2.5-7B",
+    "calibration": "/home/tlxr/CohereKV/diagnosis_experiments/results/Qwen2.5-7B/journal_soft_mis_sweep_v9_validation/calibration/median_reference.json",
+    "methods": [
+      "full_cache",
+      "eviction_only",
+      "merge_all",
+      "coherekv_conference",
+      "coherekv_soft_mis",
+      "coherekv_soft_mis_importance",
+      "coherekv_soft_mis_log_count",
+      "coherekv_soft_mis_importance_log_count"
+    ],
+    "dataset": "wikitext2",
+    "split": "validation",
+    "cycles": 8,
+    "unscored_len": 256,
+    "scored_len": 32,
+    "p_values": "inf",
+    "gamma_values": "1",
+    "lambda_ea": "0.50",
+    "lambda_ee": "0.50",
+    "budgets": "0.10",
+    "reference_mode": "frozen_train",
+    "score_window": 8,
+    "sink_size": 4,
+    "recent_protect_size": 8,
+    "recency_beta": 1.0,
+    "prefill_chunk_size": 128,
+    "distance_chunk_size": 256,
+    "torch_dtype": "bfloat16",
+    "attn_implementation": "eager",
+    "device": "cuda",
+    "device_map": "auto",
+    "trust_remote_code": false,
+    "use_fast_tokenizer": false,
+    "total_logical_tokens": 2304,
+    "reference_sha256": "2a3082be29d25b94f341461355883c5cd129842b1b3d999f92b5a561d5f09f6f",
+    "implementation": "journal_soft_mis_sweep_v9",
+    "methods_by_gamma": {
+      "1.0": [
+        "full_cache",
+        "eviction_only",
+        "merge_all",
+        "coherekv_conference",
+        "coherekv_soft_mis",
+        "coherekv_soft_mis_importance",
+        "coherekv_soft_mis_log_count",
+        "coherekv_soft_mis_importance_log_count"
+      ]
+    }
+  },
+  "scored_tokens_per_method": 2048,
+  "methods": [
+    "coherekv_conference",
+    "coherekv_soft_mis",
+    "coherekv_soft_mis_importance",
+    "coherekv_soft_mis_importance_log_count",
+    "coherekv_soft_mis_log_count",
+    "eviction_only",
+    "full_cache",
+    "merge_all"
+  ],
+  "method_configuration_rows": 8,
+  "summary": "Independent caches per window; pooled NLL is scored-token weighted; PPL=exp(pooled NLL)."
+}
